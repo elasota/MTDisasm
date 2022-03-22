@@ -145,6 +145,8 @@
   <ItemGroup>
     <ClInclude Include="Catalog.h" />
     <ClInclude Include="CFileIOStream.h" />
+    <ClInclude Include="DataObject.h" />
+    <ClInclude Include="SliceIOStream.h" />
     <ClInclude Include="DataReader.h" />
     <ClInclude Include="Endian.h" />
     <ClInclude Include="IOStream.h" />
@@ -152,9 +154,11 @@
   <ItemGroup>
     <ClCompile Include="Catalog.cpp" />
     <ClCompile Include="CFileIOStream.cpp" />
+    <ClCompile Include="DataObject.cpp" />
     <ClCompile Include="DataReader.cpp" />
     <ClCompile Include="Endian.cpp" />
     <ClCompile Include="MTDisasm.cpp" />
+    <ClCompile Include="SliceIOStream.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

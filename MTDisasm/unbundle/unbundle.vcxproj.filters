@@ -30,6 +30,12 @@
     <ClInclude Include="Catalog.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SliceIOStream.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DataObject.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DataReader.cpp">
@@ -45,6 +51,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Endian.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SliceIOStream.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DataObject.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

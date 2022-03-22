@@ -2,14 +2,12 @@
 
 #include "IOStream.h"
 
-#include <stdio.h>
-
 namespace mtdisasm
 {
-	class CFileIOStream final : public IOStream
+	class SliceIOStream final : public IOStream
 	{
 	public:
-		explicit CFileIOStream(FILE* f);
+		SliceIOStream(IOStream& parent, size_t offset, size_t length);
 
 		size_t ReadPartial(void* dest, size_t sz) override;
 		size_t WritePartial(const void* src, size_t sz) override;
@@ -21,6 +19,8 @@ namespace mtdisasm
 		uint32_t Tell() const override;
 
 	private:
-		FILE* m_f;
+		IOStream& m_parent;
+		size_t m_offset;
+		size_t m_length;
 	};
 }

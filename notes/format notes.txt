@@ -130,7 +130,7 @@ char[variable] name (remainder)
 
 
 
-03c0: Unknown.  Seen in boot segment after stream header.  Known revisions: 2
+0x3c0: Unknown.  Seen in boot segment after stream header.  Known revisions: 2
 uint32_t marker
 uint32_t size including tag
 
@@ -153,10 +153,18 @@ uint32_t size including tag
 0xd: Boot stream asset table.  Known revisions: 4
 uint32_t marker (observed with 0x100 flag in Obsidian Win)
 uint32_t unknown - Appears to be 22 + length of concatenated name strings.
+uint32_t unknown
 uint32_t number of assets
 ASSET[number of assets]:
-	byte[24] unknown
-	(OPTIONAL) CStr name
+	uint32_t unknown (0)
+	uint16_t length of name
+	uint16_t unknown (0)
+	uint32_t unknown (2)
+	uint32_t unknown (0x026b)
+	uint32_t unknown (2)
+	uint32_t unknown (0x08010000)
+	if length of name > 0:
+		char[length of name] name (null terminated)
 
 
 
