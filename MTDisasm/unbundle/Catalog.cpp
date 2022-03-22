@@ -24,7 +24,7 @@ namespace mtdisasm
 			|| !reader.ReadU32(m_catHeader.m_unknown22)
 			|| !reader.ReadU16(m_catHeader.m_unknown26)
 			|| !reader.ReadU32(m_catHeader.m_unknown28)
-			|| !reader.ReadU32(m_catHeader.m_unknown2c)
+			|| !reader.ReadU32(m_catHeader.m_sizeOfStreamAndSegmentDescs)
 			|| !reader.ReadU16(m_catHeader.m_numStreams)
 			|| !reader.ReadU16(m_catHeader.m_unknown32)
 			|| !reader.ReadU16(m_catHeader.m_unknown34)

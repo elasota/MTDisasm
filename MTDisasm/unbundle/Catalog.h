@@ -46,7 +46,7 @@ namespace mtdisasm
 		uint32_t m_unknown22;	// 0x000003e8
 		uint16_t m_unknown26;	// 2 in testing, 3 in Obsidian
 		uint32_t m_unknown28;	// On Win, 0x0100004b, on Mac, 0x0000004a
-		uint32_t m_unknown2c;	// Unknown, seems correlated with the total size of stream descriptors
+		uint32_t m_sizeOfStreamAndSegmentDescs;
 		uint16_t m_numStreams;
 		uint16_t m_unknown32;
 		uint16_t m_unknown34;	// Probably startup section
