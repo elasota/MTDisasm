@@ -15,6 +15,7 @@ namespace mtdisasm
 			kColorTable = 0x02,
 			kImage = 0x0e,
 			kMToon = 0x10,
+			kUnknown1f = 0x1f,	// Appears to be an image?  But always nameless.
 			kWaveformSound = 0x54,
 			kMovie = 0x55,
 			kMIDI = 0x5c,
