@@ -1,0 +1,170 @@
+Values are stored little endian on Windows, but big endian on Macintosh.  This is VERY handy since re-exporting the same file to both formats will tend to reveal the byte swap locations in the binary data, making it way easier to determine the size of values.  However, many data types are NOT the same size on both platforms.
+
+Files don't appear to use any kind of context-free structure, objects are just stored sequentially, which means it's impossible to parse a file without knowing the binary layout of each object type.  A common paradigm seems to be a 32-bit ID followed by a revision number, frequently followed by what look like some sort of 32-bit ID and then a size field.  However, the size field is VERY frequently misleading, or its meaning hasn't been determined yet.  Sometimes it represents the size of the entire object starting from the type ID to the next type ID, sometimes it represents the size of a specific data chunk, sometimes it's not even there.
+
+However, components must be modular - the editor will allow you to load a project even if the modifier's extension was removed, so they are clearly separable.
+
+
+There are only 5 types of assets: PICTs, mToons, sounds, QuickTime (movies and QTVR panoramas), color tables
+
+32-bit images are stored bottom-up on Windows and top-down on Mac.
+
+Color tables are 16 bit per channel in Mac builds and 8 bit per channel in Win builds.  Looks like indexes 0 and 255 are hard-coded to black and white respectively on Windows.
+
+Deleting unused assets will generally wipe the "Macintosh 8bit" color table from the boot stream.
+
+Most things that are named write the name last, which is fairly handy for locating the next object.  Unfortunately, most things that are "Unnamed" in the mTropolis editor have blank names, leading to zeroes in the data that may be mis-parsed if they contain data.
+
+Rectangles on Mac are top, left, bottom, right
+Rectangles on Win are left, top, right, bottom
+
+Asset streams appear to always be empty in built projects.
+
+Aliased objects are stored in the boot stream.
+
+
+Global header:
+
+struct MGlobalHeader
+{
+	uint16_t platform;		// 00   0 = Mac, 1 = Windows
+	uint32_t magic;			// 02   0xa5a555aa
+	uint32_t unknown;		// 06   Always 0
+	uint32_t unknown;		// 0a   Always 14
+	uint32_t unknown;		// 0e   Always 1002
+	uint16_t unknown;		// 12   Always 0
+	uint32_t unknown;		// 14   On Win, 0x0100004b, on Mac, 0x0000004a
+	uint32_t unknown;		// 18   Always 0x14
+	uint16_t unknown;		// 1c   Always 0
+	uint32_t unknown;		// 1e   Always 0x22
+	uint32_t unknown;		// 22   Always 0x000003e8
+	uint16_t unknown;		// 26   2 in tests, 3 in Obsidian
+	uint32_t unknown    	// 28   On Win, 0x0100004b, on Mac, 0x0000004a
+	uint32_t unknown    	// 2c   0xb3 in tests, 0xd928 in Obsidian
+	uint16_t numStreams;    // 30
+	uint16_t unknown;		// 32   Always 0
+	uint16_t unknown;		// 34   Always 1
+	uint16_t numSegments;   // 36
+};
+
+
+Win:
+01 00 a5 a5 55 aa 00 00 00 00 0e 00 00 00 ea 03
+00 00 00 00 4b 00 00 01 14 00 00 00 00 00 22 00
+00 00 e8 03 00 00 02 00 4b 00 00 01 b3 00 00 00
+04 00 00 00 01 00 01 00
+Mac:
+00 00 aa 55 a5 a5 00 00 00 00 00 00 00 0e 00 00
+03 ea 00 00 00 00 00 4a 00 00 00 14 00 00 00 00
+00 22 00 00 03 e8 00 02 00 00 00 4a 00 00 00 b3
+00 04 00 00 00 01 00 01
+
+
+Obsidian catalog entries are 42 bytes apart, but 1.1 exports are only be 34 bytes apart.  This probably means 0x3e8 is a stream table data object and the 2 vs 3 is revision.
+
+
+Scene format:
+uint32_t 000003e9
+uint16_t 0
+uint32_t 0100004b (win) or 0000004a (mac)
+uint32_t 0x26
+char[24] scene name
+uint32_t 7
+uint16_t 2
+uint32_t 8
+uint32_t 0x38 (56)
+uint32_t 0x5c8f
+Win: 00 00 00 10 00 00 01 00 00 00
+Mac: 00 00 00 00 10 00 00 01 00 00
+Rect COORDINATES
+Rect COORDINATES
+uint32_t 0x02000000
+byte[8] zero fill
+uint32_t 0x0000000e
+uint16_t 1
+uint32_t 0100004b (win) or 0000004a (mac)
+uint32_t 0x000011fe on Mac, 0x000011dc on Win  - EOF is the next position + this value
+
+
+
+Label object type: 0x1f
+Text labels have 24 bytes of unknown purpose after the text on Mac only
+
+Appears to be revision-tagged.
+
+
+Scene format:
+TData type 3e9 size 38
+char[16] scene name
+uint16_t build ID?
+byte[6] 00 0a 73 e8 00 00
+
+Object table:
+uint32_t type ID
+uint16_t revision
+uint32_t flags?  (0x80 flag = final object?)
+uint32_t size (including tag)
+
+
+-------------------------------------------------------------------------------------------
+KNOWN DATA OBJECT TAGS AND FORMATS
+-------------------------------------------------------------------------------------------
+0x15: Text label object.  Known revisions: 0
+uint32_t unknown (0)
+uint32_t unknown (0x10000 range but varies)
+uint16_t unknown - 16 - Font size?
+uint32_t unknown (0x02001000)
+uint16_t unknown (1)
+uint16_t unknown (0)
+WIN: uint16_t unknown (0x1700)
+RECT rect
+RECT rect
+--- Data note: 0x54 on Win, 0x52 on Mac
+uint32_t unknown (appears to be globally unique ID)
+WIN: byte[8] unknown (zero fill)
+MAC: byte[30] unknown
+char[variable] name (remainder)
+
+
+0x27: Alias.  Known revisions: 0
+
+
+
+03c0: Unknown.  Seen in boot segment after stream header.  Known revisions: 2
+uint32_t marker
+uint32_t size including tag
+
+
+
+0x3e9: Stream header.  Known revisions: 0
+uint32_t marker
+uint32_t size including tag?  always 0x26
+char[16] name
+uint16_t random build ID?
+byte[6] unknown - always 00 0a 73 e8 00 00
+
+
+0x3ec: Unknown.  Appears in boot stream before asset table.  Known revisions: 2
+uint32_t marker
+uint32_t size including tag
+???
+
+
+0xd: Boot stream asset table.  Known revisions: 4
+uint32_t marker (observed with 0x100 flag in Obsidian Win)
+uint32_t unknown - Appears to be 22 + length of concatenated name strings.
+uint32_t number of assets
+ASSET[number of assets]:
+	byte[24] unknown
+	(OPTIONAL) CStr name
+
+
+
+
+0x1e: Color table asset.  Known revisions: 0
+uint32_t marker
+uint32_t size including tag
+
+
+0x19: ???
+uint32_t marker (observed with 0x100 flag in Learning mTropolis)
