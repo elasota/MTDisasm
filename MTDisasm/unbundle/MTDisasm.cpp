@@ -29,6 +29,35 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 	}
 }
 
+void NameAssetType(char* assetName, uint32_t assetType)
+{
+	switch (assetType)
+	{
+	case mtdisasm::AssetTypeIDs::kColorTable:
+		memcpy(assetName, "ColorTab", 8);
+		break;
+	case mtdisasm::AssetTypeIDs::kImage:
+		memcpy(assetName, "Image   ", 8);
+		break;
+	case mtdisasm::AssetTypeIDs::kMToon:
+		memcpy(assetName, "mToon   ", 8);
+		break;
+	case mtdisasm::AssetTypeIDs::kWaveformSound:
+		memcpy(assetName, "Sound   ", 8);
+		break;
+	case mtdisasm::AssetTypeIDs::kMovie:
+		memcpy(assetName, "QTMovie ", 8);
+		break;
+	case mtdisasm::AssetTypeIDs::kMIDI:
+		memcpy(assetName, "MIDI    ", 8);
+		break;
+	default:
+		for (int i = 0; i < 8; i++)
+			assetName[i] = ("0123456789abcdef")[(assetType >> (28 - i * 4)) & 0xf];
+		break;
+	}
+}
+
 void PrintSingleVal(uint32_t u32, bool asHex, FILE* f)
 {
 	if (asHex)
@@ -151,7 +180,11 @@ void PrintObjectDisassembly(const mtdisasm::DOAssetCatalog& obj, FILE* f)
 	for (uint32_t i = 0; i < obj.m_numAssets; i++)
 	{
 		const mtdisasm::DOAssetCatalog::AssetInfo& asset = obj.m_assets[i];
-		fprintf(f, "Asset % 4u: Unknown1=%08x  Unknown2=%04x  Unknown3=%08x  Unknown4=%08x  AssetType=%08x  Unknown6=%08x", i, asset.m_unknown1, asset.m_unknown2, asset.m_unknown3, asset.m_unknown4, asset.m_assetType, asset.m_unknown6);
+
+		char assetTypeName[9];
+		NameAssetType(assetTypeName, asset.m_assetType);
+		assetTypeName[8] = 0;
+		fprintf(f, "Asset % 4u: Deleted=%u  AlwaysZero=%04x  Unknown1=%08x  FilePosition=%08x  AssetType=%s  Flags=%08x", i, asset.m_isDeleted, asset.m_alwaysZero, asset.m_unknown1, asset.m_filePosition, assetTypeName, asset.m_flags);
 		if (asset.m_nameLength > 0)
 		{
 			fputs("  ", f);

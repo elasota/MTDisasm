@@ -98,13 +98,13 @@ namespace mtdisasm
 		for (size_t i = 0; i < m_numAssets; i++)
 		{
 			AssetInfo& asset = m_assets[i];
-			if (!reader.ReadU32(asset.m_unknown1)
+			if (!reader.ReadU32(asset.m_isDeleted)
 				|| !reader.ReadU16(asset.m_nameLength)
-				|| !reader.ReadU16(asset.m_unknown2)
-				|| !reader.ReadU32(asset.m_unknown3)
-				|| !reader.ReadU32(asset.m_unknown4)
+				|| !reader.ReadU16(asset.m_alwaysZero)
+				|| !reader.ReadU32(asset.m_unknown1)
+				|| !reader.ReadU32(asset.m_filePosition)
 				|| !reader.ReadU32(asset.m_assetType)
-				|| !reader.ReadU32(asset.m_unknown6))
+				|| !reader.ReadU32(asset.m_flags))
 				return false;
 
 			if (asset.m_nameLength > 0)

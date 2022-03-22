@@ -8,17 +8,20 @@ namespace mtdisasm
 {
 	class DataReader;
 
-	enum class AssetTypeID
+	namespace AssetTypeIDs
 	{
-		kColorTable		= 0x02,
-		kImage			= 0x0e,
-		kMToon			= 0x10,
-		kWaveformSound	= 0x54,
-		kMovie			= 0x55,
-		kMIDI			= 0x5c,
+		enum AssetTypeID
+		{
+			kColorTable = 0x02,
+			kImage = 0x0e,
+			kMToon = 0x10,
+			kWaveformSound = 0x54,
+			kMovie = 0x55,
+			kMIDI = 0x5c,
 
-		kDeleted		= 0x1f,
-	};
+			kUnknown1f = 0x1f,
+		};
+	}
 
 	namespace AssetFlags
 	{
@@ -82,13 +85,13 @@ namespace mtdisasm
 
 		struct AssetInfo
 		{
-			uint32_t m_unknown1;
+			uint32_t m_isDeleted;
 			uint16_t m_nameLength;
-			uint16_t m_unknown2;
-			uint32_t m_unknown3;
-			uint32_t m_unknown4;
+			uint16_t m_alwaysZero;
+			uint32_t m_unknown1;		// Possibly scene ID
+			uint32_t m_filePosition;	// Contains a static value in Obsidian
 			uint32_t m_assetType;
-			uint32_t m_unknown6;
+			uint32_t m_flags;
 			std::vector<char> m_name;
 		};
 
