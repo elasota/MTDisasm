@@ -103,7 +103,7 @@ namespace mtdisasm
 				|| !reader.ReadU16(asset.m_unknown2)
 				|| !reader.ReadU32(asset.m_unknown3)
 				|| !reader.ReadU32(asset.m_unknown4)
-				|| !reader.ReadU32(asset.m_unknown5)
+				|| !reader.ReadU32(asset.m_assetType)
 				|| !reader.ReadU32(asset.m_unknown6))
 				return false;
 

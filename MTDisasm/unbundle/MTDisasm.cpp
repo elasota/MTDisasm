@@ -20,6 +20,10 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "Unknown";
 	case mtdisasm::DataObjectType::kStreamHeader:
 		return "StreamHeader";
+	case mtdisasm::DataObjectType::kUnknown3ec:
+		return "Unknown3ec";
+	case mtdisasm::DataObjectType::kAssetCatalog:
+		return "AssetCatalog";
 	default:
 		return "BUG_NotNamed";
 	}
@@ -135,6 +139,28 @@ void PrintObjectDisassembly(const mtdisasm::DOUnknown3ec& obj, FILE* f)
 	PrintHex("Unknown4", obj.m_unknown4, f);
 }
 
+void PrintObjectDisassembly(const mtdisasm::DOAssetCatalog& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kAssetCatalog);
+
+	PrintHex("Marker", obj.m_marker, f);
+	PrintVal("TotalNameSizePlus22", obj.m_totalNameSizePlus22, f);
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintVal("NumAssets", obj.m_numAssets, f);
+
+	for (uint32_t i = 0; i < obj.m_numAssets; i++)
+	{
+		const mtdisasm::DOAssetCatalog::AssetInfo& asset = obj.m_assets[i];
+		fprintf(f, "Asset % 4u: Unknown1=%08x  Unknown2=%04x  Unknown3=%08x  Unknown4=%08x  AssetType=%08x  Unknown6=%08x", i, asset.m_unknown1, asset.m_unknown2, asset.m_unknown3, asset.m_unknown4, asset.m_assetType, asset.m_unknown6);
+		if (asset.m_nameLength > 0)
+		{
+			fputs("  ", f);
+			fwrite(&asset.m_name[0], 1, asset.m_nameLength - 1, f);
+		}
+		fputs("\n", f);
+	}
+}
+
 void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 {
 	switch (obj.GetType())
@@ -144,6 +170,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kUnknown3ec:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOUnknown3ec&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kAssetCatalog:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOAssetCatalog&>(obj), f);
 		break;
 
 	default:

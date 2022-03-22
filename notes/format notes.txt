@@ -161,7 +161,7 @@ ASSET[number of assets]:
 	uint16_t unknown (0)
 	uint32_t unknown (2)
 	uint32_t unknown (0x026b)
-	uint32_t unknown (2)
+	uint32_t asset type (0x02 = Color table, 0x0e = Image, 0x10 = mToon, 0x54 = Sound, 0x55 = Movie, 0x5c = MIDI, 
 	uint32_t unknown (0x08010000)
 	if length of name > 0:
 		char[length of name] name (null terminated)
