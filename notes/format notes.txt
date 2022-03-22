@@ -156,12 +156,12 @@ uint32_t unknown - Appears to be 22 + length of concatenated name strings.
 uint32_t unknown
 uint32_t number of assets
 ASSET[number of assets]:
-	uint32_t unknown (0)
+	uint32_t unknown1 (0) - Always 1 or 0.  If 1, then unknown3 and unknown4 will be zero
 	uint16_t length of name
-	uint16_t unknown (0)
-	uint32_t unknown (2)
-	uint32_t unknown (0x026b)
-	uint32_t asset type (0x02 = Color table, 0x0e = Image, 0x10 = mToon, 0x54 = Sound, 0x55 = Movie, 0x5c = MIDI, 
+	uint16_t unknown2 - Always 0
+	uint32_t unknown3 - Always 0x136 in Obsidian, but in exported projects tends to vary.  Appears to be containing scene ID.
+	uint32_t unknown4 - Always e990055a in Obsidian, but in exported projects this appears to be the file position of the DataObject.
+	uint32_t asset type (0x02 = Color table, 0x0e = Image, 0x10 = mToon, 0x54 = Sound, 0x55 = Movie, 0x5c = MIDI)
 	uint32_t unknown (0x08010000)
 	if length of name > 0:
 		char[length of name] name (null terminated)
