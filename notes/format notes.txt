@@ -213,6 +213,30 @@ For each supergroup:
 	uint32_t unknown (large number)
 	uint32_t unknown (0x00800008 in tests, 0x00800009 in Obsidian)
 	uint16_t length of data file name
-	char[length of data file name] name of data file
+	char[length of data file name] name of data file - null terminated
 
 Might be hierarchical format: Immediate children, total children, length of name, unknown, unknown
+
+0x3: Section def.  Known revisions: 1
+	uint32_t unknown
+	uint32_t size including tag
+	byte[4] unknown
+	uint16_t length of name
+	byte[12] unknown
+	char[length of name] name - null terminated
+
+0x8: Scene def.  Known revisions: 1
+	uint32_t unknown
+	uint32_t size including tag
+	byte[4] unknown
+	uint16_t length of name
+	byte[32] unknown
+	char[length of name] name - null terminated
+
+0x21: Subsection def.  Known revisions: 0
+	uint32_t unknown
+	uint32_t size including tag
+	byte[4] unknown
+	uint16_t length of name
+	byte[6] unknown
+	char[length of name] name - null terminated
