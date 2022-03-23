@@ -28,10 +28,18 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "Unknown19";
 	case mtdisasm::DataObjectType::kProjectLabelMap:
 		return "ProjectLabelMap";
-	case mtdisasm::DataObjectType::kProjectInfo:
-		return "ProjectLabelMap";
 	case mtdisasm::DataObjectType::kAssetCatalog:
 		return "AssetCatalog";
+	case mtdisasm::DataObjectType::kColorTableAsset:
+		return "ColorTable";
+	case mtdisasm::DataObjectType::kProjectStructuralDef:
+		return "ProjectStructuralDef";
+	case mtdisasm::DataObjectType::kSectionStructuralDef:
+		return "SectionStructuralDef";
+	case mtdisasm::DataObjectType::kSubsectionStructuralDef:
+		return "SubsectionStructuralDef";
+	case mtdisasm::DataObjectType::kSceneStructuralDef:
+		return "SceneStructuralDef";
 	default:
 		return "BUG_NotNamed";
 	}
@@ -115,6 +123,19 @@ void PrintSingleVal(int8_t s8, bool asHex, FILE* f)
 		fprintf(f, "%02x", static_cast<unsigned int>(s8 & 0xff));
 	else
 		fprintf(f, "%i", static_cast<int>(s8));
+}
+
+void PrintSingleVal(const mtdisasm::DORect& rect, bool asHex, FILE* f)
+{
+	fputs("(", f);
+	PrintSingleVal(rect.m_left, asHex, f);
+	fputs(",", f);
+	PrintSingleVal(rect.m_top, asHex, f);
+	fputs(")-(", f);
+	PrintSingleVal(rect.m_right, asHex, f);
+	fputs(",", f);
+	PrintSingleVal(rect.m_bottom, asHex, f);
+	fprintf(f, ") [%i x %i]", static_cast<int>(rect.m_right - rect.m_left), static_cast<int>(rect.m_bottom - rect.m_top));
 }
 
 template<size_t TSize, class T>
@@ -236,13 +257,13 @@ void PrintObjectDisassembly(const mtdisasm::DOProjectLabelMap& obj, FILE* f)
 	}
 }
 
-void PrintObjectDisassembly(const mtdisasm::DOProjectInfo& obj, FILE* f)
+void PrintObjectDisassembly(const mtdisasm::DOProjectStructuralDef& obj, FILE* f)
 {
-	assert(obj.GetType() == mtdisasm::DataObjectType::kProjectInfo);
+	assert(obj.GetType() == mtdisasm::DataObjectType::kProjectStructuralDef);
 
 	PrintHex("Unknown1", obj.m_unknown1, f);
 	PrintHex("Unknown2", obj.m_unknown2, f);
-	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintHex("Flags", obj.m_flags, f);
 	fputs("Name: '", f);
 	if (obj.m_nameLength >= 1)
 		fwrite(&obj.m_name[0], 1, obj.m_nameLength - 1, f);
@@ -265,7 +286,7 @@ void PrintObjectDisassembly(const mtdisasm::DOAssetCatalog& obj, FILE* f)
 		char assetTypeName[9];
 		NameAssetType(assetTypeName, asset.m_assetType);
 		assetTypeName[8] = 0;
-		fprintf(f, "Asset % 4u: Deleted=%u  AlwaysZero=%04x  Unknown1=%08x  FilePosition=%08x  AssetType=%s  Flags=%08x", i, asset.m_isDeleted, asset.m_alwaysZero, asset.m_unknown1, asset.m_filePosition, assetTypeName, asset.m_flags);
+		fprintf(f, "Asset % 4u: Flags1=%08x  AlwaysZero=%04x  Unknown1=%08x  FilePosition=%08x  AssetType=%s  Flags2=%08x", i, asset.m_flags1, asset.m_alwaysZero, asset.m_unknown1, asset.m_filePosition, assetTypeName, asset.m_flags2);
 		if (asset.m_nameLength > 0)
 		{
 			fputs("  ", f);
@@ -273,6 +294,83 @@ void PrintObjectDisassembly(const mtdisasm::DOAssetCatalog& obj, FILE* f)
 		}
 		fputs("\n", f);
 	}
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOColorTableAsset& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kColorTableAsset);
+
+	PrintHex("Marker", obj.m_marker, f);
+	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("AssetID", obj.m_assetID, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	fprintf(f, "Colors:");
+
+	for (uint32_t i = 0; i < 256; i++)
+	{
+		if (i % 16 == 0)
+			fputs("\n   ", f);
+		fputc(' ', f);
+
+		const mtdisasm::DOColorTableAsset::ColorDef& cdef = obj.m_colors[i];
+		fprintf(f, "%02x%02x%02x", (cdef.m_red / 0x101), (cdef.m_green / 0x101), (cdef.m_blue / 0x101));
+	}
+	fputc('\n', f);
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOSectionStructuralDef& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kSectionStructuralDef);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
+	PrintVal("SegmentID", obj.m_segmentID, f);
+	PrintVal("SectionID", obj.m_sectionID, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("Flags", obj.m_flags, f);
+	PrintHex("Unknown4", obj.m_unknown4, f);
+	fputs("Name: '", f);
+	if (obj.m_lengthOfName > 0)
+		fwrite(&obj.m_name[0], 1, obj.m_lengthOfName - 1, f);
+	fputs("'\n", f);
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOSubsectionStructuralDef& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kSubsectionStructuralDef);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("Flags", obj.m_flags, f);
+	PrintVal("SectionID", obj.m_sectionID, f);
+	fputs("Name: '", f);
+	if (obj.m_lengthOfName > 0)
+		fwrite(&obj.m_name[0], 1, obj.m_lengthOfName - 1, f);
+	fputs("'\n", f);
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOSceneStructuralDef& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kSceneStructuralDef);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("Flags", obj.m_flags, f);
+	PrintHex("Unknown4", obj.m_unknown4, f);
+	PrintVal("SectionID", obj.m_sectionID, f);
+	PrintVal("Rect1", obj.m_rect1, f);
+	PrintVal("Rect2", obj.m_rect2, f);
+	PrintHex("StreamLocator", obj.m_streamLocator, f);
+	fprintf(f, "    Stream ID: %i\n", static_cast<int>(obj.m_streamLocator & mtdisasm::DOSceneStructuralDef::kSceneLocatorStreamIDMask));
+
+	PrintHex("Unknown11", obj.m_unknown11, f);
+	fputs("Name: '", f);
+	if (obj.m_lengthOfName > 0)
+		fwrite(&obj.m_name[0], 1, obj.m_lengthOfName - 1, f);
+	fputs("'\n", f);
 }
 
 void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
@@ -297,8 +395,20 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 	case mtdisasm::DataObjectType::kProjectLabelMap:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOProjectLabelMap&>(obj), f);
 		break;
-	case mtdisasm::DataObjectType::kProjectInfo:
-		PrintObjectDisassembly(static_cast<const mtdisasm::DOProjectInfo&>(obj), f);
+	case mtdisasm::DataObjectType::kProjectStructuralDef:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOProjectStructuralDef&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kColorTableAsset:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOColorTableAsset&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kSectionStructuralDef:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOSectionStructuralDef&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kSubsectionStructuralDef:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOSubsectionStructuralDef&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kSceneStructuralDef:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOSceneStructuralDef&>(obj), f);
 		break;
 
 	default:
@@ -306,9 +416,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 	}
 }
 
-void DisassembleStream(mtdisasm::IOStream& stream, size_t streamSize, int streamIndex, uint32_t streamPos, bool isByteSwapped, FILE* f)
+void DisassembleStream(mtdisasm::IOStream& stream, size_t streamSize, int streamIndex, uint32_t streamPos, const mtdisasm::SerializationProperties& sp, FILE* f)
 {
-	mtdisasm::DataReader reader(stream, isByteSwapped);
+	mtdisasm::DataReader reader(stream, sp.m_isByteSwapped);
 
 	for (;;)
 	{
@@ -333,7 +443,7 @@ void DisassembleStream(mtdisasm::IOStream& stream, size_t streamSize, int stream
 
 		fprintf(f, "Pos=%x AbsPos=%x  %s (%x) rev %i:\n", static_cast<int>(pos), static_cast<int>(pos + streamPos), NameObjectType(dataObject->GetType()), static_cast<int>(objectType), static_cast<int>(revision));
 
-		if (dataObject->Load(reader, revision))
+		if (dataObject->Load(reader, revision, sp))
 		{
 			PrintObjectDisassembly(*dataObject, f);
 		}
@@ -346,6 +456,33 @@ void DisassembleStream(mtdisasm::IOStream& stream, size_t streamSize, int stream
 		dataObject->Delete();
 
 		fprintf(f, "\n");
+	}
+}
+
+void PrintCatalogDisassembly(const mtdisasm::Catalog& cat, FILE* f)
+{
+	fprintf(f, "System desc: %i\n", static_cast<int>(cat.GetSystem()));
+
+	const mtdisasm::CatalogHeader& catHeader = cat.GetCatalogHeader();
+	PrintHex("Platform", catHeader.m_platform, f);
+	PrintHex("Unknown34", catHeader.m_unknown34, f);
+
+	fprintf(f, "Streams:\n");
+
+	size_t numStreams = cat.NumStreams();
+	for (size_t i = 0; i < numStreams; i++)
+	{
+		const mtdisasm::StreamDesc& stream = cat.GetStream(i);
+		fprintf(f, "    Stream % 4i   Pos: %i  Size: %i  Segment: %i  Type: '%s'\n", static_cast<int>(i + 1), static_cast<int>(stream.m_pos), static_cast<int>(stream.m_size), static_cast<int>(stream.m_segmentNumber), stream.m_streamType);
+	}
+
+	size_t numSegments = cat.NumSegments();
+
+	fprintf(f, "\nSegments:\n");
+	for (size_t i = 0; i < numSegments; i++)
+	{
+		const mtdisasm::SegmentDesc& seg = cat.GetSegment(i);
+		fprintf(f, "    Path: '%s'  Label: '%s'  SegmentID: %i\n", seg.m_exportedPath.c_str(), seg.m_label.c_str(), seg.m_segmentID);
 	}
 }
 
@@ -392,16 +529,21 @@ int main(int argc, const char** argv)
 		return -1;
 	}
 
+
+	mtdisasm::SerializationProperties sp;
+
 	bool isBigEndian = false;
 	if (systemCheck[0] == 0 && systemCheck[1] == 0)
 	{
 		printf("Detected as Macintosh format\n");
 		isBigEndian = true;
+		sp.m_systemType = mtdisasm::SystemType::kMac;
 	}
 	else if (systemCheck[0] == 1 && systemCheck[1] == 0)
 	{
 		printf("Detected as Windows format\n");
 		isBigEndian = false;
+		sp.m_systemType = mtdisasm::SystemType::kWindows;
 	}
 	else
 	{
@@ -425,7 +567,7 @@ int main(int argc, const char** argv)
 		return -1;
 	}
 
-	bool isByteSwapped = (isSystemBigEndian != isBigEndian);
+	sp.m_isByteSwapped = (isSystemBigEndian != isBigEndian);
 
 	if (!seg1Stream.SeekSet(0))
 	{
@@ -433,7 +575,7 @@ int main(int argc, const char** argv)
 		return -1;
 	}
 
-	mtdisasm::DataReader dataReader(seg1Stream, isByteSwapped);
+	mtdisasm::DataReader dataReader(seg1Stream, sp.m_isByteSwapped);
 
 	dataReader.Seek(0);
 
@@ -478,6 +620,22 @@ int main(int argc, const char** argv)
 			fprintf(stderr, "Attempted to open %s but couldn't find it\n", mpxPath.c_str());
 			return -1;
 		}
+	}
+
+	if (mode == "text")
+	{
+		std::string catPath = outputDir + "/catalog.txt";
+
+		FILE* dumpF = fopen(catPath.c_str(), "wb");
+		if (!dumpF)
+		{
+			fprintf(stderr, "Failed to open catalog path '%s'", catPath.c_str());
+			return -1;
+		}
+
+		PrintCatalogDisassembly(catalog, dumpF);
+
+		fclose(dumpF);
 	}
 
 	const size_t numStreams = catalog.NumStreams();
@@ -542,7 +700,7 @@ int main(int argc, const char** argv)
 			fprintf(dumpF, "Stream %i   Segment: %i   Position in file: %x\n\n", static_cast<int>(i), static_cast<int>(streamDesc.m_segmentNumber), static_cast<int>(streamDesc.m_pos));
 
 			mtdisasm::SliceIOStream slice(stream, streamDesc.m_pos, streamDesc.m_size);
-			DisassembleStream(slice, streamDesc.m_size, static_cast<int>(i), streamDesc.m_pos, isByteSwapped, dumpF);
+			DisassembleStream(slice, streamDesc.m_size, static_cast<int>(i), streamDesc.m_pos, sp, dumpF);
 		}
 		else
 		{

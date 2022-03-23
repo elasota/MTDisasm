@@ -29,6 +29,7 @@ namespace mtdisasm
 
 		bool ReadBytes(void* dest, size_t sz);
 
+		bool Skip(uint32_t pos);
 		bool Seek(uint32_t pos);
 		uint32_t Tell() const;
 

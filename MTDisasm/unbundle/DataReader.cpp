@@ -128,6 +128,11 @@ namespace mtdisasm
 		return m_stream.SeekSet(static_cast<int32_t>(pos));
 	}
 
+	bool DataReader::Skip(uint32_t amount)
+	{
+		return m_stream.SeekCur(amount);
+	}
+
 	uint32_t DataReader::Tell() const
 	{
 		return m_stream.Tell();

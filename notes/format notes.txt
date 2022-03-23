@@ -160,13 +160,13 @@ uint32_t unknown - Appears to be 22 + length of concatenated name strings.
 uint32_t unknown
 uint32_t number of assets
 ASSET[number of assets]:
-	uint32_t deleted
+	uint32_t flags1 (1 = deleted?  2 = limit one per segment)
 	uint16_t length of name
 	uint16_t unknown2 - Always 0
 	uint32_t unknown3 - Always 0x136 in Obsidian, but in exported projects tends to vary.  Appears to be containing scene ID.
-	uint32_t unknown4 - Always e990055a in Obsidian, but in exported projects this appears to be the file position of the DataObject.
+	uint32_t unknown4 - Always e990055a in Obsidian, but in exported projects this appears to be the file position of the DataObject. This will contain a stale value if the asset isn't actually included.
 	uint32_t asset type (0x02 = Color table, 0x0e = Image, 0x10 = mToon, 0x54 = Sound, 0x55 = Movie, 0x5c = MIDI, 0x1f = Not sure, appears to be an image, always nameless)
-	uint32_t flags
+	uint32_t flags2
 	char[length of name] name (null terminated)
 
 
@@ -176,13 +176,36 @@ ASSET[number of assets]:
 	byte[2] unknown - Always 00 00
 
 
-0x1e: Color table asset?  Known revisions: 0
+0x1e: Color table asset.  Known revisions: 0
+NOTE: Color tables are always padded to 256 colors even if the CLUT file contained fewer actual colors.
+
 uint32_t marker
 uint32_t size including tag
+byte[4] unknown (0 on Mac, garbage on Windows)
+uint32_t asset ID
+uint32_t unknown (0)
 
+Windows format:
+	byte[14] unknown
+	For each color (256):
+		uint8_t blue
+		uint8_t green
+		uint8_t red
+		uint8_t unused
 
-0x19: ???
-uint32_t marker (observed with 0x100 flag in Learning mTropolis)
+Mac format:
+	byte[20] unknown
+	MacOS clut header:
+		uint32_t seed
+		uint16_t flags (0x8000 = for indexed device  0x0000 = for pixel map)
+		uint16_t number of colors minus one
+		
+	For each color (256)
+		uint16_t color index
+		uint16_t red
+		uint16_t green
+		uint16_t blue
+
 
 0x22: Project label map.  Known revisions: 0
 uint32_t marker
@@ -217,7 +240,7 @@ For each supergroup:
 
 Might be hierarchical format: Immediate children, total children, length of name, unknown, unknown
 
-0x3: Section def.  Known revisions: 1
+0x3: Section structural def.  Known revisions: 1
 	uint32_t unknown
 	uint32_t size including tag
 	byte[4] unknown
@@ -225,18 +248,19 @@ Might be hierarchical format: Immediate children, total children, length of name
 	byte[12] unknown
 	char[length of name] name - null terminated
 
-0x8: Scene def.  Known revisions: 1
-	uint32_t unknown
-	uint32_t size including tag
-	byte[4] unknown
-	uint16_t length of name
-	byte[32] unknown
-	char[length of name] name - null terminated
-
-0x21: Subsection def.  Known revisions: 0
+0x21: Subsection structural def.  Known revisions: 0
 	uint32_t unknown
 	uint32_t size including tag
 	byte[4] unknown
 	uint16_t length of name
 	byte[6] unknown
 	char[length of name] name - null terminated
+
+0x8: Scene structural def.  Known revisions: 1
+	uint32_t unknown
+	uint32_t size including tag
+	uint32_t unknown
+	uint16_t length of name
+	byte[32] unknown
+	char[length of name] name - null terminated
+

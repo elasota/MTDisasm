@@ -18,7 +18,7 @@ namespace mtdisasm
 
 	struct SegmentDesc
 	{
-		uint32_t m_unknown;
+		uint32_t m_segmentID;
 		std::string m_label;
 		std::string m_exportedPath;
 	};

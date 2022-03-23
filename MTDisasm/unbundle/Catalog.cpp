@@ -103,7 +103,7 @@ namespace mtdisasm
 		for (size_t i = 0; i < m_catHeader.m_numSegments; i++)
 		{
 			SegmentDesc& segDesc = m_segments[i];
-			if (!reader.ReadU32(segDesc.m_unknown)
+			if (!reader.ReadU32(segDesc.m_segmentID)
 				|| !reader.ReadPStr16(segDesc.m_label)
 				|| !reader.ReadPStr16(segDesc.m_exportedPath))
 				return false;
@@ -130,6 +130,11 @@ namespace mtdisasm
 	const SegmentDesc& Catalog::GetSegment(size_t index) const
 	{
 		return m_segments[index];
+	}
+
+	const CatalogHeader& Catalog::GetCatalogHeader() const
+	{
+		return m_catHeader;
 	}
 
 	SystemDesc Catalog::GetSystem() const
