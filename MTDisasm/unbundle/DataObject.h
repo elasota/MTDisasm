@@ -192,7 +192,7 @@ namespace mtdisasm
 		uint32_t m_unknown3;
 		uint16_t m_nameLength;
 
-		std::vector<char> m_name;	// Not null terminated
+		std::vector<char> m_name;	// Null terminated
 	};
 
 	DataObject* CreateObjectFromType(uint32_t objectType);

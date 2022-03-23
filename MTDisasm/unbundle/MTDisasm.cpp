@@ -28,6 +28,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "Unknown19";
 	case mtdisasm::DataObjectType::kProjectLabelMap:
 		return "ProjectLabelMap";
+	case mtdisasm::DataObjectType::kProjectInfo:
+		return "ProjectLabelMap";
 	case mtdisasm::DataObjectType::kAssetCatalog:
 		return "AssetCatalog";
 	default:
@@ -234,6 +236,19 @@ void PrintObjectDisassembly(const mtdisasm::DOProjectLabelMap& obj, FILE* f)
 	}
 }
 
+void PrintObjectDisassembly(const mtdisasm::DOProjectInfo& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kProjectInfo);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	fputs("Name: '", f);
+	if (obj.m_nameLength >= 1)
+		fwrite(&obj.m_name[0], 1, obj.m_nameLength - 1, f);
+	fputs("'\n", f);
+}
+
 void PrintObjectDisassembly(const mtdisasm::DOAssetCatalog& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kAssetCatalog);
@@ -281,6 +296,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kProjectLabelMap:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOProjectLabelMap&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kProjectInfo:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOProjectInfo&>(obj), f);
 		break;
 
 	default:

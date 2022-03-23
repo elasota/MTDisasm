@@ -16,18 +16,20 @@ namespace mtdisasm
 	{
 		switch (objectType)
 		{
+		case 0x002:
+			return new DOProjectInfo();
+		case 0x00d:
+			return new DOAssetCatalog();
+		case 0x017:
+			return new DOUnknown17();
+		case 0x019:
+			return new DOUnknown19();
+		case 0x022:
+			return new DOProjectLabelMap();
 		case 0x3e9:
 			return new DOStreamHeader();
 		case 0x3ec:
 			return new DOUnknown3ec();
-		case 0xd:
-			return new DOAssetCatalog();
-		case 0x17:
-			return new DOUnknown17();
-		case 0x19:
-			return new DOUnknown19();
-		case 0x22:
-			return new DOProjectLabelMap();
 		default:
 			return nullptr;
 		};
@@ -302,4 +304,34 @@ namespace mtdisasm
 
 		return true;
 	}
+
+	DataObjectType DOProjectInfo::GetType() const
+	{
+		return DataObjectType::kProjectInfo;
+	}
+
+	bool DOProjectInfo::Load(DataReader& reader, uint16_t revision)
+	{
+		if (revision != 1 && revision != 2)
+			return false;
+
+		if (!reader.ReadU32(m_unknown1)
+			|| !reader.ReadU32(m_sizeIncludingTag)
+			|| !reader.ReadU32(m_unknown2)
+			|| !reader.ReadU32(m_unknown3)
+			|| !reader.ReadU16(m_nameLength))
+			return false;
+
+		if (m_nameLength > 0)
+		{
+			m_name.resize(m_nameLength);
+			if (!reader.ReadBytes(&m_name[0], m_nameLength))
+				return false;
+
+			if (m_name[m_nameLength - 1] != 0)
+				return false;
+		}
+
+		return true;
+	};
 }
