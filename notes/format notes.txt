@@ -4,8 +4,12 @@ Files don't appear to use any kind of context-free structure, objects are just s
 
 However, components must be modular - the editor will allow you to load a project even if the modifier's extension was removed, so they are clearly separable.
 
+The asset table from mTropolis 1.1 contains file positions for assets, but Obsidian doesn't.  Obsidian appears to have been created with a later version, maybe 1.1.1 or 1.1.2 - 2.0 was released long after Obsidian's launch.
 
-There are only 5 types of assets: PICTs, mToons, sounds, QuickTime (movies and QTVR panoramas), color tables
+The asset types are the same as the DataObject types - e.g. if he asset type is 0x55, then the data object will be 0x55.  All assets appear to be size-tagged.
+
+
+There are 6 types of assets: PICTs, mToons, sounds, QuickTime (movies and QTVR panoramas), MIDI, color tables.  There's an additional asset type, 0x1f, which is currently unknown, and appears to be generated on export rather than corresponding to an asset file.  0x1f assets are always unnamed.  Based on some data inspection, it looks like image frames for mToons.
 
 32-bit images are stored bottom-up on Windows and top-down on Mac.
 
@@ -163,16 +167,52 @@ ASSET[number of assets]:
 	uint32_t unknown4 - Always e990055a in Obsidian, but in exported projects this appears to be the file position of the DataObject.
 	uint32_t asset type (0x02 = Color table, 0x0e = Image, 0x10 = mToon, 0x54 = Sound, 0x55 = Movie, 0x5c = MIDI, 0x1f = Not sure, appears to be an image, always nameless)
 	uint32_t flags
-	if length of name > 0:
-		char[length of name] name (null terminated)
+	char[length of name] name (null terminated)
 
 
+0x19: Unknown.  Appears in boot stream after asset table.  Known revisions: 0
+	uint32_t marker
+	uint32_t size including tag   always 0x10
+	byte[2] unknown - Always 00 00
 
 
-0x1e: Color table asset.  Known revisions: 0
+0x1e: Color table asset?  Known revisions: 0
 uint32_t marker
 uint32_t size including tag
 
 
 0x19: ???
 uint32_t marker (observed with 0x100 flag in Learning mTropolis)
+
+0x22: Project label map.  Known revisions: 0
+uint32_t marker
+uint32_t unknown (0x16) - possibly size and offset to "5" field
+uint32_t number of supergroups (5)
+uint32_t next available ID
+
+For each supergroup:
+	uint32_t name length
+	uint32_t unknown (varies)
+	uint32_t unknown (0)
+	char[name length] name
+	uint32_t number of children
+	For each child (label tree entry):
+		uint32_t length of name
+		uint32_t is group
+		uint32_t id
+		uint32_t unknown (0)
+		uint32_t flags (0x80000000 = expanded in editor?)
+		char[length of name] name - not null terminated
+		if group:
+			uint32_t number of children
+			children (recursive - label tree entry format)
+
+0x2: Project info.  Known revisions: 1, 2  (No known differences between formats)
+	uint32_t unknown
+	uint32_t size including tag
+	uint32_t unknown (large number)
+	uint32_t unknown (0x00800008 in tests, 0x00800009 in Obsidian)
+	uint16_t length of data file name
+	char[length of data file name] name of data file
+
+Might be hierarchical format: Immediate children, total children, length of name, unknown, unknown

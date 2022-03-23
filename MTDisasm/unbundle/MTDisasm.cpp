@@ -22,6 +22,12 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "StreamHeader";
 	case mtdisasm::DataObjectType::kUnknown3ec:
 		return "Unknown3ec";
+	case mtdisasm::DataObjectType::kUnknown17:
+		return "Unknown17";
+	case mtdisasm::DataObjectType::kUnknown19:
+		return "Unknown19";
+	case mtdisasm::DataObjectType::kProjectLabelMap:
+		return "ProjectLabelMap";
 	case mtdisasm::DataObjectType::kAssetCatalog:
 		return "AssetCatalog";
 	default:
@@ -50,6 +56,9 @@ void NameAssetType(char* assetName, uint32_t assetType)
 		break;
 	case mtdisasm::AssetTypeIDs::kMIDI:
 		memcpy(assetName, "MIDI    ", 8);
+		break;
+	case mtdisasm::AssetTypeIDs::kUnknown1f:
+		memcpy(assetName, "Unknwn1f", 8);
 		break;
 	default:
 		for (int i = 0; i < 8; i++)
@@ -168,6 +177,63 @@ void PrintObjectDisassembly(const mtdisasm::DOUnknown3ec& obj, FILE* f)
 	PrintHex("Unknown4", obj.m_unknown4, f);
 }
 
+void PrintObjectDisassembly(const mtdisasm::DOUnknown17& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kUnknown17);
+
+	PrintHex("Marker", obj.m_marker, f);
+	PrintVal("Size", obj.m_sizeIncludingTag, f);
+	PrintHex("Unknown1", obj.m_unknown1, f);
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOUnknown19& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kUnknown19);
+
+	PrintHex("Marker", obj.m_marker, f);
+	PrintVal("Size", obj.m_sizeIncludingTag, f);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+}
+
+void PrintLabelTree(const mtdisasm::DOProjectLabelMap::LabelTree& obj, FILE* f, int indentLevel)
+{
+	for (int i = 0; i < indentLevel; i++)
+		fputs("    ", f);
+
+
+	fprintf(f, "Item '");
+	if (obj.m_nameLength > 0)
+		fwrite(&obj.m_name[0], 1, obj.m_nameLength, f);
+	fprintf(f, "'  IsGroup=%u  ID=%x  Unknown2=%x  Flags=%x\n", obj.m_isGroup, obj.m_id, obj.m_unknown1, obj.m_flags);
+
+	for (size_t i = 0; i < obj.m_numChildren; i++)
+		PrintLabelTree(obj.m_children[i], f, indentLevel + 1);
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOProjectLabelMap& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kProjectLabelMap);
+
+	PrintHex("Marker", obj.m_marker, f);
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintVal("NumSuperGroups", obj.m_numSuperGroups, f);
+	PrintVal("NextAvailableID", obj.m_nextAvailableID, f);
+
+	for (size_t i = 0; i < obj.m_numSuperGroups; i++)
+	{
+		const mtdisasm::DOProjectLabelMap::SuperGroup& sg = obj.m_superGroups[i];
+		fprintf(f, "SuperGroup '");
+		if (sg.m_nameLength > 0)
+			fwrite(&sg.m_name[0], 1, sg.m_nameLength, f);
+
+		fprintf(f, "'  NumChildren=%u  Unknown1=%x  Unknown2=%x\n", sg.m_numChildren, sg.m_unknown1, sg.m_unknown2);
+
+		for (size_t j = 0; j < sg.m_numChildren; j++)
+			PrintLabelTree(sg.m_tree[j], f, 1);
+	}
+}
+
 void PrintObjectDisassembly(const mtdisasm::DOAssetCatalog& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kAssetCatalog);
@@ -207,13 +273,22 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 	case mtdisasm::DataObjectType::kAssetCatalog:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOAssetCatalog&>(obj), f);
 		break;
+	case mtdisasm::DataObjectType::kUnknown17:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOUnknown17&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kUnknown19:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOUnknown19&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kProjectLabelMap:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOProjectLabelMap&>(obj), f);
+		break;
 
 	default:
 		fprintf(f, "Unknown contents\n");
 	}
 }
 
-void DisassembleStream(mtdisasm::IOStream& stream, size_t streamSize, int streamIndex, bool isByteSwapped, FILE* f)
+void DisassembleStream(mtdisasm::IOStream& stream, size_t streamSize, int streamIndex, uint32_t streamPos, bool isByteSwapped, FILE* f)
 {
 	mtdisasm::DataReader reader(stream, isByteSwapped);
 
@@ -238,7 +313,7 @@ void DisassembleStream(mtdisasm::IOStream& stream, size_t streamSize, int stream
 			return;
 		}
 
-		fprintf(f, "%x %s (%x) rev %i:\n", static_cast<int>(pos), NameObjectType(dataObject->GetType()), static_cast<int>(objectType), static_cast<int>(revision));
+		fprintf(f, "Pos=%x AbsPos=%x  %s (%x) rev %i:\n", static_cast<int>(pos), static_cast<int>(pos + streamPos), NameObjectType(dataObject->GetType()), static_cast<int>(objectType), static_cast<int>(revision));
 
 		if (dataObject->Load(reader, revision))
 		{
@@ -410,11 +485,16 @@ int main(int argc, const char** argv)
 			return -1;
 		}
 
-		FILE* dumpF = fopen(streamPath.c_str(), "wb");
-
 		if (!stream.SeekSet(streamDesc.m_pos))
 		{
 			fprintf(stderr, "Failed to load stream\n");
+			return -1;
+		}
+
+		FILE* dumpF = fopen(streamPath.c_str(), "wb");
+		if (!dumpF)
+		{
+			fprintf(stderr, "Failed to open output path '%s'", streamPath.c_str());
 			return -1;
 		}
 
@@ -441,8 +521,10 @@ int main(int argc, const char** argv)
 		}
 		else if (mode == "text")
 		{
+			fprintf(dumpF, "Stream %i   Segment: %i   Position in file: %x\n\n", static_cast<int>(i), static_cast<int>(streamDesc.m_segmentNumber), static_cast<int>(streamDesc.m_pos));
+
 			mtdisasm::SliceIOStream slice(stream, streamDesc.m_pos, streamDesc.m_size);
-			DisassembleStream(slice, streamDesc.m_size, static_cast<int>(i), isByteSwapped, dumpF);
+			DisassembleStream(slice, streamDesc.m_size, static_cast<int>(i), streamDesc.m_pos, isByteSwapped, dumpF);
 		}
 		else
 		{

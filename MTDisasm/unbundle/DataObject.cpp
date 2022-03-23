@@ -22,6 +22,12 @@ namespace mtdisasm
 			return new DOUnknown3ec();
 		case 0xd:
 			return new DOAssetCatalog();
+		case 0x17:
+			return new DOUnknown17();
+		case 0x19:
+			return new DOUnknown19();
+		case 0x22:
+			return new DOProjectLabelMap();
 		default:
 			return nullptr;
 		};
@@ -115,6 +121,184 @@ namespace mtdisasm
 					return false;
 			}
 		}
+
+		return true;
+	}
+
+	DataObjectType DOUnknown17::GetType() const
+	{
+		return DataObjectType::kUnknown17;
+	}
+
+	bool DOUnknown17::Load(DataReader& reader, uint16_t revision)
+	{
+		if (revision != 0)
+			return false;
+
+		if (!reader.ReadU32(m_marker)
+			|| !reader.ReadU32(m_sizeIncludingTag)
+			|| !reader.ReadBytes(m_unknown1, 6))
+			return false;
+
+		if (m_sizeIncludingTag != 0x14)
+			return false;
+
+		return true;
+	}
+
+	DataObjectType DOUnknown19::GetType() const
+	{
+		return DataObjectType::kUnknown19;
+	}
+
+	bool DOUnknown19::Load(DataReader& reader, uint16_t revision)
+	{
+		if (revision != 0)
+			return false;
+
+		if (!reader.ReadU32(m_marker)
+			|| !reader.ReadU32(m_sizeIncludingTag)
+			|| !reader.ReadBytes(m_unknown1, 2))
+			return false;
+
+		if (m_sizeIncludingTag != 0x10)
+			return false;
+
+		return true;
+	}
+
+	DOProjectLabelMap::DOProjectLabelMap()
+		: m_superGroups(nullptr)
+	{
+	}
+
+	DOProjectLabelMap::~DOProjectLabelMap()
+	{
+		if (m_superGroups)
+			delete[] m_superGroups;
+	}
+
+	DataObjectType DOProjectLabelMap::GetType() const
+	{
+		return DataObjectType::kProjectLabelMap;
+	}
+
+	bool DOProjectLabelMap::Load(DataReader& reader, uint16_t revision)
+	{
+		if (revision != 0)
+			return false;
+
+		if (!reader.ReadU32(m_marker)
+			|| !reader.ReadU32(m_unknown1)
+			|| !reader.ReadU32(m_numSuperGroups)
+			|| !reader.ReadU32(m_nextAvailableID))
+			return false;
+
+		if (m_unknown1 != 0x16)
+			return false;
+
+		m_superGroups = new SuperGroup[m_numSuperGroups];
+		for (size_t i = 0; i < m_numSuperGroups; i++)
+		{
+			if (!LoadSuperGroup(m_superGroups[i], reader, revision))
+				return false;
+		}
+
+		return true;
+	}
+
+
+	DOProjectLabelMap::LabelTree::LabelTree()
+		: m_children(nullptr)
+	{
+	}
+
+	DOProjectLabelMap::LabelTree::~LabelTree()
+	{
+		if (m_children)
+			delete[] m_children;
+	}
+
+	DOProjectLabelMap::SuperGroup::SuperGroup()
+		: m_tree(nullptr)
+	{
+	}
+
+	DOProjectLabelMap::SuperGroup::~SuperGroup()
+	{
+		if (m_tree)
+			delete[] m_tree;
+	}
+
+	bool DOProjectLabelMap::LoadSuperGroup(SuperGroup& sg, DataReader& reader, uint16_t revision)
+	{
+		if (revision != 0)
+			return false;
+
+		if (!reader.ReadU32(sg.m_nameLength)
+			|| !reader.ReadU32(sg.m_unknown1)
+			|| !reader.ReadU32(sg.m_unknown2))
+			return false;
+
+		sg.m_name.resize(sg.m_nameLength);
+		if (sg.m_nameLength > 0)
+		{
+			if (!reader.ReadBytes(&sg.m_name[0], sg.m_nameLength))
+				return false;
+		}
+
+		if (!reader.ReadU32(sg.m_numChildren))
+			return false;
+
+		if (sg.m_numChildren)
+		{
+			sg.m_tree = new LabelTree[sg.m_numChildren];
+			for (size_t i = 0; i < sg.m_numChildren; i++)
+			{
+				if (!LoadLabelTree(sg.m_tree[i], reader, revision))
+					return false;
+			}
+		}
+
+		return true;
+	}
+
+	bool DOProjectLabelMap::LoadLabelTree(LabelTree& lt, DataReader& reader, uint16_t revision)
+	{
+		if (revision != 0)
+			return false;
+
+		if (!reader.ReadU32(lt.m_nameLength)
+			|| !reader.ReadU32(lt.m_isGroup)
+			|| !reader.ReadU32(lt.m_id)
+			|| !reader.ReadU32(lt.m_unknown1)
+			|| !reader.ReadU32(lt.m_flags))
+			return false;
+
+		lt.m_name.resize(lt.m_nameLength);
+		if (lt.m_nameLength > 0)
+		{
+			if (!reader.ReadBytes(&lt.m_name[0], lt.m_nameLength))
+				return false;
+		}
+
+		if (lt.m_isGroup)
+		{
+			if (!reader.ReadU32(lt.m_numChildren))
+				return false;
+
+			if (lt.m_numChildren)
+			{
+				lt.m_children = new LabelTree[lt.m_numChildren];
+				for (size_t i = 0; i < lt.m_numChildren; i++)
+				{
+					if (!LoadLabelTree(lt.m_children[i], reader, revision))
+						return false;
+				}
+			}
+		}
+		else
+			lt.m_numChildren = 0;
 
 		return true;
 	}
