@@ -427,7 +427,14 @@ For each supergroup:
 
 0xffffffff: Modifier from an extension - Known revisions: 0x03e9
 	uint32_t unknown (0)
-	uint32_t size including tag
+	uint32_t weirdly-coded size
+		For some reason this is the total size on MacOS but on Windows it's the size excluding the name length + name length * 256
 	char[16] modifier name
+	byte[20] unknown
+	uint16_t name length
+	char[name length] name - null terminated
 	...
+
+Mac: 00 00 00 5e  0000 01011110
+Win: 00 00 0c 52  1100 01010010
 

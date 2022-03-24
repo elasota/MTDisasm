@@ -48,6 +48,12 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "MovieStructuralDef";
 	case mtdisasm::DataObjectType::kMToonStructuralDef:
 		return "MToonStructuralDef";
+	case mtdisasm::DataObjectType::kBehaviorModifier:
+		return "BehaviorModifier";
+	case mtdisasm::DataObjectType::kNotYetImplemented:
+		return "NotYetImplemented";
+	case mtdisasm::DataObjectType::kPlugInModifier:
+		return "PlugInModifier";
 	default:
 		return "BUG_NotNamed";
 	}
@@ -465,6 +471,26 @@ void PrintObjectDisassembly(const mtdisasm::DOMToonStructuralDef& obj, FILE* f)
 	fputs("'\n", f);
 }
 
+void PrintObjectDisassembly(const mtdisasm::DONotYetImplemented& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kNotYetImplemented);
+
+	fprintf(f, "    Unimplemented '%s'  DataSize=%u\n", obj.m_name, obj.m_sizeIncludingTag - 14);
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOPlugInModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kPlugInModifier);
+
+	fprintf(f, "Plug-in modifier '%s'  PrivateDataSize=%u\n", obj.m_plugin, obj.m_privateDataSize);
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintVal("WeirdSize", obj.m_weirdSize, f);
+	fputs("Name: '", f);
+	if (obj.m_lengthOfName > 0)
+		fwrite(&obj.m_name[0], 1, obj.m_lengthOfName - 1, f);
+	fputs("'\n", f);
+}
+
 void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 {
 	switch (obj.GetType())
@@ -510,6 +536,12 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kMToonStructuralDef:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOMToonStructuralDef&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kNotYetImplemented:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DONotYetImplemented&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kPlugInModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOPlugInModifier&>(obj), f);
 		break;
 
 	default:
@@ -610,7 +642,6 @@ int main(int argc, const char** argv)
 		fprintf(stderr, "Segment 1 path needs to end in .MPL");
 		return -1;
 	}
-
 
 	printf("Loading catalog...\n");
 	FILE* catFile = fopen(seg1Path.c_str(), "rb");

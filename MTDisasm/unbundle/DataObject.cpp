@@ -13,6 +13,21 @@ namespace mtdisasm
 			return false;
 	}
 
+	bool DOPoint::Load(DataReader& reader, const SerializationProperties& sp)
+	{
+		if (sp.m_systemType == SystemType::kMac)
+			return reader.ReadS16(m_top) && reader.ReadS16(m_left);
+		else if (sp.m_systemType == SystemType::kWindows)
+			return reader.ReadS16(m_left) && reader.ReadS16(m_top);
+		else
+			return false;
+	}
+
+	bool DOEvent::Load(DataReader& reader)
+	{
+		return reader.ReadU32(m_eventID) && reader.ReadU32(m_eventInfo);
+	}
+
 	DataObject::~DataObject()
 	{
 	}
@@ -56,6 +71,74 @@ namespace mtdisasm
 			return new DOStreamHeader();
 		case 0x3ec:
 			return new DOUnknown3ec();
+		case 0x2c6:
+			return new DOBehaviorModifier();
+		case 0x3c0:
+			return new DONotYetImplemented(objectType, "MiniScript modifier");
+		case 0x2da:
+			return new DONotYetImplemented(objectType, "Messenger modifier");
+		case 0x2bc:
+			return new DONotYetImplemented(objectType, "If Messenger modifier");
+		case 0x2e4:
+			return new DONotYetImplemented(objectType, "Timer Messenger modifier");
+		case 0x2f8:
+			return new DONotYetImplemented(objectType, "Boundary Detection Messenger modifier");
+		case 0x2ee:
+			return new DONotYetImplemented(objectType, "Collision Detection Messenger modifier");
+		case 0x302:
+			return new DONotYetImplemented(objectType, "Keyboard Messenger modifier");
+		case 0x321:
+			return new DONotYetImplemented(objectType, "Boolean Variable modifier");
+		case 0x2c7:
+			return new DONotYetImplemented(objectType, "Compound Variable modifier");
+		case 0x322:
+			return new DONotYetImplemented(objectType, "Integer Variable modifier");
+		case 0x329:
+			return new DONotYetImplemented(objectType, "String Variable modifier");
+		case 0x324:
+			return new DONotYetImplemented(objectType, "Integer Range Variable modifier");
+		case 0x328:
+			return new DONotYetImplemented(objectType, "Floating Point Variable modifier");
+		case 0x327:
+			return new DONotYetImplemented(objectType, "Vector Variable modifier");
+		case 0x326:
+			return new DONotYetImplemented(objectType, "Point Variable modifier");
+		case 0x136:
+			return new DONotYetImplemented(objectType, "Change Scene modifier");
+		case 0x140:
+			return new DONotYetImplemented(objectType, "Return modifier");
+		case 0x29a:
+			return new DONotYetImplemented(objectType, "Shared Scene modifier");
+		case 0x2df:
+			return new DONotYetImplemented(objectType, "Set modifier");
+		case 0x4d8:
+			return new DONotYetImplemented(objectType, "Save and Restore modifier");
+		case 0x26c:
+			return new DONotYetImplemented(objectType, "Scene Transition modifier");
+		case 0x276:
+			return new DONotYetImplemented(objectType, "Element Transition modifier");
+		case 0x1fe:
+			return new DONotYetImplemented(objectType, "Simple Motion modifier");
+		case 0x21b:
+			return new DONotYetImplemented(objectType, "Path Motion modifier");
+		case 0x208:
+			return new DONotYetImplemented(objectType, "Drag Motion modifier");
+		case 0x226:
+			return new DONotYetImplemented(objectType, "Vector Motion modifier");
+		case 0x1a4:
+			return new DONotYetImplemented(objectType, "Sound Effect modifier");
+		case 0x32a:
+			return new DONotYetImplemented(objectType, "Text Style modifier");
+		case 0x334:
+			return new DONotYetImplemented(objectType, "Graphic modifier");
+		case 0x4c4:
+			return new DONotYetImplemented(objectType, "Color Table modifier");
+		case 0x4b0:
+			return new DONotYetImplemented(objectType, "Gradient modifier");
+		case 0x384:
+			return new DONotYetImplemented(objectType, "Image Effect modifier");
+		case 0xffffffff:
+			return new DOPlugInModifier();
 		default:
 			return nullptr;
 		};
@@ -679,6 +762,128 @@ namespace mtdisasm
 			if (m_name[m_lengthOfName - 1] != 0)
 				return false;
 		}
+
+		return true;
+	}
+
+	DataObjectType DOBehaviorModifier::GetType() const
+	{
+		return DataObjectType::kBehaviorModifier;
+	}
+
+	bool DOBehaviorModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 1)
+			return false;
+
+		if (!reader.ReadU32(m_unknown1)
+			|| !reader.ReadU32(m_sizeIncludingTag)
+			|| !reader.ReadBytes(m_unknown2, 2)
+			|| !reader.ReadU32(m_unknown3)
+			|| !reader.ReadU32(m_unknown4)
+			|| !reader.ReadU16(m_unknown5)
+			|| !reader.ReadU32(m_unknown6)
+			|| !m_editorLayoutPosition.Load(reader, sp)
+			|| !reader.ReadU16(m_lengthOfName)
+			|| !reader.ReadU16(m_numChildren))
+			return false;
+
+		if (m_lengthOfName > 0)
+		{
+			m_name.resize(m_lengthOfName);
+			if (!reader.ReadBytes(&m_name[0], m_lengthOfName))
+				return false;
+
+			if (m_name[m_lengthOfName - 1] != 0)
+				return false;
+		}
+
+		if (!reader.ReadU32(m_flags)
+			|| !m_enableWhen.Load(reader)
+			|| !m_disableWhen.Load(reader)
+			|| !reader.ReadBytes(m_unknown7, 2))
+			return false;
+
+		return true;
+	}
+
+	DONotYetImplemented::DONotYetImplemented(uint32_t actualType, const char* name)
+		: m_actualType(actualType)
+		, m_name(name)
+	{
+	}
+
+	DataObjectType DONotYetImplemented::GetType() const
+	{
+		return DataObjectType::kNotYetImplemented;
+	}
+
+	bool DONotYetImplemented::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		m_revision = revision;
+
+		if (!reader.ReadU32(m_unknown)
+			|| !reader.ReadU32(m_sizeIncludingTag))
+			return false;
+
+		if (m_sizeIncludingTag < 14)
+			return false;
+
+		if (!reader.Skip(m_sizeIncludingTag - 14))
+			return false;
+
+		return true;
+	}
+
+
+	DataObjectType DOPlugInModifier::GetType() const
+	{
+		return DataObjectType::kPlugInModifier;
+	}
+
+	bool DOPlugInModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3e9)
+			return false;
+
+		if (!reader.ReadU32(m_unknown1)
+			|| !reader.ReadU32(m_weirdSize))
+			return false;
+
+		if (!reader.ReadBytes(m_plugin, 16)
+			|| !reader.ReadBytes(m_unknown2, 20)
+			|| !reader.ReadU16(m_lengthOfName))
+			return false;
+
+		m_plugin[16] = 0;
+
+		if (m_lengthOfName > 0)
+		{
+			m_name.resize(m_lengthOfName);
+			if (!reader.ReadBytes(&m_name[0], m_lengthOfName))
+				return false;
+
+			if (m_name[m_lengthOfName - 1] != 0)
+				return false;
+		}
+
+		m_privateDataSize = m_weirdSize;
+		if (sp.m_systemType == SystemType::kWindows)
+		{
+			// wtf??
+			if (m_privateDataSize < m_lengthOfName * 255u)
+				return false;
+			m_privateDataSize -= m_lengthOfName * 256u;
+		}
+		else
+			m_privateDataSize -= m_lengthOfName;
+
+		if (m_privateDataSize < 52)
+			return false;
+		m_privateDataSize -= 52;
+
+		if (m_privateDataSize && !reader.Skip(m_privateDataSize))
+			return false;
 
 		return true;
 	}

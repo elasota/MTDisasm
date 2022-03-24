@@ -56,7 +56,12 @@ namespace mtdisasm
 		kMovieStructuralDef,
 		kMToonStructuralDef,
 
+		kBehaviorModifier,
+		kPlugInModifier,
+
 		kColorTableAsset,
+
+		kNotYetImplemented,
 	};
 
 	struct SerializationProperties
@@ -73,6 +78,22 @@ namespace mtdisasm
 		int16_t m_left;
 		int16_t m_bottom;
 		int16_t m_right;
+	};
+
+	struct DOPoint
+	{
+		bool Load(DataReader& reader, const SerializationProperties& sp);
+
+		int16_t m_top;
+		int16_t m_left;
+	};
+
+	struct DOEvent
+	{
+		bool Load(DataReader& reader);
+
+		uint32_t m_eventID;
+		uint32_t m_eventInfo;
 	};
 
 	class DataObject
@@ -427,6 +448,60 @@ namespace mtdisasm
 		uint32_t m_rateTimes10000;
 		uint32_t m_streamLocator;
 		uint32_t m_unknown6;
+
+		std::vector<char> m_name;
+	};
+
+	struct DOBehaviorModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		uint32_t m_unknown1;
+		uint32_t m_sizeIncludingTag;
+		uint8_t m_unknown2[2];
+		uint32_t m_unknown3;
+		uint32_t m_unknown4;
+		uint16_t m_unknown5;
+		uint32_t m_unknown6;
+		DOPoint m_editorLayoutPosition;
+		uint16_t m_lengthOfName;
+		uint16_t m_numChildren;
+		uint32_t m_flags;
+		DOEvent m_enableWhen;
+		DOEvent m_disableWhen;
+		uint8_t m_unknown7[2];
+
+		std::vector<char> m_name;
+	};
+
+	struct DONotYetImplemented final : public DataObject
+	{
+		explicit DONotYetImplemented(uint32_t actualType, const char* name);
+
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		uint32_t m_unknown;
+		uint32_t m_sizeIncludingTag;
+		uint16_t m_revision;
+
+		uint32_t m_actualType;
+		const char* m_name;
+	};
+
+	struct DOPlugInModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		char m_plugin[17];
+		uint32_t m_unknown1;
+		uint32_t m_weirdSize;
+		uint8_t m_unknown2[20];
+		uint16_t m_lengthOfName;
+
+		uint32_t m_privateDataSize;
 
 		std::vector<char> m_name;
 	};
