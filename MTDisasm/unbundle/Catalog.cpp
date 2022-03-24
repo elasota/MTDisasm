@@ -33,10 +33,12 @@ namespace mtdisasm
 			return false;
 		}
 
+		// 0x800 = Make movies external flag
+		const uint32_t allowFlagsMask = 0xfffff7ff;
 		if (m_catHeader.m_platform == 1)
 		{
 			m_systemDesc = SystemDesc::kWindows;
-			if (m_catHeader.m_unknown14 != 0x0100004b || m_catHeader.m_unknown28 != 0x0100004b)
+			if ((m_catHeader.m_unknown14 & allowFlagsMask) != 0x0100004b || (m_catHeader.m_unknown28 & allowFlagsMask) != 0x0100004b)
 				return false;
 		}
 		else if (m_catHeader.m_platform == 0)

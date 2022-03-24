@@ -30,6 +30,12 @@ namespace mtdisasm
 			return new DOProjectStructuralDef();
 		case 0x003:
 			return new DOSectionStructuralDef();
+		case 0x005:
+			return new DOMovieStructuralDef();
+		case 0x006:
+			return new DOMToonStructuralDef();
+		case 0x007:
+			return new DOImageStructuralDef();
 		case 0x008:
 			return new DOSceneStructuralDef();
 		case 0x00d:
@@ -38,6 +44,8 @@ namespace mtdisasm
 			return new DOUnknown17();
 		case 0x019:
 			return new DOUnknown19();
+		case 0xfffffffe:
+			return new DODebris();
 		case 0x01e:
 			return new DOColorTableAsset();
 		case 0x021:
@@ -182,6 +190,26 @@ namespace mtdisasm
 			return false;
 
 		if (m_sizeIncludingTag != 0x10)
+			return false;
+
+		return true;
+	}
+
+	DataObjectType DODebris::GetType() const
+	{
+		return DataObjectType::kDebris;
+	}
+
+	bool DODebris::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0)
+			return false;
+
+		if (!reader.ReadU32(m_marker)
+			|| !reader.ReadU32(m_sizeIncludingTag))
+			return false;
+
+		if (m_sizeIncludingTag != 0xe)
 			return false;
 
 		return true;
@@ -385,11 +413,17 @@ namespace mtdisasm
 			|| !reader.ReadU32(m_unknown2))
 			return false;
 
-		const size_t numColors = 256;
+		size_t numColors = 256;
 		if (sp.m_systemType == SystemType::kMac)
 		{
 			if (!reader.Skip(20))
 				return false;
+
+			uint8_t clutHeader[8];
+			if (!reader.ReadBytes(clutHeader, 8))
+				return false;
+
+			numColors = clutHeader[7] + 1;
 
 			uint8_t cdefBytes[256 * 8];
 			if (!reader.ReadBytes(cdefBytes, numColors * 8))
@@ -397,10 +431,7 @@ namespace mtdisasm
 
 			for (size_t i = 0; i < numColors; i++)
 			{
-				if (cdefBytes[i * 8] != 0)
-					return false;	// Bad color index
-
-				ColorDef& cdef = m_colors[cdefBytes[i * 8 + 1]];
+				ColorDef& cdef = m_colors[i];
 
 				const uint8_t* rgb = cdefBytes + i * 8 + 2;
 				cdef.m_red = (rgb[0] << 8) | rgb[1];
@@ -517,6 +548,126 @@ namespace mtdisasm
 			|| !m_rect2.Load(reader, sp)
 			|| !reader.ReadU32(m_streamLocator)
 			|| !reader.ReadBytes(m_unknown11, 4))
+			return false;
+
+		if (m_lengthOfName > 0)
+		{
+			m_name.resize(m_lengthOfName);
+			if (!reader.ReadBytes(&m_name[0], m_lengthOfName))
+				return false;
+
+			if (m_name[m_lengthOfName - 1] != 0)
+				return false;
+		}
+
+		return true;
+	}
+
+	DataObjectType DOImageStructuralDef::GetType() const
+	{
+		return DataObjectType::kImageStructuralDef;
+	}
+
+	bool DOImageStructuralDef::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 2)
+			return false;
+
+		if (!reader.ReadU32(m_unknown1)
+			|| !reader.ReadU32(m_sizeIncludingTag)
+			|| !reader.ReadU32(m_unknown2)
+			|| !reader.ReadU16(m_lengthOfName)
+			|| !reader.ReadU32(m_flags)
+			|| !reader.ReadBytes(m_unknown4, 2)
+			|| !reader.ReadU16(m_sectionID)
+			|| !m_rect1.Load(reader, sp)
+			|| !m_rect2.Load(reader, sp)
+			|| !reader.ReadU32(m_imageAssetID)
+			|| !reader.ReadU32(m_streamLocator)
+			|| !reader.ReadBytes(m_unknown7, 4))
+			return false;
+
+		if (m_lengthOfName > 0)
+		{
+			m_name.resize(m_lengthOfName);
+			if (!reader.ReadBytes(&m_name[0], m_lengthOfName))
+				return false;
+
+			if (m_name[m_lengthOfName - 1] != 0)
+				return false;
+		}
+
+		return true;
+	}
+
+	DataObjectType DOMovieStructuralDef::GetType() const
+	{
+		return DataObjectType::kMovieStructuralDef;
+	}
+
+	bool DOMovieStructuralDef::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 2)
+			return false;
+
+		if (!reader.ReadU32(m_unknown1)
+			|| !reader.ReadU32(m_sizeIncludingTag)
+			|| !reader.ReadU32(m_unknown2)
+			|| !reader.ReadU16(m_lengthOfName)
+			|| !reader.ReadU32(m_flags)
+			|| !reader.ReadBytes(m_unknown3, 46)
+			|| !reader.ReadU16(m_sectionID)
+			|| !reader.ReadBytes(m_unknown5, 2)
+			|| !m_rect1.Load(reader, sp)
+			|| !m_rect2.Load(reader, sp)
+			|| !reader.ReadU32(m_assetID)
+			|| !reader.ReadU32(m_unknown7)
+			|| !reader.ReadU16(m_volume)
+			|| !reader.ReadU32(m_animationFlags)
+			|| !reader.ReadBytes(m_unknown10, 4)
+			|| !reader.ReadBytes(m_unknown11, 4)
+			|| !reader.ReadU32(m_streamLocator)
+			|| !reader.ReadBytes(m_unknown13, 4))
+			return false;
+
+		if (m_lengthOfName > 0)
+		{
+			m_name.resize(m_lengthOfName);
+			if (!reader.ReadBytes(&m_name[0], m_lengthOfName))
+				return false;
+
+			if (m_name[m_lengthOfName - 1] != 0)
+				return false;
+		}
+
+		return true;
+	}
+
+	DataObjectType DOMToonStructuralDef::GetType() const
+	{
+		return DataObjectType::kMToonStructuralDef;
+	}
+
+	bool DOMToonStructuralDef::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 2)
+			return false;
+
+		if (!reader.ReadU32(m_unknown1)
+			|| !reader.ReadU32(m_sizeIncludingTag)
+			|| !reader.ReadU32(m_unknown2)
+			|| !reader.ReadU16(m_lengthOfName)
+			|| !reader.ReadU32(m_structuralFlags)
+			|| !reader.ReadBytes(m_unknown3, 2)
+			|| !reader.ReadU32(m_animationFlags)
+			|| !reader.ReadBytes(m_unknown4, 4)
+			|| !reader.ReadU16(m_sectionID)
+			|| !m_rect1.Load(reader, sp)
+			|| !m_rect2.Load(reader, sp)
+			|| !reader.ReadU32(m_unknown5)
+			|| !reader.ReadU32(m_rateTimes10000)
+			|| !reader.ReadU32(m_streamLocator)
+			|| !reader.ReadU32(m_unknown6))
 			return false;
 
 		if (m_lengthOfName > 0)

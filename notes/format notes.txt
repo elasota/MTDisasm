@@ -21,6 +21,22 @@ Most things that are named write the name last, which is fairly handy for locati
 
 Rectangles on Mac are top, left, bottom, right
 Rectangles on Win are left, top, right, bottom
+Due to endian differences, this can make rectangles appear to be a pair of 32-bit integers from byte swaps.
+
+EVENT:
+	uint32_t event code
+	uint32_t event additional info
+
+POINT:
+	Mac:
+		int16_t top
+		int16_t left
+	Win:
+		int16_t left
+		int16_t top
+	
+
+Author messages are event code 900 and the additional event info is the author message ID
 
 Asset streams appear to always be empty in built projects.
 
@@ -230,15 +246,13 @@ For each supergroup:
 			uint32_t number of children
 			children (recursive - label tree entry format)
 
-0x2: Project info.  Known revisions: 1, 2  (No known differences between formats)
+0x2: Project structural def.  Known revisions: 1, 2  (No known differences between formats)
 	uint32_t unknown
 	uint32_t size including tag
 	uint32_t unknown (large number)
 	uint32_t unknown (0x00800008 in tests, 0x00800009 in Obsidian)
 	uint16_t length of data file name
 	char[length of data file name] name of data file - null terminated
-
-Might be hierarchical format: Immediate children, total children, length of name, unknown, unknown
 
 0x3: Section structural def.  Known revisions: 1
 	uint32_t unknown
@@ -256,11 +270,164 @@ Might be hierarchical format: Immediate children, total children, length of name
 	byte[6] unknown
 	char[length of name] name - null terminated
 
+0x5: QuickTime movie structural def.  Known revisions: 2
+	1103/cf5
+	uint32_t unknown (8)
+	uint32_t size including tag
+	uint32_t unknown
+	uint16_t length of name
+	uint32_t structural flags
+	byte[46] unknown (first 24 bytes have unclear meaning and appear to be platform-independent so far?)
+	uint16_t section id
+	byte[2] unknown (0)
+	RECT rect1
+	RECT rect2
+	uint32_t asset id
+	uint32_t unknown (appears as 6000000 decimal - possibly scaled framerate or timing-related)
+	uint16_t volume (out of 100)
+	uint32_t animation flags (0x2000000 = play every frame)
+	byte[4] unknown (byte sequence - similar by platform)
+	byte[4] unknown (byte sequence - differs by platform)
+	uint32_t stream locator
+	byte[4] unknown
+	char[length of name] name - null terminated
+
+0x6: mToon structural def.  Known revisions: 2
+	uint32_t unknown (0)
+	uint32_t size including tag
+	uint32_t unknown
+	uint16_t length of name
+	uint32_t structural flags
+	byte[2] unknown
+	uint32_t animation flags (0x28000000)
+		0x2000000 = Maintain rate
+		0x8000000 = Loop
+	byte[4] unknown (zeros)
+	uint16_t section ID
+	RECT rect1
+	RECT rect2
+	uint32_t unknown (0xa)
+	uint32_t rate * 10000
+	uint32_t stream locator
+	uint32_t unknown (layer?)
+
+0x7: Image structural def.  Known revisions: 2
+	uint32_t unknown (8)
+	uint32_t size including tag
+	uint32_t unknown
+	uint16_t length of name
+	uint32_t unknown (probably structural flags)
+	byte[2] unknown
+	uint16_t section ID
+	DORect rect1
+	DORect rect2
+	uint32_t unknown
+	uint32_t unknown
+	byte[4] unknown (0)
+
 0x8: Scene structural def.  Known revisions: 1
 	uint32_t unknown
 	uint32_t size including tag
 	uint32_t unknown
 	uint16_t length of name
-	byte[32] unknown
+	uint32_t structural flags
+	byte[2] unknown
+	uint16_t section ID
+	DORect rect1
+	DORect rect2
+	uint32_t stream locator  (1-based stream index, sometimes observed with 0x10000000 flag set, not sure of the meaning)
+	byte[4] unknown
+
+0xfffffffe: Unknown, appears to be object deletion debris.  Known revisions: 0
+	uint32_t marker
+	uint32_t size including tag (0x0e)
+
+0x2c6: Behavior modifier.  Known revisions: 1
+	uint32_t unknown (0x22)
+	uint32_t size including tag (but not children)
+	byte[2] unknown (0)
+	uint32_t unknown - Changes erratically
+	uint32_t unknown - Sometimes same as previous sometimes, sometimes 0
+	uint16_t unknown
+	uint32_t unknown - Changes erratically
+	POINT editor layout position
+	uint16_t length of name
+	uint16_t number of children
 	char[length of name] name - null terminated
+	uint32_t flags?  1 = Switchable
+	EVENT "enable when"
+	EVENT "disable when"
+	byte[2] unknown (0)
+	For each child:
+		child object
+
+0x3c0: Miniscript modifier
+
+0x2da: Messenger modifier
+
+0x2bc: If Messenger modifier
+
+0x2e4: Timer Messenger modifier
+
+0x2f8: Boundary Detection Messenger modifier
+
+0x2ee: Collision Detection Messenger modifier
+
+0x302: Keyboard Messenger modifier
+
+0x321: Boolean Variable modifier
+
+0x2c7: Compound Variable modifier
+
+0x322: Integer Variable modifier
+
+0x329: String Variable modifier
+
+0x324: Integer Range Variable modifier
+
+0x328: Floating Point Variable modifier
+
+0x327: Vector Variable modifier
+
+0x326: Point Variable modifier
+
+0x136: Change Scene modifier
+
+0x140: Return modifier
+
+0x29a: Shared Scene modifier
+
+0x2df: Set modifier
+
+0x4d8: Save and Restore modifier
+
+0x26c: Scene Transition modifier
+
+0x276: Element Transition modifier
+
+0x1fe: Simple Motion modifier
+
+0x21b: Path Motion modifier
+
+0x208: Drag Motion modifier
+
+0x226: Vector Motion modifier
+
+0x1a4: Sound Effect modifier
+
+0x32a: Text Style modifier
+
+0x334: Graphic modifier
+
+0x4c4: Color Table modifier
+
+0x4b0: Gradient modifier
+
+0x384: Image Effect modifier
+
+0xffffffff: Modifier from an extension - Known revisions: 0x03e9
+	uint32_t unknown (0)
+	uint32_t size including tag
+	char[16] modifier name
+	...
 

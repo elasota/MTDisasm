@@ -44,6 +44,7 @@ namespace mtdisasm
 		kUnknown3ec,
 		kUnknown17,
 		kUnknown19,
+		kDebris,
 		kProjectLabelMap,
 		kAssetCatalog,
 
@@ -51,6 +52,9 @@ namespace mtdisasm
 		kSectionStructuralDef,
 		kSubsectionStructuralDef,
 		kSceneStructuralDef,
+		kImageStructuralDef,
+		kMovieStructuralDef,
+		kMToonStructuralDef,
 
 		kColorTableAsset,
 	};
@@ -159,6 +163,15 @@ namespace mtdisasm
 		uint8_t m_unknown1[2];
 	};
 
+	struct DODebris final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		uint32_t m_marker;
+		uint32_t m_sizeIncludingTag;
+	};
+
 	struct DOProjectLabelMap final : public DataObject
 	{
 		DOProjectLabelMap();
@@ -215,13 +228,27 @@ namespace mtdisasm
 		static bool LoadLabelTree(LabelTree& lt, DataReader& reader, uint16_t revision);
 	};
 
-	// These flags apply to all StructuralDef types
-	namespace StructureFlags
+	namespace AnimationFlags
 	{
 		enum
 		{
-			kExpandedInEditor = 0x800000,
-			kSelectedInEditor = 0x10000000,
+			kMaintainRate		= 0x02000000,	// mToon
+			kPlayEveryFrame		= 0x02000000,	// QuickTime
+			kLoop				= 0x08000000,
+
+		};
+	}
+
+	namespace StructuralFlags
+	{
+		enum
+		{
+			kNotDirectToScreen	= 0x00001000,
+			kHidden				= 0x00008000,
+			kPaused				= 0x00010000,
+			kExpandedInEditor	= 0x00800000,
+			kCacheBitmap		= 0x02000000,
+			kSelectedInEditor	= 0x10000000,
 		};
 	}
 
@@ -328,6 +355,78 @@ namespace mtdisasm
 		DORect m_rect2;
 		uint32_t m_streamLocator;	// 1-based index, sometimes observed with 0x10000000 flag set, not sure of the meaning
 		uint8_t m_unknown11[4];
+
+		std::vector<char> m_name;
+	};
+
+	struct DOImageStructuralDef final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		uint32_t m_unknown1;
+		uint32_t m_sizeIncludingTag;
+		uint32_t m_unknown2;
+		uint16_t m_lengthOfName;
+		uint32_t m_flags;
+		uint8_t m_unknown4[2];
+		uint16_t m_sectionID;
+		DORect m_rect1;
+		DORect m_rect2;
+		uint32_t m_imageAssetID;
+		uint32_t m_streamLocator;
+		uint8_t m_unknown7[4];
+
+		std::vector<char> m_name;
+	};
+
+	struct DOMovieStructuralDef final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		uint32_t m_unknown1;
+		uint32_t m_sizeIncludingTag;
+		uint32_t m_unknown2;
+		uint16_t m_lengthOfName;
+		uint32_t m_flags;
+		uint8_t m_unknown3[46];
+		uint16_t m_sectionID;
+		uint8_t m_unknown5[2];
+		DORect m_rect1;
+		DORect m_rect2;
+		uint32_t m_assetID;
+		uint32_t m_unknown7;
+		uint16_t m_volume;
+		uint32_t m_animationFlags;
+		uint8_t m_unknown10[4];
+		uint8_t m_unknown11[4];
+		uint32_t m_streamLocator;
+		uint8_t m_unknown13[4];
+
+		std::vector<char> m_name;
+	};
+
+	struct DOMToonStructuralDef final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		uint32_t m_unknown1;
+		uint32_t m_sizeIncludingTag;
+		uint32_t m_unknown2;
+		uint16_t m_lengthOfName;
+		uint32_t m_structuralFlags;
+		uint8_t m_unknown3[2];
+		uint32_t m_animationFlags;
+		uint8_t m_unknown4[4];
+		uint16_t m_sectionID;
+		DORect m_rect1;
+		DORect m_rect2;
+		uint32_t m_unknown5;
+		uint32_t m_rateTimes10000;
+		uint32_t m_streamLocator;
+		uint32_t m_unknown6;
 
 		std::vector<char> m_name;
 	};

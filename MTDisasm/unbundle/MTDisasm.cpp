@@ -26,6 +26,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "Unknown17";
 	case mtdisasm::DataObjectType::kUnknown19:
 		return "Unknown19";
+	case mtdisasm::DataObjectType::kDebris:
+		return "Debris";
 	case mtdisasm::DataObjectType::kProjectLabelMap:
 		return "ProjectLabelMap";
 	case mtdisasm::DataObjectType::kAssetCatalog:
@@ -40,6 +42,12 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "SubsectionStructuralDef";
 	case mtdisasm::DataObjectType::kSceneStructuralDef:
 		return "SceneStructuralDef";
+	case mtdisasm::DataObjectType::kImageStructuralDef:
+		return "ImageStructuralDef";
+	case mtdisasm::DataObjectType::kMovieStructuralDef:
+		return "MovieStructuralDef";
+	case mtdisasm::DataObjectType::kMToonStructuralDef:
+		return "MToonStructuralDef";
 	default:
 		return "BUG_NotNamed";
 	}
@@ -219,6 +227,14 @@ void PrintObjectDisassembly(const mtdisasm::DOUnknown19& obj, FILE* f)
 	PrintHex("Unknown1", obj.m_unknown1, f);
 }
 
+void PrintObjectDisassembly(const mtdisasm::DODebris& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kDebris);
+
+	PrintHex("Marker", obj.m_marker, f);
+	PrintVal("Size", obj.m_sizeIncludingTag, f);
+}
+
 void PrintLabelTree(const mtdisasm::DOProjectLabelMap::LabelTree& obj, FILE* f, int indentLevel)
 {
 	for (int i = 0; i < indentLevel; i++)
@@ -286,7 +302,7 @@ void PrintObjectDisassembly(const mtdisasm::DOAssetCatalog& obj, FILE* f)
 		char assetTypeName[9];
 		NameAssetType(assetTypeName, asset.m_assetType);
 		assetTypeName[8] = 0;
-		fprintf(f, "Asset % 4u: Flags1=%08x  AlwaysZero=%04x  Unknown1=%08x  FilePosition=%08x  AssetType=%s  Flags2=%08x", i, asset.m_flags1, asset.m_alwaysZero, asset.m_unknown1, asset.m_filePosition, assetTypeName, asset.m_flags2);
+		fprintf(f, "Asset % 4u: Flags1=%08x  AlwaysZero=%04x  Unknown1=%08x  FilePosition=%08x  AssetType=%s  Flags2=%08x", static_cast<unsigned int>(i + 1), asset.m_flags1, asset.m_alwaysZero, asset.m_unknown1, asset.m_filePosition, assetTypeName, asset.m_flags2);
 		if (asset.m_nameLength > 0)
 		{
 			fputs("  ", f);
@@ -373,6 +389,82 @@ void PrintObjectDisassembly(const mtdisasm::DOSceneStructuralDef& obj, FILE* f)
 	fputs("'\n", f);
 }
 
+void PrintObjectDisassembly(const mtdisasm::DOImageStructuralDef& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kImageStructuralDef);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("Flags", obj.m_flags, f);
+	PrintHex("Unknown4", obj.m_unknown4, f);
+	PrintVal("SectionID", obj.m_sectionID, f);
+	PrintVal("Rect1", obj.m_rect1, f);
+	PrintVal("Rect2", obj.m_rect2, f);
+	PrintVal("ImageAssetID", obj.m_imageAssetID, f);
+	PrintVal("StreamLocator", obj.m_streamLocator, f);
+	fprintf(f, "    Stream ID: %i\n", static_cast<int>(obj.m_streamLocator & mtdisasm::DOSceneStructuralDef::kSceneLocatorStreamIDMask));
+	PrintHex("Unknown7", obj.m_unknown7, f);
+	fputs("Name: '", f);
+	if (obj.m_lengthOfName > 0)
+		fwrite(&obj.m_name[0], 1, obj.m_lengthOfName - 1, f);
+	fputs("'\n", f);
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOMovieStructuralDef& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kMovieStructuralDef);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("Flags", obj.m_flags, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintVal("SectionID", obj.m_sectionID, f);
+	PrintHex("Unknown5", obj.m_unknown5, f);
+	PrintVal("Rect1", obj.m_rect1, f);
+	PrintVal("Rect2", obj.m_rect2, f);
+	PrintVal("AssetID", obj.m_assetID, f);
+	PrintVal("Unknown7", obj.m_unknown7, f);
+	PrintVal("Volume", obj.m_volume, f);
+	PrintHex("AnimationFlags", obj.m_animationFlags, f);
+	PrintHex("Unknown10", obj.m_unknown10, f);
+	PrintHex("Unknown11", obj.m_unknown11, f);
+	PrintHex("StreamLocator", obj.m_streamLocator, f);
+	fprintf(f, "    Stream ID: %i\n", static_cast<int>(obj.m_streamLocator & mtdisasm::DOSceneStructuralDef::kSceneLocatorStreamIDMask));
+	PrintHex("Unknown13", obj.m_unknown13, f);
+	fputs("Name: '", f);
+	if (obj.m_lengthOfName > 0)
+		fwrite(&obj.m_name[0], 1, obj.m_lengthOfName - 1, f);
+	fputs("'\n", f);
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOMToonStructuralDef& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kMToonStructuralDef);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintVal("LengthOfName", obj.m_lengthOfName, f);
+	PrintHex("StructuralFlags", obj.m_structuralFlags, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintHex("AnimationFlags", obj.m_animationFlags, f);
+	PrintHex("Unknown4", obj.m_unknown4, f);
+	PrintVal("SectionID", obj.m_sectionID, f);
+	PrintVal("Rect1", obj.m_rect1, f);
+	PrintVal("Rect2", obj.m_rect2, f);
+	PrintHex("Unknown5", obj.m_unknown5, f);
+	PrintVal("RateTimes10000", obj.m_rateTimes10000, f);
+	PrintHex("StreamLocator", obj.m_streamLocator, f);
+	PrintHex("Unknown6", obj.m_unknown6, f);
+
+	fputs("Name: '", f);
+	if (obj.m_lengthOfName > 0)
+		fwrite(&obj.m_name[0], 1, obj.m_lengthOfName - 1, f);
+	fputs("'\n", f);
+}
+
 void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 {
 	switch (obj.GetType())
@@ -410,6 +502,15 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 	case mtdisasm::DataObjectType::kSceneStructuralDef:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOSceneStructuralDef&>(obj), f);
 		break;
+	case mtdisasm::DataObjectType::kImageStructuralDef:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOImageStructuralDef&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kMovieStructuralDef:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOMovieStructuralDef&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kMToonStructuralDef:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOMToonStructuralDef&>(obj), f);
+		break;
 
 	default:
 		fprintf(f, "Unknown contents\n");
@@ -430,14 +531,14 @@ void DisassembleStream(mtdisasm::IOStream& stream, size_t streamSize, int stream
 		uint16_t revision = 0;
 		if (!reader.ReadU32(objectType) || !reader.ReadU16(revision))
 		{
-			fprintf(stderr, "Stream %i: Couldn't read type at position %x\n", streamIndex, static_cast<int>(pos));
+			fprintf(stderr, "Stream %i: Couldn't read type at stream position %x (global position %x)\n", streamIndex, static_cast<int>(pos), static_cast<int>(pos + streamPos));
 			return;
 		}
 
 		mtdisasm::DataObject* dataObject = mtdisasm::CreateObjectFromType(objectType);
 		if (!dataObject)
 		{
-			fprintf(stderr, "Stream %i: Unknown object type %x revision %i at position %x\n", streamIndex, static_cast<int>(objectType), static_cast<int>(revision), static_cast<int>(pos));
+			fprintf(stderr, "Stream %i: Unknown object type %x revision %i at position %x (global position %x)\n", streamIndex, static_cast<int>(objectType), static_cast<int>(revision), static_cast<int>(pos), static_cast<int>(pos + streamPos));
 			return;
 		}
 
@@ -449,7 +550,7 @@ void DisassembleStream(mtdisasm::IOStream& stream, size_t streamSize, int stream
 		}
 		else
 		{
-			fprintf(stderr, "Stream %i: Object type %s revision %i at position %x failed to load\n", streamIndex, NameObjectType(dataObject->GetType()), static_cast<int>(revision), static_cast<int>(pos));
+			fprintf(stderr, "Stream %i: Object type %s revision %i at position %x (global position %x) failed to load\n", streamIndex, NameObjectType(dataObject->GetType()), static_cast<int>(revision), static_cast<int>(pos), static_cast<int>(pos + streamPos));
 			fprintf(f, "FAILED\n");
 		}
 
