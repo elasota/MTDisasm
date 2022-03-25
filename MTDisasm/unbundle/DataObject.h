@@ -30,6 +30,16 @@ namespace mtdisasm
 		};
 	}
 
+	namespace AudioEncodings
+	{
+		enum
+		{
+			kUncompressed	= 0x00,
+			kMace6			= 0x04,
+			kMace3			= 0x03,
+		};
+	}
+
 	enum class SystemType
 	{
 		kMac,
@@ -58,9 +68,12 @@ namespace mtdisasm
 
 		kBehaviorModifier,
 		kPlugInModifier,
+		kMacOnlyCursorModifier,	// Obsolete
 
 		kColorTableAsset,
+		kAudioAsset,
 
+		kEndOfStream,
 		kNotYetImplemented,
 	};
 
@@ -504,6 +517,104 @@ namespace mtdisasm
 		uint32_t m_privateDataSize;
 
 		std::vector<char> m_name;
+	};
+
+	struct DOMacOnlyCursorModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		struct MacOnlyPart
+		{
+			enum
+			{
+				kCursor_Inactive,
+				kCursor_Interact,
+				kCursor_HandGrabBW,
+				kCursor_HandOpenBW,
+				kCursor_HandPointUp,
+				kCursor_HandPointRight,
+				kCursor_HandPointLeft,
+				kCursor_HandPointDown,
+				kCursor_HandGrabColor,
+				kCursor_HandOpenColor,
+				kCursor_Arrow,
+				kCursor_Pencil,
+				kCursor_Smiley,
+				kCursor_Wait,
+				kCursor_Hidden,
+			};
+
+			DOEvent m_applyWhen;
+			uint32_t m_unknown1;
+			uint16_t m_unknown2;
+			uint32_t m_cursorIndex;
+		};
+
+		uint32_t m_unknown1;
+		uint32_t m_sizeIncludingTag;
+		uint32_t m_unknown2;
+		uint32_t m_unknown3;
+		uint16_t m_unknown4;
+		uint32_t m_unknown5;
+		uint8_t m_unknown6[4];
+		uint16_t m_lengthOfName;
+		std::vector<char> m_name;
+
+		bool m_hasMacOnlyPart;
+		MacOnlyPart m_macOnlyPart;
+	};
+
+	struct DOAudioAsset final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		struct MacPart
+		{
+			uint8_t m_unknown4[4];
+			uint8_t m_unknown5[5];
+			uint8_t m_unknown6[3];
+			uint8_t m_unknown8[20];
+			uint8_t m_unknown13[10];
+		};
+
+		struct WinPart
+		{
+			uint8_t m_unknown9[3];
+			uint8_t m_unknown10[3];
+			uint8_t m_unknown11[15];
+			uint8_t m_unknown12[12];
+		};
+
+		uint32_t m_marker;
+		uint32_t m_assetAndDataCombinedSize;
+		uint8_t m_unknown2[4];
+		uint32_t m_assetID;
+		uint8_t m_unknown3[20];
+		uint16_t m_sampleRate1;
+		uint8_t m_bitsPerSample;
+		uint8_t m_encoding1;
+		uint8_t m_channels;
+		uint8_t m_codedDuration[4];
+		uint16_t m_sampleRate2;
+		uint32_t m_filePosition;
+		uint32_t m_size;
+
+		bool m_haveMacPart;
+		MacPart m_macPart;
+
+		bool m_haveWinPart;
+		WinPart m_winPart;
+	};
+
+	struct DOEndOfStream final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		uint32_t m_unknown1;
+		uint32_t m_unknown2;
 	};
 
 	DataObject* CreateObjectFromType(uint32_t objectType);

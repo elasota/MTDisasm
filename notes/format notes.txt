@@ -23,6 +23,10 @@ Rectangles on Mac are top, left, bottom, right
 Rectangles on Win are left, top, right, bottom
 Due to endian differences, this can make rectangles appear to be a pair of 32-bit integers from byte swaps.
 
+
+Compressed AIFFs are nominally supported but seem to be very buggy.
+
+
 EVENT:
 	uint32_t event code
 	uint32_t event additional info
@@ -425,6 +429,39 @@ For each supergroup:
 
 0x384: Image Effect modifier
 
+0x3ca: Old Mac-only cursor modifier   Known revisions: 0x03e9
+	uint32_t unknown
+	uint32_t size
+	uint32_t unknown (0xb4403)
+	uint32_t unknown (0)
+	uint16_t unknown (1)
+	uint32_t unknown (0x2f85df)
+	byte[4] unknown (00 48 00 6d)
+	uint16_t length of name
+	char[length of name] name - null terminated
+	Mac only:
+		EVENT apply when
+		uint32_t unknown (1)
+		uint16_t unknown (0)
+		uint32_t cursor:
+			0: Inactive pointer
+			1: Touch
+			2: Hand grab B&W
+			3: Hand open B&W
+			4: Hand point up
+			5: Hand point right
+			6: Hand point left
+			7: Hand point down
+			8: Hand grab color
+			9: Hand open color
+			10: Arrow
+			11: Pencil
+			12: Smiley
+			13: Wait
+			14: Hidden
+			
+			
+
 0xffffffff: Modifier from an extension - Known revisions: 0x03e9
 	uint32_t unknown (0)
 	uint32_t weirdly-coded size
@@ -435,6 +472,49 @@ For each supergroup:
 	char[name length] name - null terminated
 	...
 
-Mac: 00 00 00 5e  0000 01011110
-Win: 00 00 0c 52  1100 01010010
+0xe: Image
+	????
+
+0x11: Sound data locator - Known revisions: 2
+	uint32_t marker
+	uint32_t combined size of asset locator and data
+	byte[4] unknown (0)
+	uint32_t asset ID?
+		byte[20] unknown
+		
+	Mac:
+		byte[4] unknown
+		uint16_t sample rate?
+		byte[5] unknown (0)
+		uint8_t bitsPerSample
+		uint8_t encoding (0 = Uncompressed  3 = MACE 3:1, 4 = MACE 6:1)
+		uint8_t channels
+		byte[4] coded duration (hours, minutes, seconds, 1/100 seconds)
+		byte[2] unknown (0)
+	Win:
+		uint16_t sample rate?
+		byte bits per sample
+		byte[3] unknown (0)
+		byte encoding (0 = Uncompressed  3 = MACE 3:1, 4 = MACE 6:1)
+		byte channels
+		byte[4] coded duration (hours, minutes, seconds, 1/100 seconds)
+
+	byte[18] unknown (0)
+	uint16_t sample rate?
+	Mac:
+		byte[10] unknown (0)
+	Win:
+		byte[12] unknown (0)
+	uint32_t unknown - file position?
+	uint32_t unknown - size?
+
+0xffff: Unknown - Possibly asset list terminator   Known revisions: 0
+	byte[4] unknown (0)
+	uint32_t unknown
+
+Audio asset:
+	Mac: 0x1602
+	Win: 0x11e6
+
+
 

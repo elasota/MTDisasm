@@ -34,6 +34,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "AssetCatalog";
 	case mtdisasm::DataObjectType::kColorTableAsset:
 		return "ColorTable";
+	case mtdisasm::DataObjectType::kAudioAsset:
+		return "AudioAsset";
 	case mtdisasm::DataObjectType::kProjectStructuralDef:
 		return "ProjectStructuralDef";
 	case mtdisasm::DataObjectType::kSectionStructuralDef:
@@ -54,6 +56,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "NotYetImplemented";
 	case mtdisasm::DataObjectType::kPlugInModifier:
 		return "PlugInModifier";
+	case mtdisasm::DataObjectType::kEndOfStream:
+		return "EndOfStream";
 	default:
 		return "BUG_NotNamed";
 	}
@@ -491,6 +495,52 @@ void PrintObjectDisassembly(const mtdisasm::DOPlugInModifier& obj, FILE* f)
 	fputs("'\n", f);
 }
 
+void PrintObjectDisassembly(const mtdisasm::DOAudioAsset& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kAudioAsset);
+
+
+	PrintHex("Marker", obj.m_marker, f);
+	PrintVal("AssetAndDataCombinedSize", obj.m_assetAndDataCombinedSize, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintVal("AssetID", obj.m_assetID, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintVal("SampleRate1", obj.m_sampleRate1, f);
+	PrintVal("BitsPerSample", obj.m_bitsPerSample, f);
+	PrintVal("Encoding1", obj.m_encoding1, f);
+	PrintVal("Channels", obj.m_channels, f);
+	PrintVal("CodedDuration", obj.m_codedDuration, f);
+	PrintVal("SampleRate2", obj.m_sampleRate2, f);
+	PrintHex("FilePosition", obj.m_filePosition, f);
+	PrintVal("Size", obj.m_size, f);
+
+	if (obj.m_haveMacPart)
+	{
+		PrintHex("Unknown4", obj.m_macPart.m_unknown4, f);
+		PrintHex("Unknown5", obj.m_macPart.m_unknown5, f);
+		PrintHex("Unknown6", obj.m_macPart.m_unknown6, f);
+		PrintHex("Unknown8", obj.m_macPart.m_unknown8, f);
+		PrintHex("Unknown13", obj.m_macPart.m_unknown13, f);
+	}
+
+	if (obj.m_haveWinPart)
+	{
+
+		PrintHex("Unknown9", obj.m_winPart.m_unknown9, f);
+		PrintHex("Unknown10", obj.m_winPart.m_unknown10, f);
+		PrintHex("Unknown11", obj.m_winPart.m_unknown11, f);
+		PrintHex("Unknown12", obj.m_winPart.m_unknown12, f);
+	}
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOEndOfStream& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kEndOfStream);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+}
+
 void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 {
 	switch (obj.GetType())
@@ -519,6 +569,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 	case mtdisasm::DataObjectType::kColorTableAsset:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOColorTableAsset&>(obj), f);
 		break;
+	case mtdisasm::DataObjectType::kAudioAsset:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOAudioAsset&>(obj), f);
+		break;
 	case mtdisasm::DataObjectType::kSectionStructuralDef:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOSectionStructuralDef&>(obj), f);
 		break;
@@ -542,6 +595,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kPlugInModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOPlugInModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kEndOfStream:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOEndOfStream&>(obj), f);
 		break;
 
 	default:
@@ -586,9 +642,14 @@ void DisassembleStream(mtdisasm::IOStream& stream, size_t streamSize, int stream
 			fprintf(f, "FAILED\n");
 		}
 
+		const bool isEOS = (dataObject->GetType() == mtdisasm::DataObjectType::kEndOfStream);
+
 		dataObject->Delete();
 
 		fprintf(f, "\n");
+
+		if (isEOS)
+			break;
 	}
 }
 

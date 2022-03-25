@@ -61,6 +61,8 @@ namespace mtdisasm
 			return new DOUnknown19();
 		case 0xfffffffe:
 			return new DODebris();
+		case 0x011:
+			return new DOAudioAsset();
 		case 0x01e:
 			return new DOColorTableAsset();
 		case 0x021:
@@ -137,8 +139,14 @@ namespace mtdisasm
 			return new DONotYetImplemented(objectType, "Gradient modifier");
 		case 0x384:
 			return new DONotYetImplemented(objectType, "Image Effect modifier");
+		case 0x27:
+			return new DONotYetImplemented(objectType, "Alias");
 		case 0xffffffff:
 			return new DOPlugInModifier();
+		case 0x3ca:
+			return new DOMacOnlyCursorModifier();
+		case 0xffff:
+			return new DOEndOfStream();
 		default:
 			return nullptr;
 		};
@@ -883,6 +891,133 @@ namespace mtdisasm
 		m_privateDataSize -= 52;
 
 		if (m_privateDataSize && !reader.Skip(m_privateDataSize))
+			return false;
+
+		return true;
+	}
+
+	DataObjectType DOMacOnlyCursorModifier::GetType() const
+	{
+		return DataObjectType::kMacOnlyCursorModifier;
+	}
+
+	bool DOMacOnlyCursorModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3e9)
+			return false;
+
+		if (!reader.ReadU32(m_unknown1)
+			|| !reader.ReadU32(m_sizeIncludingTag)
+			|| !reader.ReadU32(m_unknown2)
+			|| !reader.ReadU32(m_unknown3)
+			|| !reader.ReadU16(m_unknown4)
+			|| !reader.ReadU32(m_unknown5)
+			|| !reader.ReadBytes(m_unknown6, 4)
+			|| !reader.ReadU16(m_lengthOfName)
+			)
+			return false;
+
+		if (m_lengthOfName > 0)
+		{
+			m_name.resize(m_lengthOfName);
+			if (!reader.ReadBytes(&m_name[0], m_lengthOfName))
+				return false;
+
+			if (m_name[m_lengthOfName - 1] != 0)
+				return false;
+		}
+
+		if (sp.m_systemType == SystemType::kMac)
+		{
+			m_hasMacOnlyPart = true;
+
+
+			if (!m_macOnlyPart.m_applyWhen.Load(reader)
+				|| !reader.ReadU32(m_macOnlyPart.m_unknown1)
+				|| !reader.ReadU16(m_macOnlyPart.m_unknown2)
+				|| !reader.ReadU32(m_macOnlyPart.m_cursorIndex))
+				return false;
+		}
+		else
+			m_hasMacOnlyPart = false;
+
+		return true;
+	}
+
+	DataObjectType DOAudioAsset::GetType() const
+	{
+		return DataObjectType::kAudioAsset;
+	}
+
+	bool DOAudioAsset::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 2)
+			return false;
+
+		if (!reader.ReadU32(m_marker)
+			|| !reader.ReadU32(m_assetAndDataCombinedSize)
+			|| !reader.ReadBytes(m_unknown2, 4)
+			|| !reader.ReadU32(m_assetID)
+			|| !reader.ReadBytes(m_unknown3, 20))
+			return false;
+
+		m_haveMacPart = false;
+		m_haveWinPart = false;
+
+		if (sp.m_systemType == SystemType::kMac)
+		{
+			m_haveMacPart = true;
+
+			if (!reader.ReadBytes(m_macPart.m_unknown4, 4)
+				|| !reader.ReadU16(m_sampleRate1)
+				|| !reader.ReadBytes(m_macPart.m_unknown5, 5)
+				|| !reader.ReadU8(m_bitsPerSample)
+				|| !reader.ReadU8(m_encoding1)
+				|| !reader.ReadU8(m_channels)
+				|| !reader.ReadBytes(m_codedDuration, 4)
+				|| !reader.ReadBytes(m_macPart.m_unknown8, 20)
+				|| !reader.ReadU16(m_sampleRate2)
+				|| !reader.ReadBytes(m_macPart.m_unknown13, 10))
+				return false;
+		}
+		else if (sp.m_systemType == SystemType::kWindows)
+		{
+			m_haveWinPart = true;
+
+
+			if (!reader.ReadU16(m_sampleRate1)
+				|| !reader.ReadU8(m_bitsPerSample)
+				|| !reader.ReadBytes(m_winPart.m_unknown9, 3)
+				|| !reader.ReadU8(m_encoding1)
+				|| !reader.ReadU8(m_channels)
+				|| !reader.ReadBytes(m_codedDuration, 4)
+				|| !reader.ReadBytes(m_winPart.m_unknown11, 18)
+				|| !reader.ReadU16(m_sampleRate2)
+				|| !reader.ReadBytes(m_winPart.m_unknown12, 12))
+				return false;
+		}
+		else
+			return false;
+
+		if (!reader.ReadU32(m_filePosition)
+			|| !reader.ReadU32(m_size))
+			return false;
+
+		return true;
+	}
+
+	DataObjectType DOEndOfStream::GetType() const
+	{
+		return DataObjectType::kEndOfStream;
+	}
+
+	bool DOEndOfStream::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0)
+			return false;
+
+		if (!reader.ReadU32(m_unknown1)
+			|| !reader.ReadU32(m_unknown2))
 			return false;
 
 		return true;
