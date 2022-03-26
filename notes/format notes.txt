@@ -478,15 +478,6 @@ Structure tree flags:
 	char[name length] name - null terminated
 	...
 
-0xa: Unknown  Known revisions: 3
-
-0xe: Image    Known revisions: 1
-	????
-
-0xf: Unknown  Known revisions: 1
-
-0x15: Unknown  Known revisions: 0
-
 0x10: QuickTime movie data  Known revisions: 0
 	uint32_t marker
 	uint32_t combined size of this element desc and data
@@ -538,6 +529,13 @@ Structure tree flags:
 		byte[12] unknown (0)
 	uint32_t unknown - file position?
 	uint32_t unknown - size?
+
+0xa: Unknown  Known revisions: 3
+
+0xe: Image    Known revisions: 1
+	????
+
+0xf: Unknown  Known revisions: 1
 
 0xffff: Stream terminator.   Known revisions: 0
 	byte[4] unknown (0)
