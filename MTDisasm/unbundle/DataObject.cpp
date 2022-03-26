@@ -53,6 +53,10 @@ namespace mtdisasm
 			return new DOImageStructuralDef();
 		case 0x008:
 			return new DOSceneStructuralDef();
+		case 0x0015:
+			return new DONotYetImplemented(objectType, "Text label object");
+		case 0x001f:
+			return new DONotYetImplemented(objectType, "Unknown '0x1f' type asset");
 		case 0x00d:
 			return new DOAssetCatalog();
 		case 0x017:

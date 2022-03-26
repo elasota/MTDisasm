@@ -431,7 +431,7 @@ void PrintObjectDisassembly(const mtdisasm::DOMovieStructuralDef& obj, FILE* f)
 	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
 	PrintHex("Unknown2", obj.m_unknown2, f);
 	PrintHex("Flags", obj.m_flags, f);
-	PrintHex("Unknown14", obj.m_unknown14, f);
+	PrintHex("Layer", obj.m_layer, f);
 	PrintHex("Unknown3", obj.m_unknown3, f);
 	PrintVal("SectionID", obj.m_sectionID, f);
 	PrintHex("Unknown5", obj.m_unknown5, f);
