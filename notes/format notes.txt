@@ -533,9 +533,18 @@ Structure tree flags:
 0xa: Unknown  Known revisions: 3
 
 0xe: Image    Known revisions: 1
+	NOT SIZE-TAGGED
 	????
 
-0xf: Unknown  Known revisions: 1
+0xf: mToon asset  Known revisions: 1
+	marker
+	Mac:
+		byte[104] unknown
+	Win:
+		???
+		
+	uint32_t size of mToon frame data (does not include mToon header!!)
+	mToon data (see "mtoon notes.txt")
 
 0xffff: Stream terminator.   Known revisions: 0
 	byte[4] unknown (0)
@@ -544,4 +553,4 @@ Structure tree flags:
 The purpose of stream terminators appears to be that for some reason, audio data is concatenated linearly at the end of the stream, outside of any object, even though QuickTime movies and MIDI modifiers are inline.  The stream terminator appears in that case.
 
 
-NOTE: Still haven't figured out how structural elements within scenes are parented
+

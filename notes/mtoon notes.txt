@@ -1,0 +1,77 @@
+This covers the compiled format only (in packages).  Generally Windows is byte-swapped but some data is always big endian.
+
+Primary header is 64 bytes (in normal conditions?), followed by the frame table and then frame data
+
+Header block:
+byte[4] zeros
+uint32_t magic (0x546f6f6e)
+uint16_t version (4)
+byte[4] unknown
+	Win: 00 00 1d 20
+	Mac: 00 00 00 00
+uint32_t encoding flags
+	0x80 = temporal compression
+	0x08 = Trimming
+	0x02 = Unknown
+	0x01 = Unknown
+	0x2000000 = 32-bit uncompressed?
+byte[4] unknown (0) - Possibly origin coordinate
+		 
+uint16_t width/height?
+uint16_t width/height?
+uint16_t number of frames
+byte[14] unknown - 0x00480000 might be fixed-point DPI
+	Win: 00 00 0f 00 01 00  00 00 48 00  00 00 48 00 
+	Mac: 00 00 00 0f 00 00  00 48 00 00  00 48 00 00
+uint16_t bits per pixel
+uint32_t codec id (mFactory Animation is ".RLE" big endian) - Uncompressed is 00 00 00 00
+byte[16] unknown - Varies by platform, seems to be gibberish
+uint32_t unknown - Sometimes 0xfaff sometimes 0
+FRAME_TABLE_ENTRY[number of frames]
+If compressed, codec data:
+	uint32_t size of codec definition (including this field)
+	byte[size of codec definition - 4] codec definition
+	Cinepak (86 bytes):
+		'c' 'v' 'i' 'd' 00 00 00 00 00 00 00 00 00 01 00 01 'a' 'p' 'p' 'l' 00 00 04 00 00 00 04 00 00 78 00 78 00 48 00 00 00 48 00 00 00 00 00 00 00 01 07
+		byte[32] "Cinepak" + nulls
+		18 ff ff
+uint32_t unknown (1)
+uint32_t unknown (0x64)
+uint32_t number of frame ranges
+FRAME_RANGE frame ranges
+Compressed data section:
+	uint32_t unknown (0xffff)
+	byte[6] unknown (0)
+	uint32_t Size of compressed frame data + size of this header (+14)
+
+
+
+
+
+FRAME_TABLE_ENTRY: 58 bytes on Mac and 56 bytes on Windows
+	Data offset is at +12(dec)
+	Compressed size is at +18(dec)
+	Keyframe flag byte is at +23(dec)
+	Decompressed size is at +52(dec) on Win, +54(dec) on Mac
+	???
+
+FRAME_RANGE:
+	uint32_t start frame
+	uint32_t end frame
+	uint16_t length of name
+	char[length of name] name - null terminated
+
+
+mToon RLE compression:
+Sequence of RLE codes.  Runs can not run past the end of a row.  High bit is literal flag, low 7 bits are length.  If the high bit is set, the next N bytes follow.  If the high bit is clear, then the next byte is repeated length times.
+
+
+RLE compressed frame looks like:
+	'RLE ' for keyframes, 00 00 00 01 for temporal frames
+	01 00 00 01
+	uint32_t width (big endian)
+	uint32_t height (big endian)
+	uint32_t total frame size (including RLE tag and header)
+	frame data
+
+On Windows, frames are bottom-up, on Mac they're top-down
