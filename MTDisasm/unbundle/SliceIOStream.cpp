@@ -92,4 +92,9 @@ namespace mtdisasm
 
 		return static_cast<uint32_t>(pos);
 	}
+
+	uint32_t SliceIOStream::TellGlobal() const
+	{
+		return m_parent.TellGlobal();
+	}
 }

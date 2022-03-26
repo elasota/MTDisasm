@@ -24,7 +24,7 @@ Rectangles on Win are left, top, right, bottom
 Due to endian differences, this can make rectangles appear to be a pair of 32-bit integers from byte swaps.
 
 
-Compressed AIFFs are nominally supported but seem to be very buggy.
+Compressed AIFFs are nominally supported but seem to be very buggy.  Attempting to write A-Law or u-Law files fails and IMA 4:1 writes as uncompressed.
 
 
 EVENT:
@@ -250,8 +250,14 @@ For each supergroup:
 			uint32_t number of children
 			children (recursive - label tree entry format)
 
+
+Structure tree flags:
+	0x8 = No more siblings
+	0x4 = Has children
+
+
 0x2: Project structural def.  Known revisions: 1, 2  (No known differences between formats)
-	uint32_t unknown
+	uint32_t structure tree flags
 	uint32_t size including tag
 	uint32_t unknown (large number)
 	uint32_t unknown (0x00800008 in tests, 0x00800009 in Obsidian)
@@ -259,7 +265,7 @@ For each supergroup:
 	char[length of data file name] name of data file - null terminated
 
 0x3: Section structural def.  Known revisions: 1
-	uint32_t unknown
+	uint32_t structure tree flags
 	uint32_t size including tag
 	byte[4] unknown
 	uint16_t length of name
@@ -267,7 +273,7 @@ For each supergroup:
 	char[length of name] name - null terminated
 
 0x21: Subsection structural def.  Known revisions: 0
-	uint32_t unknown
+	uint32_t structure tree flags
 	uint32_t size including tag
 	byte[4] unknown
 	uint16_t length of name
@@ -275,13 +281,13 @@ For each supergroup:
 	char[length of name] name - null terminated
 
 0x5: QuickTime movie structural def.  Known revisions: 2
-	1103/cf5
-	uint32_t unknown (8)
+	uint32_t structure tree flags
 	uint32_t size including tag
 	uint32_t unknown
 	uint16_t length of name
 	uint32_t structural flags
-	byte[46] unknown (first 24 bytes have unclear meaning and appear to be platform-independent so far?)
+	uint16_t layer
+	byte[44] unknown
 	uint16_t section id
 	byte[2] unknown (0)
 	RECT rect1
@@ -297,7 +303,7 @@ For each supergroup:
 	char[length of name] name - null terminated
 
 0x6: mToon structural def.  Known revisions: 2
-	uint32_t unknown (0)
+	uint32_t structure tree flags
 	uint32_t size including tag
 	uint32_t unknown
 	uint16_t length of name
@@ -316,7 +322,7 @@ For each supergroup:
 	uint32_t unknown (layer?)
 
 0x7: Image structural def.  Known revisions: 2
-	uint32_t unknown (8)
+	uint32_t structure tree flags
 	uint32_t size including tag
 	uint32_t unknown
 	uint16_t length of name
@@ -330,7 +336,7 @@ For each supergroup:
 	byte[4] unknown (0)
 
 0x8: Scene structural def.  Known revisions: 1
-	uint32_t unknown
+	uint32_t structure tree flags
 	uint32_t size including tag
 	uint32_t unknown
 	uint16_t length of name
@@ -472,15 +478,40 @@ For each supergroup:
 	char[name length] name - null terminated
 	...
 
-0xe: Image
+0xa: Unknown  Known revisions: 3
+
+0xe: Image    Known revisions: 1
 	????
+
+0xf: Unknown  Known revisions: 1
+
+0x15: Unknown  Known revisions: 0
+
+0x10: QuickTime movie data  Known revisions: 0
+	uint32_t marker
+	uint32_t combined size of this element desc and data
+	byte[4] unknown (0)
+	uint32_t unknown - possibly asset ID
+	Win:
+		byte[38] unknown
+		uint32_t movie size
+		byte[12] unknown
+		uint32_t moov atom location
+		byte[12] unknown
+	Mac:
+		byte[72] unknown
+		uint32_t movie size
+		byte[12] unknown
+		uint32_t moov atom location
+	byte[movie size] movie data
+
 
 0x11: Sound data locator - Known revisions: 2
 	uint32_t marker
 	uint32_t combined size of asset locator and data
 	byte[4] unknown (0)
 	uint32_t asset ID?
-		byte[20] unknown
+	byte[20] unknown
 		
 	Mac:
 		byte[4] unknown
@@ -508,13 +539,11 @@ For each supergroup:
 	uint32_t unknown - file position?
 	uint32_t unknown - size?
 
-0xffff: Unknown - Possibly asset list terminator   Known revisions: 0
+0xffff: Stream terminator.   Known revisions: 0
 	byte[4] unknown (0)
 	uint32_t unknown
 
-Audio asset:
-	Mac: 0x1602
-	Win: 0x11e6
+The purpose of stream terminators appears to be that for some reason, audio data is concatenated linearly at the end of the stream, outside of any object, even though QuickTime movies and MIDI modifiers are inline.  The stream terminator appears in that case.
 
 
-
+NOTE: Still haven't figured out how structural elements within scenes are parented

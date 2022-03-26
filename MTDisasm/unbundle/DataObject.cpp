@@ -61,6 +61,8 @@ namespace mtdisasm
 			return new DOUnknown19();
 		case 0xfffffffe:
 			return new DODebris();
+		case 0x010:
+			return new DOMovieAsset();
 		case 0x011:
 			return new DOAudioAsset();
 		case 0x01e:
@@ -706,7 +708,8 @@ namespace mtdisasm
 			|| !reader.ReadU32(m_unknown2)
 			|| !reader.ReadU16(m_lengthOfName)
 			|| !reader.ReadU32(m_flags)
-			|| !reader.ReadBytes(m_unknown3, 46)
+			|| !reader.ReadU16(m_layer)
+			|| !reader.ReadBytes(m_unknown3, 44)
 			|| !reader.ReadU16(m_sectionID)
 			|| !reader.ReadBytes(m_unknown5, 2)
 			|| !m_rect1.Load(reader, sp)
@@ -1018,6 +1021,58 @@ namespace mtdisasm
 
 		if (!reader.ReadU32(m_unknown1)
 			|| !reader.ReadU32(m_unknown2))
+			return false;
+
+		return true;
+	}
+
+	DataObjectType DOMovieAsset::GetType() const
+	{
+		return DataObjectType::kMovieAsset;
+	}
+
+	bool DOMovieAsset::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0)
+			return false;
+
+		m_haveMacPart = false;
+		m_haveWinPart = false;
+
+		if (!reader.ReadU32(m_marker)
+			|| !reader.ReadU32(m_assetAndDataCombinedSize)
+			|| !reader.ReadBytes(m_unknown1, 4)
+			|| !reader.ReadU32(m_assetID))
+			return false;
+
+
+		if (sp.m_systemType == SystemType::kMac)
+		{
+			m_haveMacPart = true;
+
+			if (!reader.ReadBytes(m_macPart.m_unknown5, 72)
+				|| !reader.ReadU32(m_movieDataSize)
+				|| !reader.ReadBytes(m_macPart.m_unknown6, 12)
+				|| !reader.ReadU32(m_moovAtomPos))
+				return false;
+		}
+		else if (sp.m_systemType == SystemType::kWindows)
+		{
+			m_haveWinPart = true;
+
+			if (!reader.ReadBytes(m_winPart.m_unknown3, 38)
+				|| !reader.ReadU32(m_movieDataSize)
+				|| !reader.ReadBytes(m_winPart.m_unknown4, 12)
+				|| !reader.ReadU32(m_moovAtomPos)
+				|| !reader.ReadBytes(m_winPart.m_unknown7, 12))
+				return false;
+		}
+		else
+			return false;
+
+		m_movieDataPos = reader.TellGlobal();
+
+		if (!reader.Skip(m_movieDataSize))
 			return false;
 
 		return true;

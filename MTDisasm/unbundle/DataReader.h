@@ -32,6 +32,7 @@ namespace mtdisasm
 		bool Skip(uint32_t pos);
 		bool Seek(uint32_t pos);
 		uint32_t Tell() const;
+		uint32_t TellGlobal() const;
 
 	private:
 		IOStream& m_stream;

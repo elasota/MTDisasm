@@ -15,6 +15,7 @@ namespace mtdisasm
 		virtual bool SeekEnd(int32_t pos) = 0;
 
 		virtual uint32_t Tell() const = 0;
+		virtual uint32_t TellGlobal() const = 0;
 
 		bool ReadAll(void* dest, size_t sz);
 		bool WriteAll(const void* src, size_t sz);

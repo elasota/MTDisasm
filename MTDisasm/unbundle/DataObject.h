@@ -72,6 +72,7 @@ namespace mtdisasm
 
 		kColorTableAsset,
 		kAudioAsset,
+		kMovieAsset,
 
 		kEndOfStream,
 		kNotYetImplemented,
@@ -424,7 +425,8 @@ namespace mtdisasm
 		uint32_t m_unknown2;
 		uint16_t m_lengthOfName;
 		uint32_t m_flags;
-		uint8_t m_unknown3[46];
+		uint16_t m_layer;
+		uint8_t m_unknown3[44];
 		uint16_t m_sectionID;
 		uint8_t m_unknown5[2];
 		DORect m_rect1;
@@ -600,6 +602,40 @@ namespace mtdisasm
 		uint16_t m_sampleRate2;
 		uint32_t m_filePosition;
 		uint32_t m_size;
+
+		bool m_haveMacPart;
+		MacPart m_macPart;
+
+		bool m_haveWinPart;
+		WinPart m_winPart;
+	};
+
+	struct DOMovieAsset final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		struct MacPart
+		{
+			uint8_t m_unknown5[38];
+			uint8_t m_unknown6[12];
+		};
+
+		struct WinPart
+		{
+			uint8_t m_unknown3[72];
+			uint8_t m_unknown4[12];
+			uint8_t m_unknown7[12];
+		};
+
+		uint32_t m_marker;
+		uint32_t m_assetAndDataCombinedSize;
+		uint8_t m_unknown1[4];
+		uint32_t m_assetID;
+
+		uint32_t m_movieDataPos;
+		uint32_t m_moovAtomPos;
+		uint32_t m_movieDataSize;
 
 		bool m_haveMacPart;
 		MacPart m_macPart;

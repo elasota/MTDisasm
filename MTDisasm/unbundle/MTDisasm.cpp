@@ -36,6 +36,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "ColorTable";
 	case mtdisasm::DataObjectType::kAudioAsset:
 		return "AudioAsset";
+	case mtdisasm::DataObjectType::kMovieAsset:
+		return "kMovieAsset";
 	case mtdisasm::DataObjectType::kProjectStructuralDef:
 		return "ProjectStructuralDef";
 	case mtdisasm::DataObjectType::kSectionStructuralDef:
@@ -429,6 +431,7 @@ void PrintObjectDisassembly(const mtdisasm::DOMovieStructuralDef& obj, FILE* f)
 	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
 	PrintHex("Unknown2", obj.m_unknown2, f);
 	PrintHex("Flags", obj.m_flags, f);
+	PrintHex("Unknown14", obj.m_unknown14, f);
 	PrintHex("Unknown3", obj.m_unknown3, f);
 	PrintVal("SectionID", obj.m_sectionID, f);
 	PrintHex("Unknown5", obj.m_unknown5, f);
@@ -499,7 +502,6 @@ void PrintObjectDisassembly(const mtdisasm::DOAudioAsset& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kAudioAsset);
 
-
 	PrintHex("Marker", obj.m_marker, f);
 	PrintVal("AssetAndDataCombinedSize", obj.m_assetAndDataCombinedSize, f);
 	PrintHex("Unknown2", obj.m_unknown2, f);
@@ -530,6 +532,32 @@ void PrintObjectDisassembly(const mtdisasm::DOAudioAsset& obj, FILE* f)
 		PrintHex("Unknown10", obj.m_winPart.m_unknown10, f);
 		PrintHex("Unknown11", obj.m_winPart.m_unknown11, f);
 		PrintHex("Unknown12", obj.m_winPart.m_unknown12, f);
+	}
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOMovieAsset& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kMovieAsset);
+
+	PrintHex("Marker", obj.m_marker, f);
+	PrintVal("m_assetAndDataCombinedSize", obj.m_marker, f);
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("AssetID", obj.m_assetID, f);
+	PrintHex("MovieDataPos", obj.m_movieDataPos, f);
+	PrintVal("MovieDataSize", obj.m_movieDataSize, f);
+	PrintHex("MoovAtomPos", obj.m_moovAtomPos, f);
+
+	if (obj.m_haveMacPart)
+	{
+		PrintHex("Unknown5", obj.m_macPart.m_unknown5, f);
+		PrintHex("Unknown6", obj.m_macPart.m_unknown6, f);
+	}
+
+	if (obj.m_haveWinPart)
+	{
+		PrintHex("Unknown3", obj.m_winPart.m_unknown3, f);
+		PrintHex("Unknown4", obj.m_winPart.m_unknown4, f);
+		PrintHex("Unknown7", obj.m_winPart.m_unknown7, f);
 	}
 }
 
@@ -571,6 +599,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kAudioAsset:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOAudioAsset&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kMovieAsset:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOMovieAsset&>(obj), f);
 		break;
 	case mtdisasm::DataObjectType::kSectionStructuralDef:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOSectionStructuralDef&>(obj), f);

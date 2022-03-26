@@ -36,5 +36,10 @@ namespace mtdisasm
 	{
 		return ftell(m_f);
 	}
+
+	uint32_t CFileIOStream::TellGlobal() const
+	{
+		return this->Tell();
+	}
 }
 

@@ -137,4 +137,9 @@ namespace mtdisasm
 	{
 		return m_stream.Tell();
 	}
+
+	uint32_t DataReader::TellGlobal() const
+	{
+		return m_stream.TellGlobal();
+	}
 }

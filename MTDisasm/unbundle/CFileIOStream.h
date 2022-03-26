@@ -19,6 +19,7 @@ namespace mtdisasm
 		bool SeekEnd(int32_t pos) override;
 
 		uint32_t Tell() const override;
+		uint32_t TellGlobal() const override;
 
 	private:
 		FILE* m_f;
