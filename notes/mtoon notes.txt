@@ -11,14 +11,11 @@ byte[4] unknown
 	Mac: 00 00 00 00
 uint32_t encoding flags
 	0x80 = temporal compression
-	0x08 = Trimming
+	0x20 = frame ranges
+	0x08 = trimming
 	0x02 = Unknown
 	0x01 = Unknown
-	0x2000000 = 32-bit uncompressed?
-byte[4] unknown (0) - Possibly origin coordinate
-		 
-uint16_t width/height?
-uint16_t width/height?
+RECT rect
 uint16_t number of frames
 byte[14] unknown - 0x00480000 might be fixed-point DPI
 	Win: 00 00 0f 00 01 00  00 00 48 00  00 00 48 00 
@@ -26,7 +23,11 @@ byte[14] unknown - 0x00480000 might be fixed-point DPI
 uint16_t bits per pixel
 uint32_t codec id (mFactory Animation is ".RLE" big endian) - Uncompressed is 00 00 00 00
 byte[16] unknown - Varies by platform, seems to be gibberish
-uint32_t unknown - Sometimes 0xfaff sometimes 0
+	possible meaning:
+		byte[4] unknown
+		byte[4] unknown (ff ff ff ff for compressed)
+		uint32_t size of codec info block?
+		byte[4] unknown
 FRAME_TABLE_ENTRY[number of frames]
 If compressed, codec data:
 	uint32_t size of codec definition (including this field)
@@ -39,14 +40,6 @@ uint32_t unknown (1)
 uint32_t unknown (0x64)
 uint32_t number of frame ranges
 FRAME_RANGE frame ranges
-Compressed data section:
-	uint32_t unknown (0xffff)
-	byte[6] unknown (0)
-	uint32_t Size of compressed frame data + size of this header (+14)
-
-
-
-
 
 FRAME_TABLE_ENTRY: 58 bytes on Mac and 56 bytes on Windows
 	Data offset is at +12(dec)

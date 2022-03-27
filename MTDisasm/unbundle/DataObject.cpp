@@ -65,6 +65,8 @@ namespace mtdisasm
 			return new DOUnknown19();
 		case 0xfffffffe:
 			return new DODebris();
+		case 0x00f:
+			return new DOMToonAsset();
 		case 0x010:
 			return new DOMovieAsset();
 		case 0x011:
@@ -1049,7 +1051,6 @@ namespace mtdisasm
 			|| !reader.ReadU32(m_assetID))
 			return false;
 
-
 		if (sp.m_systemType == SystemType::kMac)
 		{
 			m_haveMacPart = true;
@@ -1078,6 +1079,129 @@ namespace mtdisasm
 
 		if (!reader.Skip(m_movieDataSize))
 			return false;
+
+		return true;
+	}
+
+
+	DataObjectType DOMToonAsset::GetType() const
+	{
+		return DataObjectType::kMToonAsset;
+	}
+
+	bool DOMToonAsset::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 1)
+			return false;
+
+		if (!reader.ReadU32(m_marker)
+			|| !reader.ReadBytes(m_unknown1, 8)
+			|| !reader.ReadU32(m_assetID))
+			return false;
+
+		m_haveMacPart = false;
+		m_haveWinPart = false;
+
+		if (sp.m_systemType == SystemType::kMac)
+		{
+			m_haveMacPart = true;
+
+			if (!reader.ReadBytes(m_platform.m_mac.m_unknown10, 92))
+				return false;
+		}
+		else if (sp.m_systemType == SystemType::kWindows)
+		{
+			m_haveWinPart = true;
+
+			if (!reader.ReadBytes(m_platform.m_win.m_unknown11, 58))
+				return false;
+		}
+		else
+			return false;
+
+		if (!reader.ReadU32(m_sizeOfFrameData)
+			|| !reader.ReadU32(m_mtoonHeader[0])
+			|| !reader.ReadU32(m_mtoonHeader[1])
+			|| !reader.ReadU16(m_version)
+			|| !reader.ReadBytes(m_unknown2, 4)
+			|| !reader.ReadU32(m_encodingFlags)
+			|| !m_rect.Load(reader, sp)
+			|| !reader.ReadU16(m_numFrames)
+			|| !reader.ReadBytes(m_unknown3, 14)
+			|| !reader.ReadU16(m_bitsPerPixel)
+			|| !reader.ReadU32(m_codecID)
+			|| !reader.ReadBytes(m_unknown4_1, 8)
+			|| !reader.ReadU32(m_codecDataSize)
+			|| !reader.ReadBytes(m_unknown4_2, 4)
+			)
+			return false;
+
+		if (m_mtoonHeader[0] != 0 || m_mtoonHeader[1] != 0x546f6f6e)
+			return false;
+
+		if (m_numFrames > 0)
+		{
+			m_frames.resize(m_numFrames);
+			for (size_t i = 0; i < m_numFrames; i++)
+			{
+				FrameDef& frame = m_frames[i];
+
+				if (sp.m_systemType == SystemType::kMac)
+				{
+					if (!reader.ReadBytes(frame.m_platform.m_mac.m_unknown12, 58))
+						return false;
+				}
+				else if (sp.m_systemType == SystemType::kWindows)
+				{
+					if (!reader.ReadBytes(frame.m_platform.m_win.m_unknown13, 56))
+						return false;
+				}
+				else
+					return false;
+			}
+		}
+
+		if (m_codecDataSize > 0)
+		{
+			m_codecData.resize(m_codecDataSize);
+			if (!reader.ReadBytes(&m_codecData[0], m_codecDataSize))
+				return false;
+		}
+
+		if (m_encodingFlags & kEncodingFlag_HasRanges)
+		{
+			if (!reader.ReadU32(m_frameRangesPart.m_tag)
+				|| !reader.ReadU32(m_frameRangesPart.m_sizeIncludingTag)
+				|| !reader.ReadU32(m_frameRangesPart.m_numFrameRanges))
+				return false;
+
+			if (m_frameRangesPart.m_tag != 1 || m_frameRangesPart.m_sizeIncludingTag != 0x64)
+				return false;
+
+			if (m_frameRangesPart.m_numFrameRanges > 0)
+			{
+				m_frameRangesPart.m_frameRanges.resize(m_frameRangesPart.m_numFrameRanges);
+				for (size_t i = 0; i < m_frameRangesPart.m_numFrameRanges; i++)
+				{
+					FrameRangeDef& frameRange = m_frameRangesPart.m_frameRanges[i];
+
+					if (!reader.ReadU32(frameRange.m_startFrame)
+						|| !reader.ReadU32(frameRange.m_endFrame)
+						|| !reader.ReadU16(frameRange.m_lengthOfName))
+						return false;
+
+					if (frameRange.m_lengthOfName > 0)
+					{
+						frameRange.m_name.resize(frameRange.m_lengthOfName);
+						if (!reader.ReadBytes(&frameRange.m_name[0], frameRange.m_lengthOfName))
+							return false;
+
+						if (frameRange.m_name[frameRange.m_lengthOfName - 1] != 0)
+							return false;
+					}
+				}
+			}
+		}
 
 		return true;
 	}

@@ -37,7 +37,9 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 	case mtdisasm::DataObjectType::kAudioAsset:
 		return "AudioAsset";
 	case mtdisasm::DataObjectType::kMovieAsset:
-		return "kMovieAsset";
+		return "MovieAsset";
+	case mtdisasm::DataObjectType::kMToonAsset:
+		return "MToonAsset";
 	case mtdisasm::DataObjectType::kProjectStructuralDef:
 		return "ProjectStructuralDef";
 	case mtdisasm::DataObjectType::kSectionStructuralDef:
@@ -663,7 +665,8 @@ void DisassembleStream(mtdisasm::IOStream& stream, size_t streamSize, int stream
 
 		fprintf(f, "Pos=%x AbsPos=%x  %s (%x) rev %i:\n", static_cast<int>(pos), static_cast<int>(pos + streamPos), NameObjectType(dataObject->GetType()), static_cast<int>(objectType), static_cast<int>(revision));
 
-		if (dataObject->Load(reader, revision, sp))
+		const bool succeeded = dataObject->Load(reader, revision, sp);
+		if (succeeded)
 		{
 			PrintObjectDisassembly(*dataObject, f);
 		}
@@ -679,7 +682,7 @@ void DisassembleStream(mtdisasm::IOStream& stream, size_t streamSize, int stream
 
 		fprintf(f, "\n");
 
-		if (isEOS)
+		if (isEOS || !succeeded)
 			break;
 	}
 }

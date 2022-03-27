@@ -73,6 +73,7 @@ namespace mtdisasm
 		kColorTableAsset,
 		kAudioAsset,
 		kMovieAsset,
+		kMToonAsset,
 
 		kEndOfStream,
 		kNotYetImplemented,
@@ -642,6 +643,100 @@ namespace mtdisasm
 
 		bool m_haveWinPart;
 		WinPart m_winPart;
+	};
+
+	struct DOMToonAsset final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		struct MacPart
+		{
+			uint8_t m_unknown10[92];
+		};
+
+		struct WinPart
+		{
+			uint8_t m_unknown11[58];
+		};
+
+		struct FrameDef
+		{
+			struct MacPart
+			{
+				uint8_t m_unknown12[58];
+			};
+
+			struct WinPart
+			{
+				uint8_t m_unknown13[56];
+			};
+
+			union PlatformUnion
+			{
+				MacPart m_mac;
+				WinPart m_win;
+			} m_platform;
+		};
+
+		struct FrameRangeDef
+		{
+			uint32_t m_startFrame;
+			uint32_t m_endFrame;
+			uint16_t m_lengthOfName;
+
+			std::vector<char> m_name;	// Null terminated
+		};
+
+		enum
+		{
+			kEncodingFlag_TemporalCompression	= 0x80,
+			kEncodingFlag_HasRanges				= 0x20,
+			kEncodingFlag_Trimming				= 0x08,
+		};
+
+		uint32_t m_marker;
+		uint8_t m_unknown1[8];
+		uint32_t m_assetID;
+
+		bool m_haveMacPart;
+		bool m_haveWinPart;
+
+		union PlatformUnion
+		{
+			MacPart m_mac;
+			WinPart m_win;
+		} m_platform;
+
+		uint32_t m_sizeOfFrameData;
+
+		// mToon data
+		uint32_t m_mtoonHeader[2];
+		uint16_t m_version;
+		uint8_t m_unknown2[4];
+		uint32_t m_encodingFlags;
+		DORect m_rect;
+
+		uint16_t m_numFrames;
+		uint8_t m_unknown3[14];
+		uint16_t m_bitsPerPixel;
+		uint32_t m_codecID;
+		uint8_t m_unknown4_1[8];
+		uint32_t m_codecDataSize;
+		uint8_t m_unknown4_2[4];
+
+		std::vector<FrameDef> m_frames;
+
+		std::vector<uint8_t> m_codecData;
+
+		struct FrameRangePart
+		{
+			uint32_t m_tag;
+			uint32_t m_sizeIncludingTag;
+
+			uint32_t m_numFrameRanges;
+			std::vector<FrameRangeDef> m_frameRanges;
+		} m_frameRangesPart;
 	};
 
 	struct DOEndOfStream final : public DataObject

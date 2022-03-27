@@ -538,10 +538,12 @@ Structure tree flags:
 
 0xf: mToon asset  Known revisions: 1
 	marker
+	byte[8] unknown (0)
+	uint32_t asset ID
 	Mac:
-		byte[104] unknown
+		byte[92] unknown
 	Win:
-		???
+		byte[58] unknown
 		
 	uint32_t size of mToon frame data (does not include mToon header!!)
 	mToon data (see "mtoon notes.txt")
