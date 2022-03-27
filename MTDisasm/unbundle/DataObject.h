@@ -75,7 +75,7 @@ namespace mtdisasm
 		kMovieAsset,
 		kMToonAsset,
 
-		kEndOfStream,
+		kAssetDataSection,
 		kNotYetImplemented,
 	};
 
@@ -739,13 +739,13 @@ namespace mtdisasm
 		} m_frameRangesPart;
 	};
 
-	struct DOEndOfStream final : public DataObject
+	struct DOAssetDataSection final : public DataObject
 	{
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
 
 		uint32_t m_unknown1;
-		uint32_t m_unknown2;
+		uint32_t m_sizeIncludingTag;
 	};
 
 	DataObject* CreateObjectFromType(uint32_t objectType);

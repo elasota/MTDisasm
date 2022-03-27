@@ -60,8 +60,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "NotYetImplemented";
 	case mtdisasm::DataObjectType::kPlugInModifier:
 		return "PlugInModifier";
-	case mtdisasm::DataObjectType::kEndOfStream:
-		return "EndOfStream";
+	case mtdisasm::DataObjectType::kAssetDataSection:
+		return "AssetDataSection";
 	default:
 		return "BUG_NotNamed";
 	}
@@ -563,12 +563,12 @@ void PrintObjectDisassembly(const mtdisasm::DOMovieAsset& obj, FILE* f)
 	}
 }
 
-void PrintObjectDisassembly(const mtdisasm::DOEndOfStream& obj, FILE* f)
+void PrintObjectDisassembly(const mtdisasm::DOAssetDataSection& obj, FILE* f)
 {
-	assert(obj.GetType() == mtdisasm::DataObjectType::kEndOfStream);
+	assert(obj.GetType() == mtdisasm::DataObjectType::kAssetDataSection);
 
 	PrintHex("Unknown1", obj.m_unknown1, f);
-	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("SizeIncludingTag", obj.m_sizeIncludingTag, f);
 }
 
 void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
@@ -629,8 +629,8 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 	case mtdisasm::DataObjectType::kPlugInModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOPlugInModifier&>(obj), f);
 		break;
-	case mtdisasm::DataObjectType::kEndOfStream:
-		PrintObjectDisassembly(static_cast<const mtdisasm::DOEndOfStream&>(obj), f);
+	case mtdisasm::DataObjectType::kAssetDataSection:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOAssetDataSection&>(obj), f);
 		break;
 
 	default:
@@ -676,13 +676,11 @@ void DisassembleStream(mtdisasm::IOStream& stream, size_t streamSize, int stream
 			fprintf(f, "FAILED\n");
 		}
 
-		const bool isEOS = (dataObject->GetType() == mtdisasm::DataObjectType::kEndOfStream);
-
 		dataObject->Delete();
 
 		fprintf(f, "\n");
 
-		if (isEOS || !succeeded)
+		if (!succeeded)
 			break;
 	}
 }

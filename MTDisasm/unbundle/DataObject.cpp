@@ -57,6 +57,8 @@ namespace mtdisasm
 			return new DONotYetImplemented(objectType, "Text label object");
 		case 0x001f:
 			return new DONotYetImplemented(objectType, "Unknown '0x1f' type asset");
+		case 0xa:
+			return new DONotYetImplemented(objectType, "Sound structural def");
 		case 0x00d:
 			return new DOAssetCatalog();
 		case 0x017:
@@ -131,6 +133,8 @@ namespace mtdisasm
 			return new DONotYetImplemented(objectType, "Simple Motion modifier");
 		case 0x21b:
 			return new DONotYetImplemented(objectType, "Path Motion modifier");
+		case 0x21c:
+			return new DONotYetImplemented(objectType, "Path Motion modifier - obsolete version");
 		case 0x208:
 			return new DONotYetImplemented(objectType, "Drag Motion modifier");
 		case 0x226:
@@ -154,7 +158,7 @@ namespace mtdisasm
 		case 0x3ca:
 			return new DOMacOnlyCursorModifier();
 		case 0xffff:
-			return new DOEndOfStream();
+			return new DOAssetDataSection();
 		default:
 			return nullptr;
 		};
@@ -750,7 +754,8 @@ namespace mtdisasm
 
 	bool DOMToonStructuralDef::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
 	{
-		if (revision != 2)
+		// No known structural changes in revision 3
+		if (revision != 2 && revision != 3)
 			return false;
 
 		if (!reader.ReadU32(m_unknown1)
@@ -1015,18 +1020,24 @@ namespace mtdisasm
 		return true;
 	}
 
-	DataObjectType DOEndOfStream::GetType() const
+	DataObjectType DOAssetDataSection::GetType() const
 	{
-		return DataObjectType::kEndOfStream;
+		return DataObjectType::kAssetDataSection;
 	}
 
-	bool DOEndOfStream::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	bool DOAssetDataSection::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
 	{
 		if (revision != 0)
 			return false;
 
 		if (!reader.ReadU32(m_unknown1)
-			|| !reader.ReadU32(m_unknown2))
+			|| !reader.ReadU32(m_sizeIncludingTag))
+			return false;
+
+		if (m_sizeIncludingTag < 14)
+			return false;
+
+		if (!reader.Skip(m_sizeIncludingTag - 14))
 			return false;
 
 		return true;

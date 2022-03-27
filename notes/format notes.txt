@@ -348,6 +348,9 @@ Structure tree flags:
 	uint32_t stream locator  (1-based stream index, sometimes observed with 0x10000000 flag set, not sure of the meaning)
 	byte[4] unknown
 
+0xa: Sound structural def.  Known revisions: 3
+	???
+
 0xfffffffe: Unknown, appears to be object deletion debris.  Known revisions: 0
 	uint32_t marker
 	uint32_t size including tag (0x0e)
@@ -416,6 +419,8 @@ Structure tree flags:
 0x276: Element Transition modifier
 
 0x1fe: Simple Motion modifier
+
+0x21c: Path Motion modifier - Obsolete version
 
 0x21b: Path Motion modifier
 
@@ -550,9 +555,9 @@ Structure tree flags:
 
 0xffff: Stream terminator.   Known revisions: 0
 	byte[4] unknown (0)
-	uint32_t unknown
+	uint32_t unknown (might be size of asset data including tag)
 
-The purpose of stream terminators appears to be that for some reason, audio data is concatenated linearly at the end of the stream, outside of any object, even though QuickTime movies and MIDI modifiers are inline.  The stream terminator appears in that case.
+The purpose of stream terminators appears to be that some asset data is concatenated linearly at the end of the stream, outside of any object.  QuickTime movies and MIDI modifiers are still inline for some reason.  The stream terminator appears when an asset type (e.g. mToon, audio) is in the asset data section.
 
 
 
