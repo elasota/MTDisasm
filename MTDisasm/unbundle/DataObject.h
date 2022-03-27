@@ -665,13 +665,13 @@ namespace mtdisasm
 
 		struct MacPart
 		{
-			uint8_t m_unknown5[38];
+			uint8_t m_unknown5_1[66];
 			uint8_t m_unknown6[12];
 		};
 
 		struct WinPart
 		{
-			uint8_t m_unknown3[72];
+			uint8_t m_unknown3_1[32];
 			uint8_t m_unknown4[12];
 			uint8_t m_unknown7[12];
 		};
@@ -680,6 +680,8 @@ namespace mtdisasm
 		uint32_t m_assetAndDataCombinedSize;
 		uint8_t m_unknown1[4];
 		uint32_t m_assetID;
+		uint8_t m_unknown1_1[4];
+		uint16_t m_extFileNameLength;
 
 		uint32_t m_movieDataPos;
 		uint32_t m_moovAtomPos;
@@ -690,6 +692,8 @@ namespace mtdisasm
 
 		bool m_haveWinPart;
 		WinPart m_winPart;
+
+		std::vector<char> m_extFileName;
 	};
 
 	struct DOMToonAsset final : public DataObject

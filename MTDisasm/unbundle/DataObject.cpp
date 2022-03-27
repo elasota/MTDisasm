@@ -1114,14 +1114,16 @@ namespace mtdisasm
 		if (!reader.ReadU32(m_marker)
 			|| !reader.ReadU32(m_assetAndDataCombinedSize)
 			|| !reader.ReadBytes(m_unknown1, 4)
-			|| !reader.ReadU32(m_assetID))
+			|| !reader.ReadU32(m_assetID)
+			|| !reader.ReadBytes(m_unknown1_1, 4)
+			|| !reader.ReadU16(m_extFileNameLength))
 			return false;
 
 		if (sp.m_systemType == SystemType::kMac)
 		{
 			m_haveMacPart = true;
 
-			if (!reader.ReadBytes(m_macPart.m_unknown5, 72)
+			if (!reader.ReadBytes(m_macPart.m_unknown5_1, 6)
 				|| !reader.ReadU32(m_movieDataSize)
 				|| !reader.ReadBytes(m_macPart.m_unknown6, 12)
 				|| !reader.ReadU32(m_moovAtomPos))
@@ -1131,7 +1133,7 @@ namespace mtdisasm
 		{
 			m_haveWinPart = true;
 
-			if (!reader.ReadBytes(m_winPart.m_unknown3, 38)
+			if (!reader.ReadBytes(m_winPart.m_unknown3_1, 32)
 				|| !reader.ReadU32(m_movieDataSize)
 				|| !reader.ReadBytes(m_winPart.m_unknown4, 12)
 				|| !reader.ReadU32(m_moovAtomPos)
@@ -1140,6 +1142,13 @@ namespace mtdisasm
 		}
 		else
 			return false;
+
+		if (m_extFileNameLength > 0)
+		{
+			m_extFileName.resize(m_extFileNameLength);
+			if (!reader.ReadBytes(&m_extFileName[0], m_extFileNameLength) || m_extFileName[m_extFileNameLength - 1] != 0)
+				return false;
+		}
 
 		m_movieDataPos = reader.TellGlobal();
 

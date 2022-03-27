@@ -484,21 +484,24 @@ Structure tree flags:
 	...
 
 0x10: QuickTime movie data  Known revisions: 0
-	uint32_t marker
+	uint32_t marker (0x80 bit clear on Windows = external.   0x800 bit set on Mac = external.)
 	uint32_t combined size of this element desc and data
 	byte[4] unknown (0)
 	uint32_t unknown - possibly asset ID
+	byte[4] unknown (0)
+	uint16_t external name length
 	Win:
-		byte[38] unknown
+		byte[32] unknown
 		uint32_t movie size
 		byte[12] unknown
 		uint32_t moov atom location
 		byte[12] unknown
 	Mac:
-		byte[72] unknown
+		byte[66] unknown
 		uint32_t movie size
 		byte[12] unknown
 		uint32_t moov atom location
+	char[external name length] external file name
 	byte[movie size] movie data
 
 

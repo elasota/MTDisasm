@@ -584,21 +584,30 @@ void PrintObjectDisassembly(const mtdisasm::DOMovieAsset& obj, FILE* f)
 	PrintVal("AssetAndDataCombinedSize", obj.m_marker, f);
 	PrintHex("Unknown1", obj.m_unknown1, f);
 	PrintVal("AssetID", obj.m_assetID, f);
+	PrintHex("Unknown1_1", obj.m_unknown1_1, f);
+	PrintHex("ExtFileNameLength", obj.m_extFileNameLength, f);
 	PrintHex("MovieDataPos", obj.m_movieDataPos, f);
 	PrintVal("MovieDataSize", obj.m_movieDataSize, f);
 	PrintHex("MoovAtomPos", obj.m_moovAtomPos, f);
 
 	if (obj.m_haveMacPart)
 	{
-		PrintHex("Unknown5", obj.m_macPart.m_unknown5, f);
+		PrintHex("Unknown5_1", obj.m_macPart.m_unknown5_1, f);
 		PrintHex("Unknown6", obj.m_macPart.m_unknown6, f);
 	}
 
 	if (obj.m_haveWinPart)
 	{
-		PrintHex("Unknown3", obj.m_winPart.m_unknown3, f);
+		PrintHex("Unknown3_1", obj.m_winPart.m_unknown3_1, f);
 		PrintHex("Unknown4", obj.m_winPart.m_unknown4, f);
 		PrintHex("Unknown7", obj.m_winPart.m_unknown7, f);
+	}
+
+	if (obj.m_extFileNameLength > 1)
+	{
+		fputs("ExternalFileName: '", f);
+		fwrite(&obj.m_extFileName[0], 1, obj.m_extFileNameLength - 1, f);
+		fputs("'\n", f);
 	}
 }
 
