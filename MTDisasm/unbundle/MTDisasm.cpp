@@ -20,8 +20,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "Unknown";
 	case mtdisasm::DataObjectType::kStreamHeader:
 		return "StreamHeader";
-	case mtdisasm::DataObjectType::kUnknown3ec:
-		return "Unknown3ec";
+	case mtdisasm::DataObjectType::kPresentationSettings:
+		return "PresentationSettings";
 	case mtdisasm::DataObjectType::kUnknown17:
 		return "Unknown17";
 	case mtdisasm::DataObjectType::kUnknown19:
@@ -36,6 +36,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "ColorTable";
 	case mtdisasm::DataObjectType::kAudioAsset:
 		return "AudioAsset";
+	case mtdisasm::DataObjectType::kImageAsset:
+		return "ImageAsset";
 	case mtdisasm::DataObjectType::kMovieAsset:
 		return "MovieAsset";
 	case mtdisasm::DataObjectType::kMToonAsset:
@@ -160,6 +162,15 @@ void PrintSingleVal(const mtdisasm::DORect& rect, bool asHex, FILE* f)
 	fprintf(f, ") [%i x %i]", static_cast<int>(rect.m_right - rect.m_left), static_cast<int>(rect.m_bottom - rect.m_top));
 }
 
+void PrintSingleVal(const mtdisasm::DOPoint& pt, bool asHex, FILE* f)
+{
+	fputs("(", f);
+	PrintSingleVal(pt.m_left, asHex, f);
+	fputs(",", f);
+	PrintSingleVal(pt.m_top, asHex, f);
+	fputs(")", f);
+}
+
 template<size_t TSize, class T>
 void PrintSingleVal(const T (&arr)[TSize], bool asHex, FILE* f)
 {
@@ -209,16 +220,16 @@ void PrintObjectDisassembly(const mtdisasm::DOStreamHeader& obj, FILE* f)
 	PrintHex("Unknown2", obj.m_unknown2, f);
 }
 
-void PrintObjectDisassembly(const mtdisasm::DOUnknown3ec& obj, FILE* f)
+void PrintObjectDisassembly(const mtdisasm::DOPresentationSettings& obj, FILE* f)
 {
-	assert(obj.GetType() == mtdisasm::DataObjectType::kUnknown3ec);
+	assert(obj.GetType() == mtdisasm::DataObjectType::kPresentationSettings);
 
 	PrintHex("Marker", obj.m_marker, f);
 	PrintVal("Size", obj.m_sizeIncludingTag, f);
 
 	PrintHex("Unknown1", obj.m_unknown1, f);
-	PrintHex("Unknown2", obj.m_unknown2, f);
-	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintVal("Dimensions", obj.m_dimensions, f);
+	PrintVal("BitsPerPixel", obj.m_bitsPerPixel, f);
 	PrintHex("Unknown4", obj.m_unknown4, f);
 }
 
@@ -333,7 +344,7 @@ void PrintObjectDisassembly(const mtdisasm::DOColorTableAsset& obj, FILE* f)
 	PrintHex("Marker", obj.m_marker, f);
 	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
 	PrintHex("Unknown1", obj.m_unknown1, f);
-	PrintHex("AssetID", obj.m_assetID, f);
+	PrintVal("AssetID", obj.m_assetID, f);
 	PrintHex("Unknown2", obj.m_unknown2, f);
 	fprintf(f, "Colors:");
 
@@ -515,6 +526,9 @@ void PrintObjectDisassembly(const mtdisasm::DOAudioAsset& obj, FILE* f)
 	PrintVal("Channels", obj.m_channels, f);
 	PrintVal("CodedDuration", obj.m_codedDuration, f);
 	PrintVal("SampleRate2", obj.m_sampleRate2, f);
+	PrintVal("ExtraDataSize", obj.m_extraDataSize, f);
+	PrintHex("Unknown13", obj.m_unknown13, f);
+	PrintHex("Unknown14", obj.m_unknown14, f);
 	PrintHex("FilePosition", obj.m_filePosition, f);
 	PrintVal("Size", obj.m_size, f);
 
@@ -524,7 +538,6 @@ void PrintObjectDisassembly(const mtdisasm::DOAudioAsset& obj, FILE* f)
 		PrintHex("Unknown5", obj.m_macPart.m_unknown5, f);
 		PrintHex("Unknown6", obj.m_macPart.m_unknown6, f);
 		PrintHex("Unknown8", obj.m_macPart.m_unknown8, f);
-		PrintHex("Unknown13", obj.m_macPart.m_unknown13, f);
 	}
 
 	if (obj.m_haveWinPart)
@@ -533,8 +546,34 @@ void PrintObjectDisassembly(const mtdisasm::DOAudioAsset& obj, FILE* f)
 		PrintHex("Unknown9", obj.m_winPart.m_unknown9, f);
 		PrintHex("Unknown10", obj.m_winPart.m_unknown10, f);
 		PrintHex("Unknown11", obj.m_winPart.m_unknown11, f);
-		PrintHex("Unknown12", obj.m_winPart.m_unknown12, f);
+		PrintHex("Unknown12_1", obj.m_winPart.m_unknown12_1, f);
 	}
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOImageAsset& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kImageAsset);
+
+	PrintHex("Marker", obj.m_marker, f);
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintVal("AssetID", obj.m_assetID, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintVal("Rect1", obj.m_rect1, f);
+	PrintHex("HDPI", obj.m_hdpiFixed, f);
+	PrintHex("VDPI", obj.m_vdpiFixed, f);
+	PrintVal("BitsPerPixel", obj.m_bitsPerPixel, f);
+	PrintHex("Unknown4", obj.m_unknown4, f);
+	PrintHex("Unknown5", obj.m_unknown5, f);
+	PrintHex("Unknown6", obj.m_unknown6, f);
+	PrintVal("Rect2", obj.m_rect2, f);
+	PrintHex("FilePosition", obj.m_filePosition, f);
+	PrintVal("Size", obj.m_size, f);
+
+	if (obj.m_haveMacPart)
+		PrintHex("Unknown7", obj.m_platform.m_mac.m_unknown7, f);
+	if (obj.m_haveWinPart)
+		PrintHex("Unknown8", obj.m_platform.m_win.m_unknown8, f);
 }
 
 void PrintObjectDisassembly(const mtdisasm::DOMovieAsset& obj, FILE* f)
@@ -542,9 +581,9 @@ void PrintObjectDisassembly(const mtdisasm::DOMovieAsset& obj, FILE* f)
 	assert(obj.GetType() == mtdisasm::DataObjectType::kMovieAsset);
 
 	PrintHex("Marker", obj.m_marker, f);
-	PrintVal("m_assetAndDataCombinedSize", obj.m_marker, f);
+	PrintVal("AssetAndDataCombinedSize", obj.m_marker, f);
 	PrintHex("Unknown1", obj.m_unknown1, f);
-	PrintHex("AssetID", obj.m_assetID, f);
+	PrintVal("AssetID", obj.m_assetID, f);
 	PrintHex("MovieDataPos", obj.m_movieDataPos, f);
 	PrintVal("MovieDataSize", obj.m_movieDataSize, f);
 	PrintHex("MoovAtomPos", obj.m_moovAtomPos, f);
@@ -563,6 +602,69 @@ void PrintObjectDisassembly(const mtdisasm::DOMovieAsset& obj, FILE* f)
 	}
 }
 
+
+void PrintObjectDisassembly(const mtdisasm::DOMToonAsset& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kMToonAsset);
+
+	PrintHex("Marker", obj.m_marker, f);
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintVal("AssetID", obj.m_assetID, f);
+	PrintHex("SizeOfFrameData", obj.m_sizeOfFrameData, f);
+
+	PrintHex("MToonHeader", obj.m_mtoonHeader, f);
+	PrintVal("Version", obj.m_version, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("EncodingFlags", obj.m_encodingFlags, f);
+	PrintHex("Rect", obj.m_rect, f);
+
+	PrintVal("NumFrames", obj.m_numFrames, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintVal("BitsPerPixel", obj.m_bitsPerPixel, f);
+	PrintHex("CodecID", obj.m_codecID, f);
+	PrintHex("Unknown4_1", obj.m_unknown4_1, f);
+	PrintHex("CodecDataSize", obj.m_codecDataSize, f);
+	PrintHex("Unknown4_2", obj.m_unknown4_2, f);
+
+	for (size_t i = 0; i < obj.m_numFrames; i++)
+	{
+		fprintf(f, "Frame %i:\n", static_cast<int>(i));
+		const mtdisasm::DOMToonAsset::FrameDef& frame = obj.m_frames[i];
+
+		if (obj.m_haveMacPart)
+			PrintHex("Unknown12", frame.m_platform.m_mac.m_unknown12, f);
+		if (obj.m_haveWinPart)
+			PrintHex("Unknown13", frame.m_platform.m_win.m_unknown13, f);
+	}
+
+	fprintf(f, "CodecData:");
+	for (size_t i = 0; i < obj.m_codecData.size(); i++)
+		fprintf(f, " %02x", static_cast<int>(obj.m_codecData[i]));
+	fprintf(f, "\n");
+
+	if (obj.m_encodingFlags & mtdisasm::DOMToonAsset::kEncodingFlag_HasRanges)
+	{
+		PrintHex("FrameRangesTag", obj.m_frameRangesPart.m_tag, f);
+		PrintHex("FrameRangesSizeIncludingTag", obj.m_frameRangesPart.m_sizeIncludingTag, f);
+		PrintHex("NumFrameRanges", obj.m_frameRangesPart.m_numFrameRanges, f);
+		PrintHex("Unknown4_2", obj.m_unknown4_2, f);
+
+		for (size_t i = 0; i < obj.m_frameRangesPart.m_numFrameRanges; i++)
+		{
+			fprintf(f, "FrameRange %i:\n", static_cast<int>(i));
+			const mtdisasm::DOMToonAsset::FrameRangeDef& frameRange = obj.m_frameRangesPart.m_frameRanges[i];
+
+			PrintVal("StartFrame", frameRange.m_startFrame, f);
+			PrintVal("EndFrame", frameRange.m_startFrame, f);
+			fputs("Name: '", f);
+			if (frameRange.m_name.size() > 1)
+				fwrite(&frameRange.m_name[0], 1, frameRange.m_name.size() - 1, f);
+			fputs("'\n", f);
+			PrintHex("Unknown14", frameRange.m_unknown14, f);
+		}
+	}
+}
+
 void PrintObjectDisassembly(const mtdisasm::DOAssetDataSection& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kAssetDataSection);
@@ -578,8 +680,8 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 	case mtdisasm::DataObjectType::kStreamHeader:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOStreamHeader&>(obj), f);
 		break;
-	case mtdisasm::DataObjectType::kUnknown3ec:
-		PrintObjectDisassembly(static_cast<const mtdisasm::DOUnknown3ec&>(obj), f);
+	case mtdisasm::DataObjectType::kPresentationSettings:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOPresentationSettings&>(obj), f);
 		break;
 	case mtdisasm::DataObjectType::kAssetCatalog:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOAssetCatalog&>(obj), f);
@@ -602,8 +704,14 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 	case mtdisasm::DataObjectType::kAudioAsset:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOAudioAsset&>(obj), f);
 		break;
+	case mtdisasm::DataObjectType::kImageAsset:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOImageAsset&>(obj), f);
+		break;
 	case mtdisasm::DataObjectType::kMovieAsset:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOMovieAsset&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kMToonAsset:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOMToonAsset&>(obj), f);
 		break;
 	case mtdisasm::DataObjectType::kSectionStructuralDef:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOSectionStructuralDef&>(obj), f);

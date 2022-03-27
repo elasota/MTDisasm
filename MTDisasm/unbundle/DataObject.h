@@ -51,7 +51,7 @@ namespace mtdisasm
 		kUnknown,
 
 		kStreamHeader,
-		kUnknown3ec,
+		kPresentationSettings,
 		kUnknown17,
 		kUnknown19,
 		kDebris,
@@ -72,6 +72,7 @@ namespace mtdisasm
 
 		kColorTableAsset,
 		kAudioAsset,
+		kImageAsset,
 		kMovieAsset,
 		kMToonAsset,
 
@@ -136,7 +137,7 @@ namespace mtdisasm
 		uint16_t m_unknown2;	// 0
 	};
 
-	struct DOUnknown3ec final : public DataObject
+	struct DOPresentationSettings final : public DataObject
 	{
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
@@ -144,8 +145,8 @@ namespace mtdisasm
 		uint32_t m_marker;
 		uint32_t m_sizeIncludingTag;
 		uint8_t m_unknown1[2];
-		uint32_t m_unknown2;
-		uint16_t m_unknown3;
+		DOPoint m_dimensions;
+		uint16_t m_bitsPerPixel;
 		uint16_t m_unknown4;
 	};
 
@@ -579,7 +580,6 @@ namespace mtdisasm
 			uint8_t m_unknown5[5];
 			uint8_t m_unknown6[3];
 			uint8_t m_unknown8[20];
-			uint8_t m_unknown13[10];
 		};
 
 		struct WinPart
@@ -587,7 +587,7 @@ namespace mtdisasm
 			uint8_t m_unknown9[3];
 			uint8_t m_unknown10[3];
 			uint8_t m_unknown11[15];
-			uint8_t m_unknown12[12];
+			uint8_t m_unknown12_1[2];
 		};
 
 		uint32_t m_marker;
@@ -601,6 +601,9 @@ namespace mtdisasm
 		uint8_t m_channels;
 		uint8_t m_codedDuration[4];
 		uint16_t m_sampleRate2;
+		uint32_t m_extraDataSize;
+		uint16_t m_unknown13;
+		uint8_t m_unknown14[4];
 		uint32_t m_filePosition;
 		uint32_t m_size;
 
@@ -609,6 +612,50 @@ namespace mtdisasm
 
 		bool m_haveWinPart;
 		WinPart m_winPart;
+	};
+
+	struct DOImageAsset final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		struct MacPart
+		{
+			uint8_t m_unknown7[44];
+		};
+
+		struct WinPart
+		{
+			uint8_t m_unknown8[10];
+		};
+
+		union PlatformPart
+		{
+			WinPart m_win;
+			MacPart m_mac;
+		};
+
+		uint32_t m_marker;
+		uint32_t m_unknown1;
+		uint8_t m_unknown2[4];
+		uint32_t m_assetID;
+		uint32_t m_unknown3;
+
+		DORect m_rect1;
+		uint32_t m_hdpiFixed;
+		uint32_t m_vdpiFixed;
+		uint16_t m_bitsPerPixel;
+		uint8_t m_unknown4[2];
+		uint8_t m_unknown5[4];
+		uint8_t m_unknown6[8];
+		DORect m_rect2;
+		uint32_t m_filePosition;
+		uint32_t m_size;
+
+		bool m_haveMacPart;
+		bool m_haveWinPart;
+
+		PlatformPart m_platform;
 	};
 
 	struct DOMovieAsset final : public DataObject
@@ -683,7 +730,8 @@ namespace mtdisasm
 		{
 			uint32_t m_startFrame;
 			uint32_t m_endFrame;
-			uint16_t m_lengthOfName;
+			uint8_t m_lengthOfName;
+			uint8_t m_unknown14;
 
 			std::vector<char> m_name;	// Null terminated
 		};
@@ -691,7 +739,7 @@ namespace mtdisasm
 		enum
 		{
 			kEncodingFlag_TemporalCompression	= 0x80,
-			kEncodingFlag_HasRanges				= 0x20,
+			kEncodingFlag_HasRanges				= 0x20000000,
 			kEncodingFlag_Trimming				= 0x08,
 		};
 

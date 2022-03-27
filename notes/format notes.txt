@@ -9,7 +9,7 @@ The asset table from mTropolis 1.1 contains file positions for assets, but Obsid
 The asset types are the same as the DataObject types - e.g. if he asset type is 0x55, then the data object will be 0x55.  All assets appear to be size-tagged.
 
 
-There are 6 types of assets: PICTs, mToons, sounds, QuickTime (movies and QTVR panoramas), MIDI, color tables.  There's an additional asset type, 0x1f, which is currently unknown, and appears to be generated on export rather than corresponding to an asset file.  0x1f assets are always unnamed.  Based on some data inspection, it looks like image frames for mToons.
+There are 6 types of assets: PICTs, mToons, sounds, QuickTime (movies and QTVR panoramas), MIDI, color tables.  There's an additional asset type, 0x1f, which is currently unknown, and appears to be emitted whenever you place a text label object.  0x1f assets are always unnamed.  Based on some data inspection, it looks like some kind of image, so it might be a pre-rendered image of the text.
 
 32-bit images are stored bottom-up on Windows and top-down on Mac.
 
@@ -168,7 +168,7 @@ uint16_t random build ID?
 byte[6] unknown - always 00 0a 73 e8 00 00
 
 
-0x3ec: Unknown.  Appears in boot stream before asset table.  Known revisions: 2
+0x3ec: Project presentation settings.  Appears in boot stream before asset table.  Known revisions: 2
 uint32_t marker
 uint32_t size including tag
 ???
@@ -502,7 +502,7 @@ Structure tree flags:
 	byte[movie size] movie data
 
 
-0x11: Sound data locator - Known revisions: 2
+0x11: Sound asset - Known revisions: 2
 	uint32_t marker
 	uint32_t combined size of asset locator and data
 	byte[4] unknown (0)
@@ -528,18 +528,40 @@ Structure tree flags:
 
 	byte[18] unknown (0)
 	uint16_t sample rate?
-	Mac:
-		byte[10] unknown (0)
-	Win:
-		byte[12] unknown (0)
-	uint32_t unknown - file position?
-	uint32_t unknown - size?
+	byte[2] unknown (0)
+	uint32_t extra data size
+	uint16_t unknown (usually 0, sometimes 5 when there is extra data?)
+	byte[4] unknown (0)
+	uint32_t unknown - file position
+	uint32_t unknown - size
+	byte[extra data size] extra data
 
 0xa: Unknown  Known revisions: 3
 
-0xe: Image    Known revisions: 1
-	NOT SIZE-TAGGED
-	????
+0xe: Image asset   Known revisions: 1
+	uint32_t marker
+	uint32_t unknown (possibly size of marker + size of image data)
+	byte[4] unknown
+	uint32_t asset ID
+	uint32_t unknown (0x80000000)
+	Mac:
+		byte[44] unknown
+	Win:
+		byte[10] unknown (0)
+	RECT rect
+	uint32_t hdpi
+	uint32_t vdpi
+	uint16_t bits per pixel
+	byte[2] unknown (varies)
+	byte[4] unknown (ff ff ff ff)
+	byte[8] unknown (0)
+	RECT rect
+	uint32_t file position
+	uint32_t size
+	
+	
+
+Mac dc1-e37-ead-f23-f99
 
 0xf: mToon asset  Known revisions: 1
 	marker

@@ -67,6 +67,8 @@ namespace mtdisasm
 			return new DOUnknown19();
 		case 0xfffffffe:
 			return new DODebris();
+		case 0x00e:
+			return new DOImageAsset();
 		case 0x00f:
 			return new DOMToonAsset();
 		case 0x010:
@@ -82,7 +84,7 @@ namespace mtdisasm
 		case 0x3e9:
 			return new DOStreamHeader();
 		case 0x3ec:
-			return new DOUnknown3ec();
+			return new DOPresentationSettings();
 		case 0x2c6:
 			return new DOBehaviorModifier();
 		case 0x3c0:
@@ -190,12 +192,12 @@ namespace mtdisasm
 		return true;
 	}
 
-	DataObjectType DOUnknown3ec::GetType() const
+	DataObjectType DOPresentationSettings::GetType() const
 	{
-		return DataObjectType::kUnknown3ec;
+		return DataObjectType::kPresentationSettings;
 	}
 
-	bool DOUnknown3ec::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	bool DOPresentationSettings::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
 	{
 		if (revision != 2)
 			return false;
@@ -203,8 +205,8 @@ namespace mtdisasm
 		if (!reader.ReadU32(m_marker) ||
 			!reader.ReadU32(m_sizeIncludingTag) ||
 			!reader.ReadBytes(m_unknown1, 2) ||
-			!reader.ReadU32(m_unknown2) ||
-			!reader.ReadU16(m_unknown3) ||
+			!m_dimensions.Load(reader, sp) ||
+			!reader.ReadU16(m_bitsPerPixel) ||
 			!reader.ReadU16(m_unknown4))
 			return false;
 
@@ -525,8 +527,6 @@ namespace mtdisasm
 			uint8_t clutHeader[8];
 			if (!reader.ReadBytes(clutHeader, 8))
 				return false;
-
-			numColors = clutHeader[7] + 1;
 
 			uint8_t cdefBytes[256 * 8];
 			if (!reader.ReadBytes(cdefBytes, numColors * 8))
@@ -978,6 +978,7 @@ namespace mtdisasm
 		m_haveMacPart = false;
 		m_haveWinPart = false;
 
+		uint32_t extraDataSize = 0;
 		if (sp.m_systemType == SystemType::kMac)
 		{
 			m_haveMacPart = true;
@@ -990,14 +991,12 @@ namespace mtdisasm
 				|| !reader.ReadU8(m_channels)
 				|| !reader.ReadBytes(m_codedDuration, 4)
 				|| !reader.ReadBytes(m_macPart.m_unknown8, 20)
-				|| !reader.ReadU16(m_sampleRate2)
-				|| !reader.ReadBytes(m_macPart.m_unknown13, 10))
+				|| !reader.ReadU16(m_sampleRate2))
 				return false;
 		}
 		else if (sp.m_systemType == SystemType::kWindows)
 		{
 			m_haveWinPart = true;
-
 
 			if (!reader.ReadU16(m_sampleRate1)
 				|| !reader.ReadU8(m_bitsPerSample)
@@ -1007,13 +1006,69 @@ namespace mtdisasm
 				|| !reader.ReadBytes(m_codedDuration, 4)
 				|| !reader.ReadBytes(m_winPart.m_unknown11, 18)
 				|| !reader.ReadU16(m_sampleRate2)
-				|| !reader.ReadBytes(m_winPart.m_unknown12, 12))
+				|| !reader.ReadBytes(m_winPart.m_unknown12_1, 2))
 				return false;
 		}
 		else
 			return false;
 
-		if (!reader.ReadU32(m_filePosition)
+		if (!reader.ReadU32(m_extraDataSize)
+			|| !reader.ReadU16(m_unknown13)
+			|| !reader.ReadBytes(m_unknown14, 4)
+			|| !reader.ReadU32(m_filePosition)
+			|| !reader.ReadU32(m_size))
+			return false;
+
+		if (m_extraDataSize && !reader.Skip(m_extraDataSize))
+			return false;
+
+		return true;
+	}
+
+	DataObjectType DOImageAsset::GetType() const
+	{
+		return DataObjectType::kImageAsset;
+	}
+
+	bool DOImageAsset::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 1)
+			return false;
+
+		if (!reader.ReadU32(m_marker)
+			|| !reader.ReadU32(m_unknown1)
+			|| !reader.ReadBytes(m_unknown2, 4)
+			|| !reader.ReadU32(m_assetID)
+			|| !reader.ReadU32(m_unknown3))
+			return false;
+
+		m_haveWinPart = false;
+		m_haveMacPart = false;
+
+		if (sp.m_systemType == SystemType::kMac)
+		{
+			m_haveMacPart = true;
+			if (!reader.ReadBytes(m_platform.m_mac.m_unknown7, 44))
+				return false;
+		}
+		else if (sp.m_systemType == SystemType::kWindows)
+		{
+			m_haveWinPart = true;
+			if (!reader.ReadBytes(m_platform.m_win.m_unknown8, 10))
+				return false;
+		}
+		else
+			return false;
+
+		if (!m_rect1.Load(reader, sp)
+			|| !reader.ReadU32(m_hdpiFixed)
+			|| !reader.ReadU32(m_vdpiFixed)
+			|| !reader.ReadU16(m_bitsPerPixel)
+			|| !reader.ReadBytes(m_unknown4, 2)
+			|| !reader.ReadBytes(m_unknown5, 4)
+			|| !reader.ReadBytes(m_unknown6, 8)
+			|| !m_rect2.Load(reader, sp)
+			|| !reader.ReadU32(m_filePosition)
 			|| !reader.ReadU32(m_size))
 			return false;
 
@@ -1186,7 +1241,7 @@ namespace mtdisasm
 				|| !reader.ReadU32(m_frameRangesPart.m_numFrameRanges))
 				return false;
 
-			if (m_frameRangesPart.m_tag != 1 || m_frameRangesPart.m_sizeIncludingTag != 0x64)
+			if (m_frameRangesPart.m_tag != 1)
 				return false;
 
 			if (m_frameRangesPart.m_numFrameRanges > 0)
@@ -1198,7 +1253,8 @@ namespace mtdisasm
 
 					if (!reader.ReadU32(frameRange.m_startFrame)
 						|| !reader.ReadU32(frameRange.m_endFrame)
-						|| !reader.ReadU16(frameRange.m_lengthOfName))
+						|| !reader.ReadU8(frameRange.m_lengthOfName)
+						|| !reader.ReadU8(frameRange.m_unknown14))
 						return false;
 
 					if (frameRange.m_lengthOfName > 0)
