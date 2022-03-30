@@ -11,6 +11,32 @@ namespace mtdisasm
 	{
 	}
 
+	bool DataReader::ReadU64(uint64_t& v)
+	{
+		uint64_t result = 0;
+		if (!m_stream.ReadAll(&result, 8))
+			return false;
+
+		if (m_byteSwap)
+			result = endian::SwapU64(result);
+
+		v = result;
+		return true;
+	}
+
+	bool DataReader::ReadS64(int64_t& v)
+	{
+		int64_t result = 0;
+		if (!m_stream.ReadAll(&result, 8))
+			return false;
+
+		if (m_byteSwap)
+			result = endian::SwapS64(result);
+
+		v = result;
+		return true;
+	}
+
 	bool DataReader::ReadU32(uint32_t& v)
 	{
 		uint32_t result = 0;
@@ -72,6 +98,27 @@ namespace mtdisasm
 	{
 		return m_stream.ReadAll(&v, 1);
 	}
+
+	bool DataReader::ReadF64(double& v)
+	{
+		uint64_t u64;
+		if (!this->ReadU64(u64))
+			return false;
+
+		memcpy(&v, &u64, 8);
+		return true;
+	}
+
+	bool DataReader::ReadF32(float& v)
+	{
+		uint32_t u32;
+		if (!this->ReadU32(u32))
+			return false;
+
+		memcpy(&v, &u32, 4);
+		return true;
+	}
+
 
 	bool DataReader::ReadPStr16(std::string& str)
 	{

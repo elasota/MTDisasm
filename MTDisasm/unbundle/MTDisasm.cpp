@@ -4,6 +4,7 @@
 #include "DataObject.h"
 #include "DataReader.h"
 #include "SliceIOStream.h"
+#include "MemIOStream.h"
 
 #include <string>
 #include <vector>
@@ -22,8 +23,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "StreamHeader";
 	case mtdisasm::DataObjectType::kPresentationSettings:
 		return "PresentationSettings";
-	case mtdisasm::DataObjectType::kUnknown17:
-		return "Unknown17";
+	case mtdisasm::DataObjectType::kGlobalObjectInfo:
+		return "GlobalObjectInfo";
 	case mtdisasm::DataObjectType::kUnknown19:
 		return "Unknown19";
 	case mtdisasm::DataObjectType::kDebris:
@@ -63,6 +64,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 	case mtdisasm::DataObjectType::kPlugInModifier:
 		return "PlugInModifier";
 	case mtdisasm::DataObjectType::kAssetDataSection:
+		return "AssetDataSection";
+	case mtdisasm::DataObjectType::kMiniscriptModifier:
 		return "AssetDataSection";
 	default:
 		return "BUG_NotNamed";
@@ -171,6 +174,15 @@ void PrintSingleVal(const mtdisasm::DOPoint& pt, bool asHex, FILE* f)
 	fputs(")", f);
 }
 
+void PrintSingleVal(const mtdisasm::DOEvent& pt, bool asHex, FILE* f)
+{
+	fputs("event(", f);
+	PrintSingleVal(pt.m_eventID, asHex, f);
+	fputs(",", f);
+	PrintSingleVal(pt.m_eventInfo, asHex, f);
+	fputs(")", f);
+}
+
 template<size_t TSize, class T>
 void PrintSingleVal(const T (&arr)[TSize], bool asHex, FILE* f)
 {
@@ -233,12 +245,13 @@ void PrintObjectDisassembly(const mtdisasm::DOPresentationSettings& obj, FILE* f
 	PrintHex("Unknown4", obj.m_unknown4, f);
 }
 
-void PrintObjectDisassembly(const mtdisasm::DOUnknown17& obj, FILE* f)
+void PrintObjectDisassembly(const mtdisasm::DOGlobalObjectInfo& obj, FILE* f)
 {
-	assert(obj.GetType() == mtdisasm::DataObjectType::kUnknown17);
+	assert(obj.GetType() == mtdisasm::DataObjectType::kGlobalObjectInfo);
 
 	PrintHex("Marker", obj.m_marker, f);
 	PrintVal("Size", obj.m_sizeIncludingTag, f);
+	PrintVal("NumGlobalModifiers", obj.m_numGlobalModifiers, f);
 	PrintHex("Unknown1", obj.m_unknown1, f);
 }
 
@@ -491,6 +504,191 @@ void PrintObjectDisassembly(const mtdisasm::DOMToonStructuralDef& obj, FILE* f)
 	fputs("'\n", f);
 }
 
+bool PrintMiniscriptInstructionDisassembly(FILE* f, mtdisasm::DataReader& reader, const mtdisasm::SerializationProperties& sp, int opcode, int sizeOfInstrData)
+{
+	switch (opcode)
+	{
+	case 0x898:
+		{
+			mtdisasm::DOEvent evt;
+			if (!evt.Load(reader))
+				return false;
+			PrintSingleVal(evt, false, f);
+		}
+		break;
+	case 0xd8:	// Builtin function
+	case 0x135:	// Get attribute
+	case 0x192: // Push global context
+		{
+			uint32_t funcID;
+			if (!reader.ReadU32(funcID))
+				return false;
+			PrintSingleVal(funcID, true, f);
+		}
+		break;
+	case 0x191:
+		{
+			uint16_t dataType;
+			if (!reader.ReadU16(dataType))
+				return false;
+
+			if (dataType == 0)
+				fputs("null", f);
+			else if (dataType == 0x15)
+			{
+				double d;
+				if (!reader.ReadF64(d))
+					return false;
+				fprintf(f, "double %f", d);
+			}
+			else if (dataType == 0x1a)
+			{
+				uint8_t b;
+				if (!reader.ReadU8(b))
+					return false;
+				fprintf(f, "bool %s", ((b == 0) ? "false" : "true"));
+			}
+			else
+				fprintf(f, "unknown_type %x", static_cast<int>(dataType));
+		}
+		break;
+	case 0x193:
+		{
+			uint16_t strLength;
+			if (!reader.ReadU16(strLength))
+				return false;
+
+			std::vector<char> str;
+			if (strLength > 0)
+			{
+				str.resize(strLength);
+				if (!reader.ReadBytes(&str[0], strLength) || str[strLength - 1] != 0)
+					return false;
+				fprintf(f, "str '%s'", &str[0]);
+			}
+			else
+				fputs("str ''", f);
+		}
+		break;
+	default:
+		for (int i = 0; i < sizeOfInstrData; i++)
+		{
+			uint8_t byte;
+			if (!reader.ReadU8(byte))
+				return false;
+
+			if (i != 0)
+				fputc(' ', f);
+			fprintf(f, "%02x", static_cast<int>(byte));
+		}
+		break;
+	}
+
+	return true;
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kMiniscriptModifier);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("SizeIncludingTag", obj.m_sizeIncludingTag, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintHex("Unknown4", obj.m_unknown4, f);
+	PrintHex("LengthOfName", obj.m_lengthOfName, f);
+	PrintHex("EnableWhen", obj.m_enableWhen, f);
+	PrintHex("Unknown6", obj.m_unknown6, f);
+	PrintHex("Unknown7", obj.m_unknown7, f);
+	PrintHex("Unknown8", obj.m_unknown8, f);
+	PrintHex("SizeOfInstructions", obj.m_sizeOfInstructions, f);
+	PrintHex("NumOfInstructions", obj.m_numOfInstructions, f);
+	PrintHex("NumLocalRefs", obj.m_numLocalRefs, f);
+	PrintHex("NumAttributes", obj.m_numAttributes, f);
+
+	fputs("Name: '", f);
+	if (obj.m_lengthOfName > 0)
+		fwrite(&obj.m_name[0], 1, obj.m_lengthOfName - 1, f);
+	fputs("'\n", f);
+
+	fputs("Attributes:\n", f);
+	for (size_t i = 0; i < obj.m_numAttributes; i++)
+	{
+		const std::vector<char>& str = obj.m_attributes[i];
+		fprintf(f, "    % 5i: '", static_cast<int>(i));
+		if (str.size() > 1)
+			fwrite(&str[0], 1, str.size() - 1, f);
+		fputs("'\n", f);
+	}
+
+	fputs("Local references:\n", f);
+	for (size_t i = 0; i < obj.m_numLocalRefs; i++)
+	{
+		const mtdisasm::DOMiniscriptModifier::LocalRef& ref = obj.m_localRefs[i];
+		fprintf(f, "    % 5i: %08x %02x '", static_cast<int>(i), static_cast<int>(ref.m_unknown9), static_cast<int>(ref.m_unknown10));
+		if (ref.m_name.size() > 1)
+			fwrite(&ref.m_name[0], 1, ref.m_name.size() - 1, f);
+		fputs("'\n", f);
+	}
+
+	fputs("Instructions:\n", f);
+	bool readFailure = false;
+	if (obj.m_sizeOfInstructions > 0)
+	{
+		mtdisasm::MemIOStream memStream(&obj.m_bytecode[0], obj.m_bytecode.size());
+		mtdisasm::DataReader reader(memStream, obj.m_sp.m_isByteSwapped);
+
+		size_t numInstrsDecoded = 0;
+		for (size_t i = 0; i < obj.m_numOfInstructions; i++)
+		{
+			const char* opName = "???";
+
+			uint32_t instrStartPos = memStream.Tell();
+
+			uint16_t opcode, unknownField, sizeOfInstruction;
+			if (!reader.ReadU16(opcode) || !reader.ReadU16(unknownField), !reader.ReadU16(sizeOfInstruction))
+				break;
+
+			bool isUnknownOp = false;
+			switch (opcode)
+			{
+			case 0x834: opName = "set"; break;
+			case 0x898: opName = "send"; break;
+			case 0xd8: opName = "builtin_func"; break;
+			case 0x130: opName = "make_range"; break;
+			case 0x131: opName = "make_vector"; break;
+			case 0x135: opName = "get_attr"; break;
+			case 0x191: opName = "push_number"; break;
+			case 0x192: opName = "push_global_ctx"; break;
+			case 0x193: opName = "push_str"; break;
+			default:
+				isUnknownOp = true;
+				break;
+			}
+
+			fprintf(f, "    %s(0x%x),%i  ", opName, static_cast<int>(opcode), static_cast<int>(unknownField));
+
+			if (sizeOfInstruction < 6)
+				break;
+
+			bool decodedOK = PrintMiniscriptInstructionDisassembly(f, reader, obj.m_sp, opcode, sizeOfInstruction - 6);
+			fputs("\n", f);
+
+			if (!decodedOK)
+				break;
+
+			memStream.SeekSet(instrStartPos + sizeOfInstruction);
+
+			numInstrsDecoded++;
+		}
+
+		if (numInstrsDecoded != obj.m_numOfInstructions)
+			fprintf(f, "    <An error occurred during disassembly>\n");
+	}
+
+
+}
+
 void PrintObjectDisassembly(const mtdisasm::DONotYetImplemented& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kNotYetImplemented);
@@ -682,6 +880,33 @@ void PrintObjectDisassembly(const mtdisasm::DOAssetDataSection& obj, FILE* f)
 	PrintHex("SizeIncludingTag", obj.m_sizeIncludingTag, f);
 }
 
+void PrintObjectDisassembly(const mtdisasm::DOBehaviorModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kBehaviorModifier);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("SizeIncludingTag", obj.m_sizeIncludingTag, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintHex("Unknown4", obj.m_unknown4, f);
+	PrintHex("Unknown5", obj.m_unknown5, f);
+	PrintHex("Unknown6", obj.m_unknown6, f);
+	PrintVal("EditorLayoutPosition", obj.m_editorLayoutPosition, f);
+	PrintVal("LengthOfName", obj.m_lengthOfName, f);
+	PrintVal("NumChildren", obj.m_numChildren, f);
+	PrintHex("Flags", obj.m_flags, f);
+	PrintVal("EnableWhen", obj.m_enableWhen, f);
+	PrintVal("DisableWhen", obj.m_disableWhen, f);
+	PrintHex("Unknown7", obj.m_unknown7, f);
+
+	if (obj.m_name.size() > 1)
+	{
+		fputs("Name: '", f);
+		fwrite(&obj.m_name[0], 1, obj.m_name.size() - 1u, f);
+		fputs("'\n", f);
+	}
+}
+
 void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 {
 	switch (obj.GetType())
@@ -695,8 +920,8 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 	case mtdisasm::DataObjectType::kAssetCatalog:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOAssetCatalog&>(obj), f);
 		break;
-	case mtdisasm::DataObjectType::kUnknown17:
-		PrintObjectDisassembly(static_cast<const mtdisasm::DOUnknown17&>(obj), f);
+	case mtdisasm::DataObjectType::kGlobalObjectInfo:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOGlobalObjectInfo&>(obj), f);
 		break;
 	case mtdisasm::DataObjectType::kUnknown19:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOUnknown19&>(obj), f);
@@ -748,6 +973,12 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kAssetDataSection:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOAssetDataSection&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kBehaviorModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOBehaviorModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kMiniscriptModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOMiniscriptModifier&>(obj), f);
 		break;
 
 	default:

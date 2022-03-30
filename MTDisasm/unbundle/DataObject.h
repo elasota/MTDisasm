@@ -52,7 +52,7 @@ namespace mtdisasm
 
 		kStreamHeader,
 		kPresentationSettings,
-		kUnknown17,
+		kGlobalObjectInfo,
 		kUnknown19,
 		kDebris,
 		kProjectLabelMap,
@@ -69,6 +69,7 @@ namespace mtdisasm
 		kBehaviorModifier,
 		kPlugInModifier,
 		kMacOnlyCursorModifier,	// Obsolete
+		kMiniscriptModifier,
 
 		kColorTableAsset,
 		kAudioAsset,
@@ -180,14 +181,15 @@ namespace mtdisasm
 		std::vector<AssetInfo> m_assets;
 	};
 
-	struct DOUnknown17 final : public DataObject
+	struct DOGlobalObjectInfo final : public DataObject
 	{
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
 
 		uint32_t m_marker;
 		uint32_t m_sizeIncludingTag;
-		uint8_t m_unknown1[6];
+		uint16_t m_numGlobalModifiers;
+		uint8_t m_unknown1[4];
 	};
 
 	struct DOUnknown19 final : public DataObject
@@ -490,6 +492,45 @@ namespace mtdisasm
 		uint8_t m_unknown7[2];
 
 		std::vector<char> m_name;
+	};
+
+	struct DOMiniscriptModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		struct LocalRef
+		{
+			uint32_t m_unknown9;
+			uint8_t m_lengthOfName;
+			uint8_t m_unknown10;
+
+			std::vector<char> m_name;
+		};
+
+		uint32_t m_unknown1;
+		uint32_t m_sizeIncludingTag;
+		uint32_t m_unknown2;
+		uint8_t m_unknown3[6];
+		uint32_t m_unknown4;
+		uint8_t m_unknown5[4];
+		uint16_t m_lengthOfName;
+		DOEvent m_enableWhen;
+		uint8_t m_unknown6[11];
+		uint8_t m_unknown7;
+		uint32_t m_unknown8;
+
+		uint32_t m_sizeOfInstructions;
+		uint32_t m_numOfInstructions;
+		uint32_t m_numLocalRefs;
+		uint32_t m_numAttributes;
+
+		std::vector<uint8_t> m_bytecode;
+		std::vector<char> m_name;
+		std::vector<LocalRef> m_localRefs;
+		std::vector<std::vector<char>> m_attributes;
+
+		SerializationProperties m_sp;
 	};
 
 	struct DONotYetImplemented final : public DataObject

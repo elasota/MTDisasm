@@ -149,9 +149,14 @@ WIN: byte[8] unknown (zero fill)
 MAC: byte[30] unknown
 char[variable] name (remainder)
 
+0x17: Global object parameters?
+	uint32_t marker
+	uint32_t size including tag
+	uint16_t number of global modifiers/aliased objects (includes deleted objects, a.k.a. "debris")
+	byte[4] unknown (0)
 
 0x27: Alias.  Known revisions: 0
-
+	???
 
 
 0x3c0: Unknown.  Seen in boot segment after stream header.  Known revisions: 2
@@ -374,7 +379,73 @@ Structure tree flags:
 	For each child:
 		child object
 
-0x3c0: Miniscript modifier
+0x3c0: Miniscript modifier   Known revisions: 0x3eb
+	uint32_t unknown (0x222)
+	uint32_t size including tag
+	uint32_t unknown (0x10e3f)
+	byte[6] unknown (0)
+	uint32_t unknown (0x08770000)
+	byte[4] unknown (ff ff ff ff)
+	uint16_t length of name
+	char[length of name] name (null terminated)
+	EVENT "enable when"
+	byte[11] unknown (0)
+	uint8_t unknown (0 or 1)
+	unt32_t 0xfffffffb
+	uint32_t size of instructions
+	uint32_t number of instructions
+	uint32_t number of local references
+	uint32_t number of attributes
+	INSTRUCTION[number of instructions]
+	LOCALREF[number of local references]
+	ATTRIBUTE[number of attributes]
+
+	INSTRUCTION:
+		uint16_t opcode
+		uint16_t args
+		uint16_t size (includes opcode header)
+		byte[size - 12] instruction data
+
+	LOCALREF:
+		uint32_t unknown
+		uint8_t length of name
+		uint8_t unknown
+		char[length of name] name (null terminated)
+
+	ATTRIBUTE:
+		uint16_t length of string
+		char[length of string] string (null terminated)
+
+	Opcodes:
+		0x834: set
+			pop value, pop destination, assign
+		0x898: send
+			EVENT event
+			pop destination, pop additional, send event
+		0xd8: builtin function
+			uint32_t builtin function ID
+				0x13: num2str
+				0x13: rect2polar
+		0x12f: create point
+			pop max, pop min, push point
+		0x130: create integer range
+			pop max, pop min, push int range
+		0x131: create vector
+			pop magnitude, pop degrees, push vector
+		0x135: get attribute
+			uint32_t index into string table
+			pop reference, push retrieved attribute reference
+		0x191: push numeric constant - Padded to 46 bytes(?)
+			uint16_t type
+				0x00 = null?
+				0x15 = double (8 bytes)
+				0x1a = boolean (1 byte)
+		0x192: push global context
+			uint32_t unknown (1)
+		0x193: push string constant
+			uint16_t length
+			char[length] str (null terminated)
+	
 
 0x2da: Messenger modifier
 

@@ -5,6 +5,16 @@
 
 namespace mtdisasm
 {
+	uint64_t endian::SwapU64(uint64_t v)
+	{
+		return _byteswap_uint64(v);
+	}
+
+	int64_t endian::SwapS64(int64_t v)
+	{
+		return _byteswap_uint64(v);
+	}
+
 	uint32_t endian::SwapU32(uint32_t v)
 	{
 		return _byteswap_ulong(v);
@@ -29,6 +39,16 @@ namespace mtdisasm
 
 namespace mtdisasm
 {
+	uint32_t endian::SwapU32(uint64_t v)
+	{
+		return __builtin_bswap64(v);
+	}
+
+	int64_t endian::SwapS64(int64_t v)
+	{
+		return __builtin_bswap64(v);
+	}
+
 	uint32_t endian::SwapU32(uint32_t v)
 	{
 		return __builtin_bswap32(v);

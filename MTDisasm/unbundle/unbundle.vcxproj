@@ -146,6 +146,7 @@
     <ClInclude Include="Catalog.h" />
     <ClInclude Include="CFileIOStream.h" />
     <ClInclude Include="DataObject.h" />
+    <ClInclude Include="MemIOStream.h" />
     <ClInclude Include="SliceIOStream.h" />
     <ClInclude Include="DataReader.h" />
     <ClInclude Include="Endian.h" />
@@ -157,6 +158,7 @@
     <ClCompile Include="DataObject.cpp" />
     <ClCompile Include="DataReader.cpp" />
     <ClCompile Include="Endian.cpp" />
+    <ClCompile Include="MemIOStream.cpp" />
     <ClCompile Include="MTDisasm.cpp" />
     <ClCompile Include="SliceIOStream.cpp" />
   </ItemGroup>

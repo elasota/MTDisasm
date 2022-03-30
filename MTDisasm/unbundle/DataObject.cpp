@@ -62,7 +62,7 @@ namespace mtdisasm
 		case 0x00d:
 			return new DOAssetCatalog();
 		case 0x017:
-			return new DOUnknown17();
+			return new DOGlobalObjectInfo();
 		case 0x019:
 			return new DOUnknown19();
 		case 0xfffffffe:
@@ -88,7 +88,7 @@ namespace mtdisasm
 		case 0x2c6:
 			return new DOBehaviorModifier();
 		case 0x3c0:
-			return new DONotYetImplemented(objectType, "MiniScript modifier");
+			return new DOMiniscriptModifier();
 		case 0x2da:
 			return new DONotYetImplemented(objectType, "Messenger modifier");
 		case 0x2bc:
@@ -258,19 +258,20 @@ namespace mtdisasm
 		return true;
 	}
 
-	DataObjectType DOUnknown17::GetType() const
+	DataObjectType DOGlobalObjectInfo::GetType() const
 	{
-		return DataObjectType::kUnknown17;
+		return DataObjectType::kGlobalObjectInfo;
 	}
 
-	bool DOUnknown17::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	bool DOGlobalObjectInfo::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
 	{
 		if (revision != 0)
 			return false;
 
 		if (!reader.ReadU32(m_marker)
 			|| !reader.ReadU32(m_sizeIncludingTag)
-			|| !reader.ReadBytes(m_unknown1, 6))
+			|| !reader.ReadU16(m_numGlobalModifiers)
+			|| !reader.ReadBytes(m_unknown1, 4))
 			return false;
 
 		if (m_sizeIncludingTag != 0x14)
@@ -825,6 +826,93 @@ namespace mtdisasm
 			|| !m_disableWhen.Load(reader)
 			|| !reader.ReadBytes(m_unknown7, 2))
 			return false;
+
+		return true;
+	}
+
+	DataObjectType DOMiniscriptModifier::GetType() const
+	{
+		return DataObjectType::kMiniscriptModifier;
+	}
+
+	bool DOMiniscriptModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3eb)
+			return false;
+
+		m_sp = sp;
+
+		if (!reader.ReadU32(m_unknown1)
+			|| !reader.ReadU32(m_sizeIncludingTag)
+			|| !reader.ReadU32(m_unknown2)
+			|| !reader.ReadBytes(m_unknown3, 6)
+			|| !reader.ReadU32(m_unknown4)
+			|| !reader.ReadBytes(m_unknown5, 4)
+			|| !reader.ReadU16(m_lengthOfName))
+			return false;
+
+		if (m_lengthOfName > 0)
+		{
+			m_name.resize(m_lengthOfName);
+			if (!reader.ReadBytes(&m_name[0], m_lengthOfName) || m_name[m_lengthOfName - 1] != 0)
+				return false;
+		}
+
+		if (!m_enableWhen.Load(reader)
+			|| !reader.ReadBytes(m_unknown6, 11)
+			|| !reader.ReadU8(m_unknown7)
+			|| !reader.ReadU32(m_unknown8)
+			|| !reader.ReadU32(m_sizeOfInstructions)
+			|| !reader.ReadU32(m_numOfInstructions)
+			|| !reader.ReadU32(m_numLocalRefs)
+			|| !reader.ReadU32(m_numAttributes))
+			return false;
+
+		if (m_sizeOfInstructions > 0)
+		{
+			m_bytecode.resize(m_sizeOfInstructions);
+			if (!reader.ReadBytes(&m_bytecode[0], m_sizeOfInstructions))
+				return false;
+		}
+
+		if (m_numLocalRefs > 0)
+		{
+			m_localRefs.resize(m_numLocalRefs);
+			for (size_t i = 0; i < m_numLocalRefs; i++)
+			{
+				LocalRef& localRef = m_localRefs[i];
+				if (!reader.ReadU32(localRef.m_unknown9)
+					|| !reader.ReadU8(localRef.m_lengthOfName)
+					|| !reader.ReadU8(localRef.m_unknown10))
+					return false;
+
+				if (localRef.m_lengthOfName > 0)
+				{
+					localRef.m_name.resize(localRef.m_lengthOfName);
+					if (!reader.ReadBytes(&localRef.m_name[0], localRef.m_lengthOfName) || localRef.m_name[localRef.m_lengthOfName - 1] != 0)
+						return false;
+				}
+			}
+		}
+
+		if (m_numAttributes > 0)
+		{
+			m_attributes.resize(m_numAttributes);
+			for (size_t i = 0; i < m_numAttributes; i++)
+			{
+				uint16_t lengthOfString;
+				if (!reader.ReadU16(lengthOfString))
+					return false;
+
+				if (lengthOfString > 0)
+				{
+					std::vector<char>& str = m_attributes[i];
+					str.resize(lengthOfString);
+					if (!reader.ReadBytes(&str[0], lengthOfString) || str[lengthOfString - 1] != 0)
+						return false;
+				}
+			}
+		}
 
 		return true;
 	}
