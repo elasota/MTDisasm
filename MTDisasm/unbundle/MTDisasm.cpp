@@ -1299,6 +1299,13 @@ void EmitGetChild(const MiniscriptExpressionTree* expr, const mtdisasm::DOMinisc
 		EmitStr(obj.m_attributes[attribID].m_name, f);
 	else
 		fprintf(f, "unknown_attrib_%08x", static_cast<int>(attribID));
+
+	if (expr->m_instr->m_flags & 0x20)
+	{
+		fputc('[', f);
+		PrintExpression(expr->m_children[1], obj, f);
+		fputc(']', f);
+	}
 }
 
 void PrintExpression(const MiniscriptExpressionTree* expr, const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
@@ -1399,7 +1406,7 @@ void PrintExpression(const MiniscriptExpressionTree* expr, const mtdisasm::DOMin
 				expr = expr->m_children[0];
 			}
 			fputs("{ ", f);
-			PrintExpression(expr->m_children[0], obj, f);
+			PrintExpression(expr, obj, f);
 			for (size_t i = 0; i < rsExprs.size(); i++)
 			{
 				fputs(", ", f);
@@ -1413,7 +1420,6 @@ void PrintExpression(const MiniscriptExpressionTree* expr, const mtdisasm::DOMin
 			PrintExpression(expr->m_children[0], obj, f);
 			fputs(", ", f);
 			PrintExpression(expr->m_children[1], obj, f);
-
 		}
 		break;
 	case 0x191:
@@ -1986,9 +1992,9 @@ void PrintObjectDisassembly(const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
 			case 0xda: opName = "mod"; break;
 			case 0xdb: opName = "str_concat"; break;
 			case 0x12f: opName = "point_create"; break;
-			case 0x130: opName = "make_range"; break;
-			case 0x131: opName = "make_vector"; break;
-			case 0x135: opName = "get_attr"; break;
+			case 0x130: opName = "range_create"; break;
+			case 0x131: opName = "vector_create"; break;
+			case 0x135: opName = "get_child"; break;
 			case 0x136: opName = "list_append"; break;
 			case 0x137: opName = "list_create"; break;
 			case 0x191: opName = "push_value"; break;

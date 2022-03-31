@@ -461,7 +461,7 @@ Structure tree flags:
 			pop reference, push retrieved attribute reference
 			flags:
 				1 = reference
-				32 = array index
+				32 = array index (NOTE: This still requires looking up the attribute.  If no attribute is specified, the "value" attribute is used.)
 		0x191: push constant/local value
 			uint16_t type
 				0x00 = null?
