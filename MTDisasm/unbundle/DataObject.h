@@ -385,7 +385,7 @@ namespace mtdisasm
 
 		uint32_t m_unknown1;
 		uint32_t m_sizeIncludingTag;
-		uint32_t m_unknown2;
+		uint32_t m_guid;
 		uint16_t m_lengthOfName;
 		uint32_t m_flags;
 		uint8_t m_unknown4[2];
@@ -508,6 +508,14 @@ namespace mtdisasm
 			std::vector<char> m_name;
 		};
 
+		struct Attribute
+		{
+			uint8_t m_lengthOfName;
+			uint8_t m_unknown11;
+
+			std::vector<char> m_name;
+		};
+
 		uint32_t m_unknown1;
 		uint32_t m_sizeIncludingTag;
 		uint32_t m_unknown2;
@@ -528,7 +536,7 @@ namespace mtdisasm
 		std::vector<uint8_t> m_bytecode;
 		std::vector<char> m_name;
 		std::vector<LocalRef> m_localRefs;
-		std::vector<std::vector<char>> m_attributes;
+		std::vector<Attribute> m_attributes;
 
 		SerializationProperties m_sp;
 	};

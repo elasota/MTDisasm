@@ -643,7 +643,7 @@ namespace mtdisasm
 
 		if (!reader.ReadU32(m_unknown1)
 			|| !reader.ReadU32(m_sizeIncludingTag)
-			|| !reader.ReadU32(m_unknown2)
+			|| !reader.ReadU32(m_guid)
 			|| !reader.ReadU16(m_lengthOfName)
 			|| !reader.ReadU32(m_flags)
 			|| !reader.ReadBytes(m_unknown4, 2)
@@ -900,15 +900,14 @@ namespace mtdisasm
 			m_attributes.resize(m_numAttributes);
 			for (size_t i = 0; i < m_numAttributes; i++)
 			{
-				uint16_t lengthOfString;
-				if (!reader.ReadU16(lengthOfString))
+				Attribute& attrib = m_attributes[i];
+				if (!reader.ReadU8(attrib.m_lengthOfName) || !reader.ReadU8(attrib.m_unknown11))
 					return false;
 
-				if (lengthOfString > 0)
+				if (attrib.m_lengthOfName > 0)
 				{
-					std::vector<char>& str = m_attributes[i];
-					str.resize(lengthOfString);
-					if (!reader.ReadBytes(&str[0], lengthOfString) || str[lengthOfString - 1] != 0)
+					attrib.m_name.resize(attrib.m_lengthOfName);
+					if (!reader.ReadBytes(&attrib.m_name[0], attrib.m_lengthOfName) || attrib.m_name[attrib.m_lengthOfName - 1] != 0)
 						return false;
 				}
 			}

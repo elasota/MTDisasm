@@ -66,7 +66,7 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 	case mtdisasm::DataObjectType::kAssetDataSection:
 		return "AssetDataSection";
 	case mtdisasm::DataObjectType::kMiniscriptModifier:
-		return "AssetDataSection";
+		return "MiniscriptModifier";
 	default:
 		return "BUG_NotNamed";
 	}
@@ -411,7 +411,7 @@ void PrintObjectDisassembly(const mtdisasm::DOSceneStructuralDef& obj, FILE* f)
 
 	PrintHex("Unknown1", obj.m_unknown1, f);
 	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
-	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("GUID", obj.m_guid, f);
 	PrintHex("Flags", obj.m_flags, f);
 	PrintHex("Unknown4", obj.m_unknown4, f);
 	PrintVal("SectionID", obj.m_sectionID, f);
@@ -548,6 +548,20 @@ bool PrintMiniscriptInstructionDisassembly(FILE* f, mtdisasm::DataReader& reader
 					return false;
 				fprintf(f, "bool %s", ((b == 0) ? "false" : "true"));
 			}
+			else if (dataType == 0x1f9)
+			{
+				uint32_t u;
+				if (!reader.ReadU32(u))
+					return false;
+				fprintf(f, "local %u", u);
+			}
+			else if (dataType == 0x1fa)
+			{
+				uint32_t u;
+				if (!reader.ReadU32(u))
+					return false;
+				fprintf(f, "global %08x", u);
+			}
 			else
 				fprintf(f, "unknown_type %x", static_cast<int>(dataType));
 		}
@@ -614,10 +628,10 @@ void PrintObjectDisassembly(const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
 	fputs("Attributes:\n", f);
 	for (size_t i = 0; i < obj.m_numAttributes; i++)
 	{
-		const std::vector<char>& str = obj.m_attributes[i];
-		fprintf(f, "    % 5i: '", static_cast<int>(i));
-		if (str.size() > 1)
-			fwrite(&str[0], 1, str.size() - 1, f);
+		const mtdisasm::DOMiniscriptModifier::Attribute& attrib = obj.m_attributes[i];
+		fprintf(f, "    % 5i: %02x '", static_cast<int>(i), static_cast<int>(attrib.m_unknown11));
+		if (attrib.m_name.size() > 1)
+			fwrite(&attrib.m_name[0], 1, attrib.m_name.size() - 1, f);
 		fputs("'\n", f);
 	}
 

@@ -440,6 +440,8 @@ Structure tree flags:
 				0x00 = null?
 				0x15 = double (8 bytes)
 				0x1a = boolean (1 byte)
+				0x1f9 = local object reference (4 bytes)
+				0x1fa = global object reference (4 bytes)
 		0x192: push global context
 			uint32_t unknown (1)
 		0x193: push string constant
