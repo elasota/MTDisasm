@@ -473,7 +473,7 @@ Structure tree flags:
 				1 = reference
 		0x192: push global
 			uint32_t global ID
-				1 = default global context
+				1 = element
 				2 = subsection
 				3 = source
 				4 = incoming

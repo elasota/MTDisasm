@@ -588,7 +588,7 @@ bool PrintMiniscriptInstructionDisassembly(FILE* f, mtdisasm::DataReader& reader
 				double d;
 				if (!reader.ReadF64(d))
 					return false;
-				fprintf(f, "double %f", d);
+				fprintf(f, "double %g", d);
 			}
 			else if (dataType == 0x1a)
 			{
@@ -1119,7 +1119,6 @@ void PrintUnaryExpression(const MiniscriptExpressionTree* expr, const mtdisasm::
 	bool needsParen;
 	ResolveUnaryOpExprFragmentationPrecedence(expr, leftPrec, rightPrec, needsParen);
 
-	fputc(' ', f);
 	fputs(op, f);
 	if (needsParen)
 		fputc('(', f);
@@ -1186,7 +1185,7 @@ void EmitPushValue(const MiniscriptInstruction& instr, const mtdisasm::DOMiniscr
 					double d;
 					if (reader.ReadF64(d))
 					{
-						fprintf(f, "%f", d);
+						fprintf(f, "%g", d);
 						return;
 					}
 				}
@@ -1246,7 +1245,7 @@ void EmitPushGlobal(const MiniscriptInstruction& instr, const mtdisasm::DOMinisc
 	const char* name = "???";
 	switch (globID)
 	{
-	case 1: name = "env"; break;
+	case 1: name = "element"; break;
 	case 2: name = "subsection"; break;
 	case 3: name = "source"; break;
 	case 4: name = "incoming"; break;
