@@ -428,8 +428,26 @@ Structure tree flags:
 				0x10 = no relay
 		0xd8: builtin function
 			uint32_t builtin function ID
+				0x01: sin
+				0x02: cos
+				0x03: random
+				0x04: sqrt
+				0x05: tan
+				0x06: abs
+				0x07: sgn
+				0x08: arctangent
+				0x09: exp
+				0x0a: ln
+				0x0b: log
+				0x0c: cosh
+				0x0d: sinh
+				0x0e: tanh
+				0x0f: rect2polar
+				0x10: polar2rect
+				0x11: trunc
+				0x12: round
 				0x13: num2str
-				0x13: rect2polar
+				0x14: str2num
 		0xd2: compare equal
 			pop a, pop b, push a == b
 		0x12f: create point
