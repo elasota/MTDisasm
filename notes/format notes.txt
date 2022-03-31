@@ -402,7 +402,7 @@ Structure tree flags:
 
 	INSTRUCTION:
 		uint16_t opcode
-		uint16_t args
+		uint16_t flags
 		uint16_t size (includes opcode header)
 		byte[size - 12] instruction data
 
@@ -422,31 +422,59 @@ Structure tree flags:
 		0x898: send
 			EVENT event
 			pop destination, pop additional, send event
+			flags:
+				0x04 = no immediate
+				0x08 = no cascade
+				0x10 = no relay
 		0xd8: builtin function
 			uint32_t builtin function ID
 				0x13: num2str
 				0x13: rect2polar
+		0xd2: compare equal
+			pop a, pop b, push a == b
 		0x12f: create point
 			pop max, pop min, push point
 		0x130: create integer range
 			pop max, pop min, push int range
 		0x131: create vector
 			pop magnitude, pop degrees, push vector
-		0x135: get attribute
+		0x135: get child item
 			uint32_t index into string table
 			pop reference, push retrieved attribute reference
-		0x191: push numeric constant - Padded to 46 bytes(?)
+			flags:
+				1 = reference
+				32 = array index
+		0x191: push constant/local value
 			uint16_t type
 				0x00 = null?
 				0x15 = double (8 bytes)
 				0x1a = boolean (1 byte)
 				0x1f9 = local object reference (4 bytes)
 				0x1fa = global object reference (4 bytes)
-		0x192: push global context
-			uint32_t unknown (1)
+			flags:
+				1 = reference
+		0x192: push global
+			uint32_t global ID
+				1 = default global context
+				2 = subsection
+				3 = source
+				4 = incoming
+				5 = mouse
+				6 = ticks
+				7 = scene
+				8 = sharedScene
+				9 = section
+				10 = project
+				11 = sharedScene
+			flags:
+				1 = reference
 		0x193: push string constant
 			uint16_t length
-			char[length] str (null terminated)
+			char[length + 1] str (null terminated)
+		0x7d3: jump
+			uint32_t flags (2 = conditional, 1 = unconditional)
+			uint32_t unknown
+			uint32_t instructions to skip
 	
 
 0x2da: Messenger modifier

@@ -518,12 +518,59 @@ bool PrintMiniscriptInstructionDisassembly(FILE* f, mtdisasm::DataReader& reader
 		break;
 	case 0xd8:	// Builtin function
 	case 0x135:	// Get attribute
-	case 0x192: // Push global context
 		{
 			uint32_t funcID;
 			if (!reader.ReadU32(funcID))
 				return false;
 			PrintSingleVal(funcID, true, f);
+		}
+		break;
+	case 0x192: // Push global
+		{
+			uint32_t globID;
+			if (!reader.ReadU32(globID))
+				return false;
+			if (globID == 1)
+				fputs("default", f);
+			else if (globID == 2)
+				fputs("subsection", f);
+			else if (globID == 3)
+				fputs("source", f);
+			else if (globID == 4)
+				fputs("incoming", f);
+			else if (globID == 5)
+				fputs("mouse", f);
+			else if (globID == 6)
+				fputs("ticks", f);
+			else if (globID == 7)
+				fputs("scene", f);
+			else if (globID == 8)
+				fputs("sharedScene", f);
+			else if (globID == 9)
+				fputs("section", f);
+			else if (globID == 10)
+				fputs("project", f);
+			else if (globID == 11)
+				fputs("sharedScene", f);
+			else
+				PrintSingleVal(globID, true, f);
+		}
+		break;
+	case 0x7d3: // Jump
+		{
+			uint32_t flags, unknown, instrOffset;
+			if (!reader.ReadU32(flags) || !reader.ReadU32(unknown) || !reader.ReadU32(instrOffset))
+				return false;
+			if (flags == 2)
+				fputs("conditional ", f);
+			else if (flags == 1)
+			{
+			}
+			else
+				fprintf(f, "unknown_flags(%08x)", flags);
+
+			fprintf(f, "  unknown=%x  skip=%u", unknown, instrOffset);
+
 		}
 		break;
 	case 0x191:
@@ -575,8 +622,8 @@ bool PrintMiniscriptInstructionDisassembly(FILE* f, mtdisasm::DataReader& reader
 			std::vector<char> str;
 			if (strLength > 0)
 			{
-				str.resize(strLength);
-				if (!reader.ReadBytes(&str[0], strLength) || str[strLength - 1] != 0)
+				str.resize(strLength + 1);
+				if (!reader.ReadBytes(&str[0], strLength + 1) || str[strLength] != 0)
 					return false;
 				fprintf(f, "str '%s'", &str[0]);
 			}
@@ -668,19 +715,52 @@ void PrintObjectDisassembly(const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
 			{
 			case 0x834: opName = "set"; break;
 			case 0x898: opName = "send"; break;
+			case 0xc9: opName = "add"; break;
+			case 0xca: opName = "sub"; break;
+			case 0xcb: opName = "mul"; break;
+			case 0xcc: opName = "div"; break;
+			case 0xcd: opName = "pow"; break;
+			case 0xce: opName = "and"; break;
+			case 0xcf: opName = "or"; break;
+			case 0xd0: opName = "neg"; break;
+			case 0xd1: opName = "not"; break;
+			case 0xd2: opName = "cmp_eq"; break;
+			case 0xd3: opName = "cmp_neq"; break;
+			case 0xd4: opName = "cmp_le"; break;
+			case 0xd5: opName = "cmp_lt"; break;
+			case 0xd6: opName = "cmp_le"; break;
+			case 0xd7: opName = "cmp_gt"; break;
 			case 0xd8: opName = "builtin_func"; break;
+			case 0xda: opName = "mod"; break;
+			case 0xdb: opName = "str_concat"; break;
+			case 0x12f: opName = "point_create"; break;
 			case 0x130: opName = "make_range"; break;
 			case 0x131: opName = "make_vector"; break;
 			case 0x135: opName = "get_attr"; break;
-			case 0x191: opName = "push_number"; break;
-			case 0x192: opName = "push_global_ctx"; break;
+			case 0x136: opName = "list_append"; break;
+			case 0x137: opName = "list_create"; break;
+			case 0x191: opName = "push_value"; break;
+			case 0x192: opName = "push_global"; break;
 			case 0x193: opName = "push_str"; break;
+			case 0x7d3: opName = "jump"; break;
 			default:
 				isUnknownOp = true;
 				break;
 			}
 
-			fprintf(f, "    %s(0x%x),%i  ", opName, static_cast<int>(opcode), static_cast<int>(unknownField));
+			if (!isUnknownOp)
+			{
+				if (unknownField == 0)
+					fprintf(f, "    %s  ", opName);
+				else
+					fprintf(f, "    %s,args=%i  ", opName, static_cast<int>(unknownField));
+			}
+			else
+			{
+
+				fprintf(f, "    %s(0x%x),%i  ", opName, static_cast<int>(opcode), static_cast<int>(unknownField));
+			}
+
 
 			if (sizeOfInstruction < 6)
 				break;
