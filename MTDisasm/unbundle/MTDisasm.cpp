@@ -9,9 +9,11 @@
 #include <string>
 #include <vector>
 
+#include <algorithm>
 #include <cstring>
 #include <cstdio>
 #include <cassert>
+#include <unordered_map>
 
 const char* NameObjectType(mtdisasm::DataObjectType dot)
 {
@@ -648,6 +650,1257 @@ bool PrintMiniscriptInstructionDisassembly(FILE* f, mtdisasm::DataReader& reader
 	return true;
 }
 
+struct MiniscriptInstruction
+{
+	uint16_t m_opcode;
+	uint16_t m_flags;
+	size_t m_instrNumber;
+	std::vector<uint8_t> m_contents;
+};
+
+struct MiniscriptBasicBlock
+{
+	std::vector<size_t> m_predecessors;
+	std::vector<size_t> m_dominators;
+	std::vector<size_t> m_postDominators;
+	std::vector<MiniscriptInstruction> m_instructions;
+
+	bool m_isTerminal;
+	bool m_isConditional;
+	size_t m_startInstr;
+	std::vector<size_t> m_successors;
+};
+
+// Control flow islands start at a single block and sink into another block
+struct MiniscriptControlFlowIsland
+{
+	MiniscriptBasicBlock* m_start;
+	MiniscriptBasicBlock* m_sinkBB;
+
+	MiniscriptControlFlowIsland* m_sinkIsland;
+	std::vector<MiniscriptControlFlowIsland*> m_successorIslands;
+
+	MiniscriptControlFlowIsland();
+};
+
+MiniscriptControlFlowIsland::MiniscriptControlFlowIsland()
+	: m_start(nullptr)
+	, m_sinkBB(nullptr)
+	, m_sinkIsland(nullptr)
+{
+}
+
+bool DecompileJumpOp(const MiniscriptInstruction& instr, const mtdisasm::SerializationProperties& sp, bool& outIsConditional, size_t& outNextInstr)
+{
+	if (instr.m_opcode != 0x7d3)
+		return false;
+	if (instr.m_contents.size() != 12)
+		return false;
+
+	mtdisasm::MemIOStream stream(&instr.m_contents[0], 12);
+	mtdisasm::DataReader reader(stream, sp.m_isByteSwapped);
+
+	uint32_t flags, unknown, offset;
+	reader.ReadU32(flags);
+	reader.ReadU32(unknown);
+	reader.ReadU32(offset);
+
+	if (offset == 0)
+		return false;
+
+	outIsConditional = ((flags & 0x2) != 0);
+	outNextInstr = offset + instr.m_instrNumber;
+
+	return true;
+}
+
+template<class T>
+bool InsertUnique(std::vector<T>& vec, const T& item)
+{
+	for (const T& candidate : vec)
+	{
+		if (candidate == item)
+			return false;
+	}
+
+	vec.push_back(item);
+	return true;
+}
+
+class MiniscriptControlFlowResolver
+{
+public:
+	explicit MiniscriptControlFlowResolver(const std::unordered_map<size_t, MiniscriptBasicBlock*>& bbMap);
+	~MiniscriptControlFlowResolver();
+
+	MiniscriptControlFlowIsland* AllocIsland();
+	void ResolveAll();
+
+private:
+	void ResolveIsland(MiniscriptControlFlowIsland* island);
+	void ResolveConditionalTree(MiniscriptControlFlowIsland* island);
+
+	std::vector<MiniscriptControlFlowIsland*> m_islands;
+	const std::unordered_map<size_t, MiniscriptBasicBlock*>& m_bbMap;
+};
+
+MiniscriptControlFlowResolver::MiniscriptControlFlowResolver(const std::unordered_map<size_t, MiniscriptBasicBlock*>& bbMap)
+	: m_bbMap(bbMap)
+{
+}
+
+MiniscriptControlFlowResolver::~MiniscriptControlFlowResolver()
+{
+	for (MiniscriptControlFlowIsland* island : m_islands)
+		delete island;
+}
+
+MiniscriptControlFlowIsland* MiniscriptControlFlowResolver::AllocIsland()
+{
+	MiniscriptControlFlowIsland* island = new MiniscriptControlFlowIsland();
+	m_islands.push_back(island);
+	return island;
+}
+
+void MiniscriptControlFlowResolver::ResolveAll()
+{
+	size_t islandIndex = 0;
+
+	while (islandIndex < m_islands.size())
+	{
+		while (islandIndex < m_islands.size())
+			ResolveIsland(m_islands[islandIndex++]);
+	}
+}
+
+void MiniscriptControlFlowResolver::ResolveConditionalTree(MiniscriptControlFlowIsland* island)
+{
+	for (size_t successor : island->m_start->m_successors)
+	{
+		MiniscriptBasicBlock* bb = m_bbMap.find(successor)->second;
+		if (bb == island->m_sinkBB)
+			island->m_successorIslands.push_back(nullptr);
+		else
+		{
+			MiniscriptControlFlowIsland* newIsland = AllocIsland();
+			newIsland->m_start = bb;
+			newIsland->m_sinkBB = island->m_sinkBB;
+
+			assert(bb != nullptr);
+			island->m_successorIslands.push_back(newIsland);
+		}
+	}
+}
+
+void MiniscriptControlFlowResolver::ResolveIsland(MiniscriptControlFlowIsland* island)
+{
+	// Determine if this island needs to be split
+	MiniscriptBasicBlock* startBB = island->m_start;
+	MiniscriptBasicBlock* sinkBB = island->m_sinkBB;
+	const std::vector<size_t>& startPostDominators = startBB->m_postDominators;
+
+	if (startPostDominators.size() > 1)
+	{
+		MiniscriptBasicBlock* searchBB = startBB;
+		MiniscriptBasicBlock* newSinkBB = nullptr;
+		for (;;)
+		{
+			if (searchBB->m_successors.size() > 0)
+				searchBB = m_bbMap.find(searchBB->m_successors[0])->second;
+			else
+				break;
+
+			if (std::find(startPostDominators.begin(), startPostDominators.end(), searchBB->m_startInstr) != startPostDominators.end())
+			{
+				newSinkBB = searchBB;
+				break;
+			}
+		}
+
+		if (newSinkBB != sinkBB)
+		{
+			MiniscriptControlFlowIsland* newIsland = AllocIsland();
+			newIsland->m_sinkBB = sinkBB;
+			newIsland->m_start = newSinkBB;
+
+			assert(newSinkBB != nullptr);
+
+			island->m_sinkBB = newSinkBB;
+			island->m_sinkIsland = newIsland;
+		}
+	}
+
+	ResolveConditionalTree(island);
+}
+
+struct MiniscriptExpressionTree
+{
+	const MiniscriptInstruction* m_instr;
+	std::vector<MiniscriptExpressionTree*> m_children;
+
+	~MiniscriptExpressionTree();
+};
+
+MiniscriptExpressionTree::~MiniscriptExpressionTree()
+{
+	for (MiniscriptExpressionTree* child : m_children)
+		delete child;
+}
+
+MiniscriptExpressionTree* PopOne(MiniscriptExpressionTree& stack)
+{
+	MiniscriptExpressionTree* tree = stack.m_children[stack.m_children.size() - 1];
+	stack.m_children.pop_back();
+	return tree;
+}
+
+void PrintIndent(int indentationLevel, FILE* f)
+{
+	for (int i = 0; i < indentationLevel; i++)
+		fputc('\t', f);
+}
+
+enum MiniscriptOperatorPrecedence
+{
+	kOpPrec_Lowest,
+
+	kOpPrec_Or,
+	kOpPrec_And,
+	kOpPrec_AbsCmp,
+	kOpPrec_RelCmp,
+	kOpPrec_Add,
+	kOpPrec_Mul,
+	kOpPrec_Pow,
+	kOpPrec_Unary,
+	kOpPrec_Paren,
+
+	kOpPrec_Highest,
+};
+
+void ResolveExprFragmentationPrecedence(const MiniscriptExpressionTree* expr, MiniscriptOperatorPrecedence& leftSidePrec, MiniscriptOperatorPrecedence& rightSidePrec);
+
+// This resolves the fragmentation precedence of the leftmost and rightmost sides of an expression.
+// Basically, if an operator of the specified precedence is placed to the left or right of the expression,
+// then it will be higher-priority than the actual expression there and fragment the expression.
+void ResolveBinaryOpExprFragmentationPrecedence(const MiniscriptExpressionTree* expr, MiniscriptOperatorPrecedence& leftSidePrec, MiniscriptOperatorPrecedence& rightSidePrec, bool& outLeftNeedsParen, bool& outRightNeedsParen)
+{
+	MiniscriptOperatorPrecedence leftLeft;
+	MiniscriptOperatorPrecedence leftRight;
+	MiniscriptOperatorPrecedence rightLeft;
+	MiniscriptOperatorPrecedence rightRight;
+
+	ResolveExprFragmentationPrecedence(expr->m_children[0], leftLeft, leftRight);
+	ResolveExprFragmentationPrecedence(expr->m_children[1], rightLeft, rightRight);
+
+	MiniscriptOperatorPrecedence thisPrec = kOpPrec_Lowest;
+	switch (expr->m_instr->m_opcode)
+	{
+	case 0xc9:
+	case 0xca:
+	case 0xdb:	// String concat - not actually sure of this precedence
+		thisPrec = kOpPrec_Add;
+		break;
+	case 0xcb:
+	case 0xcc:
+	case 0xda:
+		thisPrec = kOpPrec_Mul;
+		break;
+	case 0xcd:
+		thisPrec = kOpPrec_Pow;
+		break;
+	case 0xce:
+		thisPrec = kOpPrec_And;
+		break;
+	case 0xcf:
+		thisPrec = kOpPrec_Or;
+		break;
+	case 0xd2:
+	case 0xd3:
+		thisPrec = kOpPrec_AbsCmp;
+		break;
+	case 0xd4:
+	case 0xd5:
+	case 0xd6:
+	case 0xd7:
+		thisPrec = kOpPrec_RelCmp;
+		break;
+	default:
+		break;
+	};
+
+	bool leftNeedsParen = false;
+	bool rightNeedsParen = false;
+	if (rightLeft <= thisPrec)
+	{
+		// Right side would be fragmented by this operator
+		rightNeedsParen = true;
+		rightLeft = rightRight = kOpPrec_Paren;
+	}
+	if (leftRight < thisPrec)
+	{
+		// Left side would be fragmented by this operator
+		leftNeedsParen = true;
+		leftLeft = leftRight = kOpPrec_Paren;
+	}
+
+	leftSidePrec = static_cast<MiniscriptOperatorPrecedence>(std::min<int>(leftLeft, thisPrec));
+	rightSidePrec = static_cast<MiniscriptOperatorPrecedence>(std::min<int>(rightRight, thisPrec + 1));
+
+	outLeftNeedsParen = leftNeedsParen;
+	outRightNeedsParen = rightNeedsParen;
+}
+
+void ResolveUnaryOpExprFragmentationPrecedence(const MiniscriptExpressionTree* expr, MiniscriptOperatorPrecedence& leftSidePrec, MiniscriptOperatorPrecedence& rightSidePrec, bool& outNeedsParen)
+{
+	MiniscriptOperatorPrecedence chLeft;
+	MiniscriptOperatorPrecedence chRight;
+
+	ResolveExprFragmentationPrecedence(expr->m_children[0], chLeft, chRight);
+
+	MiniscriptOperatorPrecedence thisPrec = kOpPrec_Lowest;
+	switch (expr->m_instr->m_opcode)
+	{
+	case 0xd0:
+	case 0xd1:
+	case 0x135:
+		thisPrec = kOpPrec_Unary;
+		break;
+	default:
+		break;
+	};
+
+	bool needsParen = false;
+	if (chLeft < thisPrec)
+	{
+		// Right side would be fragmented by this operator
+		needsParen = true;
+		chLeft = chRight = kOpPrec_Paren;
+	}
+
+	leftSidePrec = static_cast<MiniscriptOperatorPrecedence>(std::min<int>(chLeft, thisPrec));
+	rightSidePrec = static_cast<MiniscriptOperatorPrecedence>(std::min<int>(chRight, thisPrec + 1));
+
+	outNeedsParen = needsParen;
+}
+
+void ResolveExprFragmentationPrecedence(const MiniscriptExpressionTree* expr, MiniscriptOperatorPrecedence& leftSidePrec, MiniscriptOperatorPrecedence& rightSidePrec)
+{
+	switch (expr->m_instr->m_opcode)
+	{
+	case 0xc9:
+	case 0xca:
+	case 0xdb:
+	case 0xcb:
+	case 0xcc:
+	case 0xda:
+	case 0xcd:
+	case 0xce:
+	case 0xcf:
+	case 0xd2:
+	case 0xd3:
+	case 0xd4:
+	case 0xd5:
+	case 0xd6:
+	case 0xd7:
+		{
+			bool leftNeedsParen, rightNeedsParen;
+			ResolveBinaryOpExprFragmentationPrecedence(expr, leftSidePrec, rightSidePrec, leftNeedsParen, rightNeedsParen);
+		}
+		break;
+	case 0xd0:
+	case 0xd1:
+	case 0x135:
+		{
+			bool needsParen;
+			ResolveUnaryOpExprFragmentationPrecedence(expr, leftSidePrec, rightSidePrec, needsParen);
+		}
+		break;
+	default:
+		leftSidePrec = rightSidePrec = kOpPrec_Highest;
+		break;
+	}
+}
+
+void PrintExpression(const MiniscriptExpressionTree* expr, const mtdisasm::DOMiniscriptModifier& obj, FILE* f);
+
+bool GetBuiltinFunctionProperties(uint32_t builtinId, uint32_t& outNumParams, const char*& outName)
+{
+	switch (builtinId)
+	{
+	case 0x01: outName = "sin"; outNumParams = 1; return true;
+	case 0x02: outName = "cos"; outNumParams = 1; return true;
+	case 0x03: outName = "random"; outNumParams = 1; return true;
+	case 0x04: outName = "sqrt"; outNumParams = 1; return true;
+	case 0x05: outName = "tan"; outNumParams = 1; return true;
+	case 0x06: outName = "abs"; outNumParams = 1; return true;
+	case 0x07: outName = "sgn"; outNumParams = 1; return true;
+	case 0x08: outName = "arctangent"; outNumParams = 1; return true;
+	case 0x09: outName = "exp"; outNumParams = 1; return true;
+	case 0x0a: outName = "ln"; outNumParams = 1; return true;
+	case 0x0b: outName = "log"; outNumParams = 1; return true;
+	case 0x0c: outName = "cosh"; outNumParams = 1; return true;
+	case 0x0d: outName = "sinh"; outNumParams = 1; return true;
+	case 0x0e: outName = "tanh"; outNumParams = 1; return true;
+	case 0x0f: outName = "rect2polar"; outNumParams = 1; return true;
+	case 0x10: outName = "polar2rect"; outNumParams = 1; return true;
+	case 0x11: outName = "trunc"; outNumParams = 1; return true;
+	case 0x12: outName = "round"; outNumParams = 1; return true;
+	case 0x13: outName = "num2str"; outNumParams = 1; return true;
+	case 0x14: outName = "str2num"; outNumParams = 1; return true;
+	default:
+		outName = "unknown";
+		outNumParams = 0;
+		return false;
+	}
+}
+
+void PrintBinaryExpression(const MiniscriptExpressionTree* expr, const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
+{
+	const char* op = "???";
+
+	switch (expr->m_instr->m_opcode)
+	{
+	case 0xc9: op = "+"; break;
+	case 0xca: op = "-"; break;
+	case 0xcb: op = "*"; break;
+	case 0xcc: op = "/"; break;
+	case 0xcd: op = "^"; break;
+	case 0xce: op = "and"; break;
+	case 0xcf: op = "or"; break;
+	case 0xd2: op = "="; break;
+	case 0xd3: op = "<>"; break;
+	case 0xd4: op = "<="; break;
+	case 0xd5: op = "<"; break;
+	case 0xd6: op = ">="; break;
+	case 0xd7: op = ">"; break;
+	case 0xda: op = "mod"; break;
+	case 0xdb: op = "&"; break;
+	default:
+		break;
+	}
+
+	MiniscriptOperatorPrecedence leftPrec;
+	MiniscriptOperatorPrecedence rightPrec;
+
+	bool leftNeedsParen;
+	bool rightNeedsParen;
+	ResolveBinaryOpExprFragmentationPrecedence(expr, leftPrec, rightPrec, leftNeedsParen, rightNeedsParen);
+
+	if (leftNeedsParen)
+		fputc('(', f);
+	PrintExpression(expr->m_children[0], obj, f);
+	if (leftNeedsParen)
+		fputc(')', f);
+	fputc(' ', f);
+	fputs(op, f);
+	fputc(' ', f);
+	if (rightNeedsParen)
+		fputc('(', f);
+	PrintExpression(expr->m_children[1], obj, f);
+	if (rightNeedsParen)
+		fputc(')', f);
+}
+
+void PrintUnaryExpression(const MiniscriptExpressionTree* expr, const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
+{
+	const char* op = "???";
+
+	switch (expr->m_instr->m_opcode)
+	{
+	case 0xd0: op = "-"; break;
+	case 0xd1: op = "not "; break;
+	default:
+		break;
+	}
+
+	MiniscriptOperatorPrecedence leftPrec;
+	MiniscriptOperatorPrecedence rightPrec;
+
+	bool needsParen;
+	ResolveUnaryOpExprFragmentationPrecedence(expr, leftPrec, rightPrec, needsParen);
+
+	fputc(' ', f);
+	fputs(op, f);
+	if (needsParen)
+		fputc('(', f);
+	PrintExpression(expr->m_children[0], obj, f);
+	if (needsParen)
+		fputc(')', f);
+}
+
+void EmitStr(const std::vector<char>& str, FILE* f)
+{
+	size_t len = str.size();
+	if (len == 0)
+	{
+		fputs("\"\"", f);
+		return;
+	}
+
+	if (str[len - 1] == 0)
+		len--;
+
+	bool needsQuotes = false;
+	for (size_t i = 0; i < len; i++)
+	{
+		bool isAlpha = false;
+		bool isNumeric = false;
+
+		char c = str[i];
+		if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_')
+			isAlpha = true;
+		else if (c >= '0' && c <= '1')
+			isNumeric = true;
+
+		if ((isNumeric && i == 0) || (!isNumeric && !isAlpha))
+		{
+			needsQuotes = true;
+			break;
+		}
+	}
+
+	if (needsQuotes)
+		fputc('\"', f);
+	fwrite(&str[0], 1, len, f);
+	if (needsQuotes)
+		fputc('\"', f);
+}
+
+void EmitPushValue(const MiniscriptInstruction& instr, const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
+{
+	if (instr.m_contents.size() != 0)
+	{
+		mtdisasm::MemIOStream stream(&instr.m_contents[0], instr.m_contents.size());
+		mtdisasm::DataReader reader(stream, obj.m_sp.m_isByteSwapped);
+
+		uint16_t type;
+		if (reader.ReadU16(type))
+		{
+			switch (type)
+			{
+			case 0x00:
+				fputs("NULL", f);
+				return;
+			case 0x15:
+				{
+					double d;
+					if (reader.ReadF64(d))
+					{
+						fprintf(f, "%f", d);
+						return;
+					}
+				}
+				break;
+			case 0x1a:
+				{
+					uint8_t b;
+					if (reader.ReadU8(b))
+					{
+						fprintf(f, "%s", ((b == 0) ? "false" : "true"));
+						return;
+					}
+				}
+				break;;
+			case 0x1f9:
+				{
+					uint32_t u32;
+					if (reader.ReadU32(u32))
+					{
+						if (u32 < obj.m_numLocalRefs)
+						{
+							fputs("local:", f);
+							EmitStr(obj.m_localRefs[u32].m_name, f);
+							return;
+						}
+					}
+				}
+				return;
+			case 0x1fa:
+				{
+					uint32_t u32;
+					if (reader.ReadU32(u32))
+					{
+						fprintf(f, "%08x", static_cast<int>(u32));
+						return;
+					}
+				}
+				return;
+			}
+		}
+	}
+
+	fputs("<BAD VALUE>", f);
+}
+
+void EmitPushGlobal(const MiniscriptInstruction& instr, const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
+{
+	if (instr.m_contents.size() < 4)
+		return;
+
+	mtdisasm::MemIOStream stream(&instr.m_contents[0], instr.m_contents.size());
+	mtdisasm::DataReader reader(stream, obj.m_sp.m_isByteSwapped);
+
+	uint32_t globID;
+	reader.ReadU32(globID);
+
+	const char* name = "???";
+	switch (globID)
+	{
+	case 1: name = "env"; break;
+	case 2: name = "subsection"; break;
+	case 3: name = "source"; break;
+	case 4: name = "incoming"; break;
+	case 5: name = "mouse"; break;
+	case 6: name = "ticks"; break;
+	case 7: name = "scene"; break;
+	case 8: name = "sharedScene"; break;
+	case 9: name = "section"; break;
+	case 10: name = "project"; break;
+	case 11: name = "sharedScene"; break;
+	default:
+		fprintf(f, "unknown_env_%08x", static_cast<int>(globID));
+		return;
+	}
+
+	fputs(name, f);
+}
+
+void EmitPushStr(const MiniscriptInstruction& instr, const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
+{
+	fputc('\"', f);
+
+	if (instr.m_contents.size() >= 2)
+	{
+		mtdisasm::MemIOStream stream(&instr.m_contents[0], instr.m_contents.size());
+		mtdisasm::DataReader reader(stream, obj.m_sp.m_isByteSwapped);
+
+		uint16_t strLength = 0;
+		if (reader.ReadU16(strLength) && instr.m_contents.size() >= (3 + strLength))
+			fwrite(&instr.m_contents[2], 1, strLength, f);
+	}
+
+	fputc('\"', f);
+}
+
+void EmitGetChild(const MiniscriptExpressionTree* expr, const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
+{
+	if (expr->m_instr->m_contents.size() < 4)
+		return;
+
+	mtdisasm::MemIOStream stream(&expr->m_instr->m_contents[0], expr->m_instr->m_contents.size());
+	mtdisasm::DataReader reader(stream, obj.m_sp.m_isByteSwapped);
+
+	uint32_t attribID;
+	reader.ReadU32(attribID);
+
+	PrintExpression(expr->m_children[0], obj, f);
+	fputc('.', f);
+
+	if (attribID < obj.m_attributes.size())
+		EmitStr(obj.m_attributes[attribID].m_name, f);
+	else
+		fprintf(f, "unknown_attrib_%08x", static_cast<int>(attribID));
+}
+
+void PrintExpression(const MiniscriptExpressionTree* expr, const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
+{
+	switch (expr->m_instr->m_opcode)
+	{
+	case 0xc9:
+	case 0xca:
+	case 0xcb:
+	case 0xcc:
+	case 0xcd:
+	case 0xce:
+	case 0xcf:
+	case 0xd2:
+	case 0xd3:
+	case 0xd4:
+	case 0xd5:
+	case 0xd6:
+	case 0xd7:
+	case 0xda:
+	case 0xdb:
+		PrintBinaryExpression(expr, obj, f);
+		break;
+
+	case 0xd0:
+	case 0xd1:
+		PrintUnaryExpression(expr, obj, f);
+		break;
+
+	case 0xd8:
+		{
+			if (expr->m_instr->m_contents.size() < 4)
+				return;
+
+			mtdisasm::MemIOStream stream(&expr->m_instr->m_contents[0], expr->m_instr->m_contents.size());
+			mtdisasm::DataReader reader(stream, obj.m_sp.m_isByteSwapped);
+
+			uint32_t funcID;
+			if (!reader.ReadU32(funcID))
+				return;
+
+			uint32_t numArgs = 0;
+			const char* name = nullptr;
+			if (GetBuiltinFunctionProperties(funcID, numArgs, name))
+			{
+				fputs(name, f);
+				fputc('(', f);
+				for (size_t i = 0; i < numArgs; i++)
+				{
+					PrintExpression(expr->m_children[i], obj, f);
+					if (i != numArgs - 1)
+						fputs(", ", f);
+				}
+				fputc(')', f);
+			}
+		}
+		break;
+	
+	case 0x12f:
+		{
+			fputs("(", f);
+			PrintExpression(expr->m_children[0], obj, f);
+			fputs(", ", f);
+			PrintExpression(expr->m_children[1], obj, f);
+			fputs(")", f);
+
+		}
+		break;
+	case 0x130:
+		{
+			fputs("(", f);
+			PrintExpression(expr->m_children[0], obj, f);
+			fputs(" thru ", f);
+			PrintExpression(expr->m_children[1], obj, f);
+			fputs(")", f);
+
+		}
+		break;
+	case 0x131:
+		{
+			fputs("(", f);
+			PrintExpression(expr->m_children[0], obj, f);
+			fputs(" deg ", f);
+			PrintExpression(expr->m_children[1], obj, f);
+			fputs(" mag)", f);
+
+		}
+		break;
+	case 0x135:
+		EmitGetChild(expr, obj, f);
+		break;
+	case 0x136:
+		{
+			std::vector<const MiniscriptExpressionTree*> rsExprs;
+			while (expr->m_instr->m_opcode == 0x136)
+			{
+				rsExprs.push_back(expr->m_children[1]);
+				expr = expr->m_children[0];
+			}
+			fputs("{ ", f);
+			PrintExpression(expr->m_children[0], obj, f);
+			for (size_t i = 0; i < rsExprs.size(); i++)
+			{
+				fputs(", ", f);
+				PrintExpression(rsExprs[rsExprs.size() - 1 - i], obj, f);
+			}
+			fputs(" }", f);
+		}
+		break;
+	case 0x137:
+		{
+			PrintExpression(expr->m_children[0], obj, f);
+			fputs(", ", f);
+			PrintExpression(expr->m_children[1], obj, f);
+
+		}
+		break;
+	case 0x191:
+		EmitPushValue(*expr->m_instr, obj, f);
+		break;
+	case 0x192:
+		EmitPushGlobal(*expr->m_instr, obj, f);
+		break;
+	case 0x193:
+		EmitPushStr(*expr->m_instr, obj, f);
+		break;
+	}
+}
+
+void PrintEvent(const mtdisasm::DOEvent& evt, FILE* f)
+{
+	PrintSingleVal(evt, false, f);
+}
+
+bool CombineExpr(MiniscriptExpressionTree& stack, const MiniscriptInstruction* instr, size_t count)
+{
+	if (stack.m_children.size() < count)
+		return false;
+
+	MiniscriptExpressionTree* newTree = new MiniscriptExpressionTree();
+	for (size_t i = 0; i < count; i++)
+		newTree->m_children.push_back(stack.m_children[stack.m_children.size() - count + i]);
+
+	for (size_t i = 0; i < count; i++)
+		stack.m_children.pop_back();
+
+	newTree->m_instr = instr;
+	stack.m_children.push_back(newTree);
+
+	return true;
+}
+
+
+bool EmitMiniscriptIsland(int indentationLevel, const MiniscriptControlFlowIsland* island, const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
+{
+	MiniscriptExpressionTree stack;
+
+	while (island != nullptr)
+	{
+		for (const MiniscriptInstruction& instr : island->m_start->m_instructions)
+		{
+			switch (instr.m_opcode)
+			{
+				case 0x834:
+				{
+					if (stack.m_children.size() < 2)
+						return false;
+					MiniscriptExpressionTree* value = PopOne(stack);
+					MiniscriptExpressionTree* dest = PopOne(stack);
+					PrintIndent(indentationLevel, f);
+					fputs("set ", f);
+					PrintExpression(dest, obj, f);
+					fputs(" to ", f);
+					PrintExpression(value, obj, f);
+					fputs("\n", f);
+
+					delete value;
+					delete dest;
+				}
+				break;
+
+			case 0x898:
+				{
+					if (instr.m_contents.size() < 8)
+						return false;
+
+					mtdisasm::MemIOStream stream(&instr.m_contents[0], instr.m_contents.size());
+					mtdisasm::DataReader reader(stream, obj.m_sp.m_isByteSwapped);
+
+					if (stack.m_children.size() < 2)
+						return false;
+
+					mtdisasm::DOEvent evt;
+					if (!evt.Load(reader))
+						return false;
+
+					MiniscriptExpressionTree* dest = PopOne(stack);
+					MiniscriptExpressionTree* addl = PopOne(stack);
+					PrintIndent(indentationLevel, f);
+					fputs("send ", f);
+					PrintEvent(evt, f);
+					fputs(" to ", f);
+					PrintExpression(dest, obj, f);
+					fputs(" with ", f);
+					PrintExpression(addl, obj, f);
+					if ((instr.m_flags & 0x1c) == 0x1c)
+						fputs(" options none", f);
+					else if ((instr.m_flags & 0x1c) != 0)
+					{
+						fputs(" options", f);
+						if ((instr.m_flags & 0x04) == 0)
+							fputs(" immediate", f);
+						if ((instr.m_flags & 0x08) == 0)
+							fputs(" cascade", f);
+						if ((instr.m_flags & 0x10) == 0)
+							fputs(" relay", f);
+					}
+					fputs("\n", f);
+				}
+				break;
+			case 0xc9:
+			case 0xca:
+			case 0xcb:
+			case 0xcc:
+			case 0xcd:
+			case 0xce:
+			case 0xcf:
+			case 0xd2:
+			case 0xd3:
+			case 0xd4:
+			case 0xd5:
+			case 0xd6:
+			case 0xd7:
+			case 0xda:
+			case 0xdb:
+			case 0x12f:
+			case 0x130:
+			case 0x131:
+			case 0x136:
+			case 0x137:
+				// Binary expression ops
+				if (!CombineExpr(stack, &instr, 2))
+					return false;
+				break;
+			case 0xd0:
+			case 0xd1:
+				// Unary ops
+				if (!CombineExpr(stack, &instr, 1))
+					return false;
+				break;
+			case 0x135:
+				if (instr.m_flags & 0x20)
+				{
+					if (!CombineExpr(stack, &instr, 2))
+						return false;
+				}
+				else
+				{
+					if (!CombineExpr(stack, &instr, 1))
+						return false;
+				}
+				break;
+			case 0xd8:
+				// Builtin function
+				{
+					mtdisasm::MemIOStream stream(&instr.m_contents[0], instr.m_contents.size());
+					mtdisasm::DataReader reader(stream, obj.m_sp.m_isByteSwapped);
+
+					uint32_t funcID;
+					if (!reader.ReadU32(funcID))
+						return false;
+
+					uint32_t numParams = 0;
+					const char* name = nullptr;
+					if (!GetBuiltinFunctionProperties(funcID, numParams, name))
+						return false;
+
+
+					if (stack.m_children.size() < numParams)
+						return false;
+
+					if (!CombineExpr(stack, &instr, numParams))
+						return false;
+				}
+				break;
+			case 0x191:
+			case 0x192:
+			case 0x193:
+				// Push ops
+				{
+					MiniscriptExpressionTree* tree = new MiniscriptExpressionTree();
+					tree->m_instr = &instr;
+					stack.m_children.push_back(tree);
+				}
+				break;
+			default:
+				// Unknown opcode
+				return false;
+			}
+		}
+
+		if (island->m_start->m_isConditional)
+		{
+			if (stack.m_children.size() != 1)
+				return false;
+
+			MiniscriptExpressionTree* condition = PopOne(stack);
+
+
+			PrintIndent(indentationLevel, f);
+			fputs("if ", f);
+			PrintExpression(condition, obj, f);
+			fputs(" then\n", f);
+
+			const MiniscriptControlFlowIsland* trueIsland = island->m_successorIslands[0];
+			const MiniscriptControlFlowIsland* falseIsland = island->m_successorIslands[1];
+
+			if (trueIsland && !EmitMiniscriptIsland(indentationLevel + 1, trueIsland, obj, f))
+				return false;
+
+			if (falseIsland)
+			{
+				PrintIndent(indentationLevel, f);
+				fputs("else\n", f);
+				if (falseIsland && !EmitMiniscriptIsland(indentationLevel + 1, falseIsland, obj, f))
+					return false;
+			}
+
+			PrintIndent(indentationLevel, f);
+			fputs("end if\n", f);
+
+			delete condition;
+		}
+
+		island = island->m_sinkIsland;
+	}
+
+	return true;
+}
+
+bool DecompileMiniscript(const mtdisasm::DOMiniscriptModifier& obj, const mtdisasm::SerializationProperties& sp, FILE* f)
+{
+	if (obj.m_numOfInstructions == 0)
+		return true;
+
+	if (obj.m_bytecode.size() == 0)
+		return false;
+
+	mtdisasm::MemIOStream stream(&obj.m_bytecode[0], obj.m_bytecode.size());
+	mtdisasm::DataReader reader(stream, sp.m_isByteSwapped);
+
+	std::vector<MiniscriptInstruction> instructions;
+
+	// Read all ops
+	for (size_t i = 0; i < obj.m_numOfInstructions; i++)
+	{
+		MiniscriptInstruction instr;
+		uint16_t size;
+		if (!reader.ReadU16(instr.m_opcode) || !reader.ReadU16(instr.m_flags) || !reader.ReadU16(size))
+			return false;
+		if (size < 6)
+			return false;
+		if (size > 6)
+		{
+			instr.m_contents.resize(size - 6);
+			if (!reader.ReadBytes(&instr.m_contents[0], size - 6))
+				return false;
+		}
+
+		instr.m_instrNumber = i;
+		instructions.push_back(instr);
+	}
+
+	// Locate basic blocks
+	std::vector<size_t> bbStarts;
+	bbStarts.push_back(0);
+	InsertUnique(bbStarts, instructions.size());
+
+	for (const MiniscriptInstruction& instr : instructions)
+	{
+		bool isConditional;
+		size_t nextInstr;
+		if (instr.m_opcode == 0x7d3)
+		{
+			if (DecompileJumpOp(instr, sp, isConditional, nextInstr))
+			{
+				if (nextInstr > instructions.size())
+					return false;
+
+				if (isConditional)
+					InsertUnique(bbStarts, instr.m_instrNumber + 1);
+				InsertUnique(bbStarts, nextInstr);
+			}
+			else
+				return false;
+		}
+	}
+
+	std::sort(bbStarts.begin(), bbStarts.end());
+
+	std::vector<MiniscriptBasicBlock> basicBlocks;
+	basicBlocks.resize(bbStarts.size());
+
+	for (size_t i = 0; i < bbStarts.size(); i++)
+	{
+		size_t bbStart = bbStarts[i];
+		size_t bbEnd = instructions.size();
+
+		if (i != bbStarts.size() - 1)
+			bbEnd = bbStarts[i + 1];
+
+		MiniscriptBasicBlock& bb = basicBlocks[i];
+		bb.m_isTerminal = (bbStart == instructions.size());
+		bb.m_isConditional = false;
+		bb.m_startInstr = bbStart;
+
+		bb.m_instructions.reserve(bbEnd - bbStart);
+		for (size_t j = bbStart; j < bbEnd; j++)
+			bb.m_instructions.push_back(instructions[j]);
+
+		if (!bb.m_isTerminal)
+		{
+			if (bb.m_instructions.size() >= 1)
+			{
+				bool isConditional;
+				size_t nextInstr;
+				const MiniscriptInstruction& lastInstr = bb.m_instructions[bb.m_instructions.size() - 1];
+				if (lastInstr.m_opcode == 0x7d3 && DecompileJumpOp(lastInstr, sp, isConditional, nextInstr))
+				{
+					if (isConditional)
+					{
+						bb.m_successors.push_back(lastInstr.m_instrNumber + 1);
+						bb.m_successors.push_back(nextInstr);
+						bb.m_isConditional = true;
+					}
+					else
+						bb.m_successors.push_back(nextInstr);
+
+					bb.m_instructions.pop_back();
+				}
+				else
+				{
+					// Fallthrough
+					bb.m_successors.push_back(lastInstr.m_instrNumber + 1);
+				}
+			}
+		}
+	}
+
+	std::unordered_map<size_t, MiniscriptBasicBlock*> bbMap;
+	for (MiniscriptBasicBlock& bb : basicBlocks)
+	{
+		bbMap[bb.m_startInstr] = &bb;
+	}
+
+	// Identify predecessors
+	for (const MiniscriptBasicBlock& bb : basicBlocks)
+	{
+		if (bb.m_isTerminal)
+			continue;
+
+		for (size_t successorStart : bb.m_successors)
+		{
+			MiniscriptBasicBlock* successor = bbMap.find(successorStart)->second;
+			InsertUnique(successor->m_predecessors, bb.m_startInstr);
+		}
+	}
+
+	// Resolve dominators
+	for (MiniscriptBasicBlock& bb : basicBlocks)
+	{
+		if (bb.m_startInstr == 0)
+		{
+			bb.m_dominators.resize(1);
+			bb.m_dominators[0] = 0;
+		}
+		else
+			bb.m_dominators = bbStarts;
+	}
+
+	bool dominatorsDirty = true;
+	while (dominatorsDirty)
+	{
+		dominatorsDirty = false;
+
+		for (MiniscriptBasicBlock& bb : basicBlocks)
+		{
+			if (bb.m_startInstr == 0)
+				continue;
+
+			bool blockDirty = false;
+			for (size_t pdi = 0; pdi < bb.m_dominators.size(); )
+			{
+				bool isValid = true;
+				size_t possibleDominator = bb.m_dominators[pdi];
+				if (possibleDominator != bb.m_startInstr)
+				{
+					// Not the block itself, so this must be a dominator of all predecessors
+					for (size_t pred : bb.m_predecessors)
+					{
+						MiniscriptBasicBlock* predBB = bbMap.find(pred)->second;
+						if (std::find(predBB->m_dominators.begin(), predBB->m_dominators.end(), possibleDominator) == predBB->m_dominators.end())
+						{
+							isValid = false;
+							break;
+						}
+					}
+				}
+
+				if (isValid)
+					pdi++;
+				else
+				{
+					bb.m_dominators[pdi] = bb.m_dominators[bb.m_dominators.size() - 1];
+					bb.m_dominators.pop_back();
+					blockDirty = true;
+				}
+			}
+
+			if (blockDirty)
+			{
+				std::sort(bb.m_dominators.begin(), bb.m_dominators.end());
+				dominatorsDirty = true;
+			}
+		}
+	}
+
+	// Resolve postdominators
+	for (MiniscriptBasicBlock& bb : basicBlocks)
+	{
+		if (bb.m_isTerminal)
+		{
+			bb.m_postDominators.resize(1);
+			bb.m_postDominators[0] = bb.m_startInstr;
+		}
+		else
+			bb.m_postDominators = bbStarts;
+	}
+
+	bool postDominatorsDirty = true;
+	while (postDominatorsDirty)
+	{
+		postDominatorsDirty = false;
+
+		for (MiniscriptBasicBlock& bb : basicBlocks)
+		{
+			if (bb.m_isTerminal)
+				continue;
+
+			bool blockDirty = false;
+			for (size_t pdi = 0; pdi < bb.m_postDominators.size(); )
+			{
+				bool isValid = true;
+				size_t possiblePostDominator = bb.m_postDominators[pdi];
+				if (possiblePostDominator != bb.m_startInstr)
+				{
+					// Not the block itself, so this must be a post-dominator of all successors
+					for (size_t succ : bb.m_successors)
+					{
+						MiniscriptBasicBlock* succBB = bbMap.find(succ)->second;
+						if (std::find(succBB->m_postDominators.begin(), succBB->m_postDominators.end(), possiblePostDominator) == succBB->m_postDominators.end())
+						{
+							isValid = false;
+							break;
+						}
+					}
+				}
+
+				if (isValid)
+					pdi++;
+				else
+				{
+					bb.m_postDominators[pdi] = bb.m_postDominators[bb.m_postDominators.size() - 1];
+					bb.m_postDominators.pop_back();
+					blockDirty = true;
+				}
+			}
+
+			if (blockDirty)
+			{
+				std::sort(bb.m_postDominators.begin(), bb.m_postDominators.end());
+				postDominatorsDirty = true;
+			}
+		}
+	}
+
+	MiniscriptControlFlowResolver cfResolver(bbMap);
+	MiniscriptControlFlowIsland* initialIsland = cfResolver.AllocIsland();
+	initialIsland->m_start = &basicBlocks[0];
+	initialIsland->m_sinkBB = &basicBlocks[basicBlocks.size() - 1];
+
+	assert(initialIsland->m_start != nullptr);
+
+	cfResolver.ResolveAll();
+
+	if (!EmitMiniscriptIsland(1, initialIsland, obj, f))
+		return false;
+
+	return true;
+}
+
 void PrintObjectDisassembly(const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kMiniscriptModifier);
@@ -728,7 +1981,7 @@ void PrintObjectDisassembly(const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
 			case 0xd3: opName = "cmp_neq"; break;
 			case 0xd4: opName = "cmp_le"; break;
 			case 0xd5: opName = "cmp_lt"; break;
-			case 0xd6: opName = "cmp_le"; break;
+			case 0xd6: opName = "cmp_ge"; break;
 			case 0xd7: opName = "cmp_gt"; break;
 			case 0xd8: opName = "builtin_func"; break;
 			case 0xda: opName = "mod"; break;
@@ -751,14 +2004,14 @@ void PrintObjectDisassembly(const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
 			if (!isUnknownOp)
 			{
 				if (unknownField == 0)
-					fprintf(f, "    %s  ", opName);
+					fprintf(f, "    % 5i: %s  ", static_cast<int>(i), opName);
 				else
-					fprintf(f, "    %s,args=%i  ", opName, static_cast<int>(unknownField));
+					fprintf(f, "    % 5i: %s,args=%i  ", static_cast<int>(i), opName, static_cast<int>(unknownField));
 			}
 			else
 			{
 
-				fprintf(f, "    %s(0x%x),%i  ", opName, static_cast<int>(opcode), static_cast<int>(unknownField));
+				fprintf(f, "    % 5i: %s(0x%x),%i  ", static_cast<int>(i), opName, static_cast<int>(opcode), static_cast<int>(unknownField));
 			}
 
 
@@ -780,7 +2033,11 @@ void PrintObjectDisassembly(const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
 			fprintf(f, "    <An error occurred during disassembly>\n");
 	}
 
-
+	fputs("Decompiled:\n", f);
+	if (!DecompileMiniscript(obj, obj.m_sp, f))
+	{
+		fputs("Decompile failed\n", f);
+	}
 }
 
 void PrintObjectDisassembly(const mtdisasm::DONotYetImplemented& obj, FILE* f)

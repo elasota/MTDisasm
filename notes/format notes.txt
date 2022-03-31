@@ -492,7 +492,7 @@ Structure tree flags:
 		0x7d3: jump
 			uint32_t flags (2 = conditional, 1 = unconditional)
 			uint32_t unknown
-			uint32_t instructions to skip
+			uint32_t offset of new instruction FROM THIS INSTRUCTION
 	
 
 0x2da: Messenger modifier
