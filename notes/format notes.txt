@@ -404,7 +404,7 @@ Structure tree flags:
 		uint16_t opcode
 		uint16_t flags
 		uint16_t size (includes opcode header)
-		byte[size - 12] instruction data
+		byte[size - 6] instruction data
 
 	LOCALREF:
 		uint32_t unknown
