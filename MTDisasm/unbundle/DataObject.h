@@ -303,7 +303,7 @@ namespace mtdisasm
 
 		uint32_t m_unknown1;	// Seems to always be 0x16
 		uint32_t m_sizeIncludingTag;
-		uint32_t m_unknown2;
+		uint32_t m_guid;
 		uint32_t m_flags;
 		uint16_t m_nameLength;
 
@@ -343,7 +343,7 @@ namespace mtdisasm
 
 		uint32_t m_unknown1;
 		uint32_t m_sizeIncludingTag;
-		uint32_t m_unknown2;
+		uint32_t m_guid;
 		uint16_t m_lengthOfName;
 		uint32_t m_flags;
 		uint16_t m_unknown4;
@@ -365,7 +365,7 @@ namespace mtdisasm
 
 		uint32_t m_unknown1;
 		uint32_t m_sizeIncludingTag;
-		uint32_t m_unknown2;
+		uint32_t m_guid;
 		uint16_t m_lengthOfName;
 		uint32_t m_flags;
 		uint16_t m_sectionID;
@@ -405,7 +405,7 @@ namespace mtdisasm
 
 		uint32_t m_unknown1;
 		uint32_t m_sizeIncludingTag;
-		uint32_t m_unknown2;
+		uint32_t m_guid;
 		uint16_t m_lengthOfName;
 		uint32_t m_flags;
 		uint8_t m_unknown4[2];
@@ -426,7 +426,7 @@ namespace mtdisasm
 
 		uint32_t m_unknown1;
 		uint32_t m_sizeIncludingTag;
-		uint32_t m_unknown2;
+		uint32_t m_guid;
 		uint16_t m_lengthOfName;
 		uint32_t m_flags;
 		uint16_t m_layer;
@@ -454,7 +454,7 @@ namespace mtdisasm
 
 		uint32_t m_unknown1;
 		uint32_t m_sizeIncludingTag;
-		uint32_t m_unknown2;
+		uint32_t m_guid;
 		uint16_t m_lengthOfName;
 		uint32_t m_structuralFlags;
 		uint8_t m_unknown3[2];
@@ -501,7 +501,7 @@ namespace mtdisasm
 
 		struct LocalRef
 		{
-			uint32_t m_unknown9;
+			uint32_t m_guid;
 			uint8_t m_lengthOfName;
 			uint8_t m_unknown10;
 

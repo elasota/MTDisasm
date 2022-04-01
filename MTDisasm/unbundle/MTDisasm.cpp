@@ -318,7 +318,7 @@ void PrintObjectDisassembly(const mtdisasm::DOProjectStructuralDef& obj, FILE* f
 	assert(obj.GetType() == mtdisasm::DataObjectType::kProjectStructuralDef);
 
 	PrintHex("Unknown1", obj.m_unknown1, f);
-	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("GUID", obj.m_guid, f);
 	PrintHex("Flags", obj.m_flags, f);
 	fputs("Name: '", f);
 	if (obj.m_nameLength >= 1)
@@ -383,7 +383,7 @@ void PrintObjectDisassembly(const mtdisasm::DOSectionStructuralDef& obj, FILE* f
 	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
 	PrintVal("SegmentID", obj.m_segmentID, f);
 	PrintVal("SectionID", obj.m_sectionID, f);
-	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("GUID", obj.m_guid, f);
 	PrintHex("Flags", obj.m_flags, f);
 	PrintHex("Unknown4", obj.m_unknown4, f);
 	fputs("Name: '", f);
@@ -398,7 +398,7 @@ void PrintObjectDisassembly(const mtdisasm::DOSubsectionStructuralDef& obj, FILE
 
 	PrintHex("Unknown1", obj.m_unknown1, f);
 	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
-	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("GUID", obj.m_guid, f);
 	PrintHex("Flags", obj.m_flags, f);
 	PrintVal("SectionID", obj.m_sectionID, f);
 	fputs("Name: '", f);
@@ -435,7 +435,7 @@ void PrintObjectDisassembly(const mtdisasm::DOImageStructuralDef& obj, FILE* f)
 
 	PrintHex("Unknown1", obj.m_unknown1, f);
 	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
-	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("GUID", obj.m_guid, f);
 	PrintHex("Flags", obj.m_flags, f);
 	PrintHex("Unknown4", obj.m_unknown4, f);
 	PrintVal("SectionID", obj.m_sectionID, f);
@@ -457,7 +457,7 @@ void PrintObjectDisassembly(const mtdisasm::DOMovieStructuralDef& obj, FILE* f)
 
 	PrintHex("Unknown1", obj.m_unknown1, f);
 	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
-	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("GUID", obj.m_guid, f);
 	PrintHex("Flags", obj.m_flags, f);
 	PrintHex("Layer", obj.m_layer, f);
 	PrintHex("Unknown3", obj.m_unknown3, f);
@@ -486,7 +486,7 @@ void PrintObjectDisassembly(const mtdisasm::DOMToonStructuralDef& obj, FILE* f)
 
 	PrintHex("Unknown1", obj.m_unknown1, f);
 	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
-	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("GUID", obj.m_guid, f);
 	PrintVal("LengthOfName", obj.m_lengthOfName, f);
 	PrintHex("StructuralFlags", obj.m_structuralFlags, f);
 	PrintHex("Unknown3", obj.m_unknown3, f);
@@ -1943,7 +1943,7 @@ void PrintObjectDisassembly(const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
 	for (size_t i = 0; i < obj.m_numLocalRefs; i++)
 	{
 		const mtdisasm::DOMiniscriptModifier::LocalRef& ref = obj.m_localRefs[i];
-		fprintf(f, "    % 5i: %08x %02x '", static_cast<int>(i), static_cast<int>(ref.m_unknown9), static_cast<int>(ref.m_unknown10));
+		fprintf(f, "    % 5i: %08x %02x '", static_cast<int>(i), static_cast<int>(ref.m_guid), static_cast<int>(ref.m_unknown10));
 		if (ref.m_name.size() > 1)
 			fwrite(&ref.m_name[0], 1, ref.m_name.size() - 1, f);
 		fputs("'\n", f);

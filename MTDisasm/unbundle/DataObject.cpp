@@ -469,7 +469,7 @@ namespace mtdisasm
 
 		if (!reader.ReadU32(m_unknown1)
 			|| !reader.ReadU32(m_sizeIncludingTag)
-			|| !reader.ReadU32(m_unknown2)
+			|| !reader.ReadU32(m_guid)
 			|| !reader.ReadU32(m_flags)
 			|| !reader.ReadU16(m_nameLength))
 			return false;
@@ -579,7 +579,7 @@ namespace mtdisasm
 
 		if (!reader.ReadU32(m_unknown1)
 			|| !reader.ReadU32(m_sizeIncludingTag)
-			|| !reader.ReadU32(m_unknown2)
+			|| !reader.ReadU32(m_guid)
 			|| !reader.ReadU16(m_lengthOfName)
 			|| !reader.ReadU32(m_flags)
 			|| !reader.ReadU16(m_unknown4)
@@ -612,7 +612,7 @@ namespace mtdisasm
 
 		if (!reader.ReadU32(m_unknown1)
 			|| !reader.ReadU32(m_sizeIncludingTag)
-			|| !reader.ReadU32(m_unknown2)
+			|| !reader.ReadU32(m_guid)
 			|| !reader.ReadU16(m_lengthOfName)
 			|| !reader.ReadU32(m_flags)
 			|| !reader.ReadU16(m_sectionID))
@@ -679,7 +679,7 @@ namespace mtdisasm
 
 		if (!reader.ReadU32(m_unknown1)
 			|| !reader.ReadU32(m_sizeIncludingTag)
-			|| !reader.ReadU32(m_unknown2)
+			|| !reader.ReadU32(m_guid)
 			|| !reader.ReadU16(m_lengthOfName)
 			|| !reader.ReadU32(m_flags)
 			|| !reader.ReadBytes(m_unknown4, 2)
@@ -716,7 +716,7 @@ namespace mtdisasm
 
 		if (!reader.ReadU32(m_unknown1)
 			|| !reader.ReadU32(m_sizeIncludingTag)
-			|| !reader.ReadU32(m_unknown2)
+			|| !reader.ReadU32(m_guid)
 			|| !reader.ReadU16(m_lengthOfName)
 			|| !reader.ReadU32(m_flags)
 			|| !reader.ReadU16(m_layer)
@@ -761,7 +761,7 @@ namespace mtdisasm
 
 		if (!reader.ReadU32(m_unknown1)
 			|| !reader.ReadU32(m_sizeIncludingTag)
-			|| !reader.ReadU32(m_unknown2)
+			|| !reader.ReadU32(m_guid)
 			|| !reader.ReadU16(m_lengthOfName)
 			|| !reader.ReadU32(m_structuralFlags)
 			|| !reader.ReadBytes(m_unknown3, 2)
@@ -881,7 +881,7 @@ namespace mtdisasm
 			for (size_t i = 0; i < m_numLocalRefs; i++)
 			{
 				LocalRef& localRef = m_localRefs[i];
-				if (!reader.ReadU32(localRef.m_unknown9)
+				if (!reader.ReadU32(localRef.m_guid)
 					|| !reader.ReadU8(localRef.m_lengthOfName)
 					|| !reader.ReadU8(localRef.m_unknown10))
 					return false;
