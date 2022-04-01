@@ -1210,7 +1210,7 @@ namespace mtdisasm
 		{
 			m_haveMacPart = true;
 
-			if (!reader.ReadBytes(m_macPart.m_unknown5_1, 6)
+			if (!reader.ReadBytes(m_macPart.m_unknown5_1, 66)
 				|| !reader.ReadU32(m_movieDataSize)
 				|| !reader.ReadBytes(m_macPart.m_unknown6, 12)
 				|| !reader.ReadU32(m_moovAtomPos))

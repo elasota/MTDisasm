@@ -1391,7 +1391,6 @@ void PrintExpression(const MiniscriptExpressionTree* expr, const mtdisasm::DOMin
 			fputs(" deg ", f);
 			PrintExpression(expr->m_children[1], obj, f);
 			fputs(" mag)", f);
-
 		}
 		break;
 	case 0x135:
