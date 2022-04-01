@@ -651,8 +651,8 @@ Structure tree flags:
 	byte[18] unknown (0)
 	uint16_t sample rate?
 	byte[2] unknown (0)
-	uint32_t extra data size
-	uint16_t unknown (usually 0, sometimes 5 when there is extra data?)
+	uint32_t cue points data size
+	uint16_t number of cue points
 	byte[4] unknown (0)
 	uint32_t unknown - file position
 	uint32_t unknown - size

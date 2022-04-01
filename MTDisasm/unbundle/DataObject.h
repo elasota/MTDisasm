@@ -639,6 +639,14 @@ namespace mtdisasm
 			uint8_t m_unknown12_1[2];
 		};
 
+		struct CuePoint
+		{
+			uint8_t m_unknown13[2];
+			uint32_t m_unknown14;
+			uint32_t m_position;
+			uint32_t m_cuePointID;
+		};
+
 		uint32_t m_marker;
 		uint32_t m_assetAndDataCombinedSize;
 		uint8_t m_unknown2[4];
@@ -650,11 +658,13 @@ namespace mtdisasm
 		uint8_t m_channels;
 		uint8_t m_codedDuration[4];
 		uint16_t m_sampleRate2;
-		uint32_t m_extraDataSize;
-		uint16_t m_unknown13;
+		uint32_t m_cuePointDataSize;
+		uint16_t m_numCuePoints;
 		uint8_t m_unknown14[4];
 		uint32_t m_filePosition;
 		uint32_t m_size;
+
+		std::vector<CuePoint> m_cuePoints;
 
 		bool m_haveMacPart;
 		MacPart m_macPart;

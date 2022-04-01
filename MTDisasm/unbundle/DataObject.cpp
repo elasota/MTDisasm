@@ -1099,15 +1099,26 @@ namespace mtdisasm
 		else
 			return false;
 
-		if (!reader.ReadU32(m_extraDataSize)
-			|| !reader.ReadU16(m_unknown13)
+		if (!reader.ReadU32(m_cuePointDataSize)
+			|| !reader.ReadU16(m_numCuePoints)
 			|| !reader.ReadBytes(m_unknown14, 4)
 			|| !reader.ReadU32(m_filePosition)
 			|| !reader.ReadU32(m_size))
 			return false;
 
-		if (m_extraDataSize && !reader.Skip(m_extraDataSize))
+		if (m_numCuePoints * 14 != m_cuePointDataSize)
 			return false;
+
+		m_cuePoints.resize(m_numCuePoints);
+		for (size_t i = 0; i < m_numCuePoints; i++)
+		{
+			CuePoint& cuePoint = m_cuePoints[i];
+			if (!reader.ReadBytes(cuePoint.m_unknown13, 2)
+				|| !reader.ReadU32(cuePoint.m_unknown14)
+				|| !reader.ReadU32(cuePoint.m_position)
+				|| !reader.ReadU32(cuePoint.m_cuePointID))
+				return false;
+		}
 
 		return true;
 	}

@@ -2079,8 +2079,8 @@ void PrintObjectDisassembly(const mtdisasm::DOAudioAsset& obj, FILE* f)
 	PrintVal("Channels", obj.m_channels, f);
 	PrintVal("CodedDuration", obj.m_codedDuration, f);
 	PrintVal("SampleRate2", obj.m_sampleRate2, f);
-	PrintVal("ExtraDataSize", obj.m_extraDataSize, f);
-	PrintHex("Unknown13", obj.m_unknown13, f);
+	PrintVal("CuePointDataSize", obj.m_cuePointDataSize, f);
+	PrintVal("NumCuePoints", obj.m_numCuePoints, f);
 	PrintHex("Unknown14", obj.m_unknown14, f);
 	PrintHex("FilePosition", obj.m_filePosition, f);
 	PrintVal("Size", obj.m_size, f);
@@ -2095,11 +2095,20 @@ void PrintObjectDisassembly(const mtdisasm::DOAudioAsset& obj, FILE* f)
 
 	if (obj.m_haveWinPart)
 	{
-
 		PrintHex("Unknown9", obj.m_winPart.m_unknown9, f);
 		PrintHex("Unknown10", obj.m_winPart.m_unknown10, f);
 		PrintHex("Unknown11", obj.m_winPart.m_unknown11, f);
 		PrintHex("Unknown12_1", obj.m_winPart.m_unknown12_1, f);
+	}
+
+	for (size_t i = 0; i < obj.m_numCuePoints; i++)
+	{
+		const mtdisasm::DOAudioAsset::CuePoint& cuePoint = obj.m_cuePoints[i];
+		fprintf(f, "Cue point %i:\n", static_cast<int>(i));
+		PrintHex("    Unknown13", cuePoint.m_unknown13, f);
+		PrintHex("    Unknown14", cuePoint.m_unknown14, f);
+		PrintVal("    Position", cuePoint.m_position, f);
+		PrintVal("    CuePointID", cuePoint.m_cuePointID, f);
 	}
 }
 
