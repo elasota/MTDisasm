@@ -2358,7 +2358,22 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 
 #define ATOM(a,b,c,d) static_cast<uint32_t>((a << 24) + (b << 16) + (c << 8) + d)
 
-bool RecursiveFixupSTCOChunkFromAtomStart(FILE* f, uint32_t basePosition, uint32_t atomSize)
+bool PullData(void* dest, const std::vector<uint8_t>& data, size_t pos, size_t size)
+{
+	if (size == 0)
+		return true;
+
+	if (size > data.size())
+		return false;
+
+	if (data.size() - size < pos)
+		return false;
+
+	memcpy(dest, &data[pos], size);
+	return true;
+}
+
+bool RecursiveFixupSTCOChunkFromAtomStart(std::vector<uint8_t>& data, uint32_t atomStartPos, uint32_t& outAtomEndPos, uint32_t basePosition, uint32_t atomSize)
 {
 	static const uint32_t descendableAtoms[] = {
 		ATOM('m', 'o', 'o', 'v'),
@@ -2368,9 +2383,8 @@ bool RecursiveFixupSTCOChunkFromAtomStart(FILE* f, uint32_t basePosition, uint32
 		ATOM('s', 't', 'b', 'l')
 	};
 
-	uint32_t atomStartPos = ftell(f);
 	uint8_t atomHeader[8];
-	if (fread(atomHeader, 1, 8, f) != 8)
+	if (!PullData(atomHeader, data, atomStartPos, 8))
 		return false;
 
 	uint32_t atomCodedSize = (atomHeader[0] << 24) + (atomHeader[1] << 16) + (atomHeader[2] << 8) + atomHeader[3];
@@ -2398,18 +2412,21 @@ bool RecursiveFixupSTCOChunkFromAtomStart(FILE* f, uint32_t basePosition, uint32
 	{
 		// Descendable atom
 		uint32_t remainingSize = atomCodedSize - 8;
+		uint32_t childStartPos = atomStartPos + 8;
 		while (remainingSize > 0)
 		{
-			if (!RecursiveFixupSTCOChunkFromAtomStart(f, basePosition, remainingSize))
+			uint32_t childEndPos = 0;
+			if (!RecursiveFixupSTCOChunkFromAtomStart(data, childStartPos, childEndPos, basePosition, remainingSize))
 				return false;
 
-			remainingSize = atomEndPos - ftell(f);
+			remainingSize = atomEndPos - childEndPos;
+			childStartPos = childEndPos;
 		}
 	}
 	else if (atomID == ATOM('s', 't', 'c', 'o'))
 	{
 		uint8_t stcoData[8];
-		if (fread(stcoData, 1, 8, f) != 8)
+		if (!PullData(stcoData, data, atomStartPos + 8, 8))
 			return false;
 
 		uint8_t version = stcoData[0];
@@ -2418,36 +2435,30 @@ bool RecursiveFixupSTCOChunkFromAtomStart(FILE* f, uint32_t basePosition, uint32
 
 		for (uint32_t i = 0; i < numEntries; i++)
 		{
-			long chunkOffsetPos = ftell(f);
 			uint8_t chunkOffsetData[4];
-			if (fread(chunkOffsetData, 1, 4, f) != 4)
+
+			uint32_t fileOffsetPos = atomStartPos + 16 + i * 4;
+			if (!PullData(chunkOffsetData, data, fileOffsetPos, 4))
 				return false;
 
 			uint32_t offset = (chunkOffsetData[0] << 24) + (chunkOffsetData[1] << 16) + (chunkOffsetData[2] << 8) + chunkOffsetData[3];
 			offset -= basePosition;
-			chunkOffsetData[0] = (offset >> 24) & 0xff;
-			chunkOffsetData[1] = (offset >> 16) & 0xff;
-			chunkOffsetData[2] = (offset >> 8) & 0xff;
-			chunkOffsetData[3] = offset & 0xff;
-
-			fseek(f, chunkOffsetPos, SEEK_SET);
-			if (fwrite(chunkOffsetData, 1, 4, f) != 4)
-				return false;
-			fseek(f, chunkOffsetPos + 4, SEEK_SET);
+			data[fileOffsetPos + 0] = (offset >> 24) & 0xff;
+			data[fileOffsetPos + 1] = (offset >> 16) & 0xff;
+			data[fileOffsetPos + 2] = (offset >> 8) & 0xff;
+			data[fileOffsetPos + 3] = offset & 0xff;
 		}
 	}
 
-	fseek(f, atomEndPos, SEEK_SET);
+	outAtomEndPos = atomEndPos;
 
 	return true;
 }
 
-void FixupQuickTimeFileOffsets(FILE* f, uint32_t basePosition, uint32_t moovAtomPositionAbsolute, uint32_t moovDataSize)
+void FixupQuickTimeFileOffsets(std::vector<uint8_t>& data, uint32_t basePosition, uint32_t moovAtomPositionAbsolute, uint32_t moovDataSize)
 {
-	uint32_t moovAtomPos = moovAtomPositionAbsolute - basePosition;
-
-	fseek(f, moovAtomPos, SEEK_SET);
-	RecursiveFixupSTCOChunkFromAtomStart(f, basePosition, moovDataSize);
+	uint32_t scratch = 0;
+	RecursiveFixupSTCOChunkFromAtomStart(data, moovAtomPositionAbsolute - basePosition, scratch, basePosition, moovDataSize);
 }
 
 void ExtractMovieAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::DOMovieAsset& asset, mtdisasm::IOStream& stream, const mtdisasm::SerializationProperties& sp, const std::string& basePath)
@@ -2457,6 +2468,19 @@ void ExtractMovieAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 
 	assetIDs.insert(asset.m_assetID);
 
+	stream.SeekSet(asset.m_movieDataPos);
+
+	std::vector<uint8_t> movieData;
+	movieData.resize(asset.m_movieDataSize);
+
+	if (asset.m_movieDataSize == 0)
+		return;
+
+	if (!stream.ReadAll(&movieData[0], asset.m_movieDataSize))
+		return;
+
+	FixupQuickTimeFileOffsets(movieData, asset.m_movieDataPos, asset.m_moovAtomPos, asset.m_movieDataSize);
+
 	std::string outPath = basePath + "/asset_" + std::to_string(asset.m_assetID) + ".mov";
 
 	FILE* outF = fopen(outPath.c_str(), "w+b");
@@ -2464,22 +2488,7 @@ void ExtractMovieAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 	if (!outF)
 		return;
 
-	stream.SeekSet(asset.m_movieDataPos);
-	size_t remainingSize = asset.m_movieDataSize;
-
-	uint8_t dataChunk[2048];
-	while (remainingSize > 0)
-	{
-		size_t chunkSize = sizeof(dataChunk);
-		if (remainingSize < chunkSize)
-			chunkSize = remainingSize;
-
-		stream.ReadAll(dataChunk, chunkSize);
-		fwrite(dataChunk, 1, chunkSize, outF);
-		remainingSize -= chunkSize;
-	}
-
-	FixupQuickTimeFileOffsets(outF, asset.m_movieDataPos, asset.m_moovAtomPos, asset.m_movieDataSize);
+	fwrite(&movieData[0], 1, asset.m_movieDataSize, outF);
 
 	fclose(outF);
 }
