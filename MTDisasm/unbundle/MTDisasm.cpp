@@ -14,6 +14,12 @@
 #include <cstdio>
 #include <cassert>
 #include <unordered_map>
+#include <unordered_set>
+
+extern "C"
+{
+#include "stb_image_write.h"
+}
 
 const char* NameObjectType(mtdisasm::DataObjectType dot)
 {
@@ -2350,6 +2356,216 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 	}
 }
 
+void ExtractImageAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::DOImageAsset& asset, mtdisasm::IOStream& stream, const mtdisasm::SerializationProperties& sp, const std::string& basePath)
+{
+	if (assetIDs.find(asset.m_assetID) != assetIDs.end())
+		return;
+
+	assetIDs.insert(asset.m_assetID);
+
+	std::string outPath = basePath + "/asset_" + std::to_string(asset.m_assetID) + ".png";
+
+	size_t width = asset.m_rect1.m_right - asset.m_rect1.m_left;
+	size_t height = asset.m_rect1.m_bottom - asset.m_rect1.m_top;
+	size_t bytesPerRow = (width * asset.m_bitsPerPixel + 7) / 8;
+	bytesPerRow = (bytesPerRow + 3) / 4 * 4;
+
+	if (width < 0)
+		return;
+
+	size_t expectedSize = bytesPerRow * height;
+
+	if (expectedSize != asset.m_size)
+	{
+		fprintf(stderr, "Asset %u unexpected data size: Expected %u but was %u\n", static_cast<unsigned int>(asset.m_assetID), static_cast<unsigned int>(expectedSize), static_cast<unsigned int>(asset.m_size));
+		return;
+	}
+	if (asset.m_bitsPerPixel != 1 && asset.m_bitsPerPixel != 2 && asset.m_bitsPerPixel != 4 && asset.m_bitsPerPixel != 16 && asset.m_bitsPerPixel != 32)
+	{
+		fprintf(stderr, "Asset %u unsupported bit depth: %u\n", static_cast<unsigned int>(asset.m_assetID), static_cast<unsigned int>(asset.m_bitsPerPixel));
+		return;
+	}
+
+	std::vector<uint8_t> rowData;
+	rowData.resize(bytesPerRow);
+
+	uint8_t* rowBytes = &rowData[0];
+
+	size_t outBytesPerRow = width * 3;
+
+	std::vector<uint8_t> decoded;
+	decoded.resize(height * outBytesPerRow);
+
+	stream.SeekSet(asset.m_filePosition);
+	for (size_t row = 0; row < height; row++)
+	{
+		stream.ReadAll(rowBytes, bytesPerRow);
+		uint8_t* outRowBytes = nullptr;
+
+		if (sp.m_systemType == mtdisasm::SystemType::kWindows)
+			outRowBytes = &decoded[(height - 1 - row) * outBytesPerRow];
+		else if (sp.m_systemType == mtdisasm::SystemType::kMac)
+			outRowBytes = &decoded[row * outBytesPerRow];
+		else
+			return;
+
+		if (asset.m_bitsPerPixel == 32)
+		{
+			if (sp.m_systemType == mtdisasm::SystemType::kWindows)
+			{
+				for (size_t x = 0; x < width; x++)
+				{
+					outRowBytes[x * 3 + 0] = rowBytes[x * 4 + 3];
+					outRowBytes[x * 3 + 1] = rowBytes[x * 4 + 2];
+					outRowBytes[x * 3 + 2] = rowBytes[x * 4 + 1];
+				}
+			}
+			else if (sp.m_systemType == mtdisasm::SystemType::kMac)
+			{
+				for (size_t x = 0; x < width; x++)
+				{
+					outRowBytes[x * 3 + 0] = rowBytes[x * 4 + 0];
+					outRowBytes[x * 3 + 1] = rowBytes[x * 4 + 1];
+					outRowBytes[x * 3 + 2] = rowBytes[x * 4 + 2];
+				}
+			}
+		}
+		else if (asset.m_bitsPerPixel == 16)
+		{
+			if (sp.m_systemType == mtdisasm::SystemType::kWindows)
+			{
+				for (size_t x = 0; x < width; x++)
+				{
+					uint16_t packedPixel = rowBytes[x * 2 + 0] + (rowBytes[x * 2 + 1] << 8);
+					outRowBytes[x * 3 + 2] = ((packedPixel & 0x1f) * 33) >> 2;
+					outRowBytes[x * 3 + 1] = (((packedPixel >> 5) & 0x1f) * 33) >> 2;
+					outRowBytes[x * 3 + 0] = (((packedPixel >> 10) & 0x1f) * 33) >> 2;
+				}
+			}
+			else if (sp.m_systemType == mtdisasm::SystemType::kMac)
+			{
+				for (size_t x = 0; x < width; x++)
+				{
+					uint16_t packedPixel = rowBytes[x * 2 + 1] + (rowBytes[x * 2 + 0] << 8);
+					outRowBytes[x * 3 + 2] = ((packedPixel & 0x1f) * 33) >> 2;
+					outRowBytes[x * 3 + 1] = (((packedPixel >> 5) & 0x1f) * 33) >> 2;
+					outRowBytes[x * 3 + 0] = (((packedPixel >> 10) & 0x1f) * 33) >> 2;
+				}
+			}
+		}
+		else if (asset.m_bitsPerPixel == 8)
+		{
+			for (size_t x = 0; x < width; x++)
+			{
+				uint8_t byte = rowBytes[x];
+
+				outRowBytes[x * 3 + 0] = byte;
+				outRowBytes[x * 3 + 1] = byte;
+				outRowBytes[x * 3 + 2] = byte;
+			}
+		}
+		else if (asset.m_bitsPerPixel == 4)
+		{
+			for (size_t x = 0; x < width; x++)
+			{
+				int bit = (rowBytes[x / 2] >> (1 - (x % 2))) & 15;
+				uint8_t byte = bit * 17;
+
+				outRowBytes[x * 3 + 2] = byte;
+				outRowBytes[x * 3 + 1] = byte;
+				outRowBytes[x * 3 + 0] = byte;
+			}
+		}
+		else if (asset.m_bitsPerPixel == 2)
+		{
+			for (size_t x = 0; x < width; x++)
+			{
+				int bit = (rowBytes[x / 4] >> (3 - (x % 4))) & 3;
+				uint8_t byte = bit * 85;
+
+				outRowBytes[x * 3 + 2] = byte;
+				outRowBytes[x * 3 + 1] = byte;
+				outRowBytes[x * 3 + 0] = byte;
+			}
+		}
+		else if (asset.m_bitsPerPixel == 1)
+		{
+			for (size_t x = 0; x < width; x++)
+			{
+				int bit = (rowBytes[x / 8] >> (7 - (x % 8))) & 1;
+				uint8_t byte = bit * 255;
+
+				outRowBytes[x * 3 + 2] = byte;
+				outRowBytes[x * 3 + 1] = byte;
+				outRowBytes[x * 3 + 0] = byte;
+			}
+		}
+	}
+
+	stbi_write_png(outPath.c_str(), width, height, 3, &decoded[0], outBytesPerRow);
+}
+
+void ExtractAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::DataObject& dataObject, mtdisasm::IOStream& stream, const mtdisasm::SerializationProperties& sp, const std::string& basePath)
+{
+	switch (dataObject.GetType())
+	{
+	case mtdisasm::DataObjectType::kImageAsset:
+		ExtractImageAsset(assetIDs, static_cast<const mtdisasm::DOImageAsset&>(dataObject), stream, sp, basePath);
+		break;
+	case mtdisasm::DataObjectType::kAudioAsset:
+	case mtdisasm::DataObjectType::kMovieAsset:
+	case mtdisasm::DataObjectType::kMToonAsset:
+	default:
+		break;
+	}
+}
+
+void ExtractAssetsFromStream(std::unordered_set<uint32_t>& assetIDs, mtdisasm::IOStream& globalStream, mtdisasm::IOStream& stream, size_t streamSize, int streamIndex, uint32_t streamPos, const mtdisasm::SerializationProperties& sp, const std::string& basePath)
+{
+	mtdisasm::DataReader reader(stream, sp.m_isByteSwapped);
+
+	for (;;)
+	{
+		uint32_t pos = stream.Tell();
+		if (pos == streamSize)
+			break;
+
+		uint32_t objectType = 0;
+		uint16_t revision = 0;
+		if (!reader.ReadU32(objectType) || !reader.ReadU16(revision))
+		{
+			fprintf(stderr, "Stream %i: Couldn't read type at stream position %x (global position %x)\n", streamIndex, static_cast<int>(pos), static_cast<int>(pos + streamPos));
+			return;
+		}
+
+		mtdisasm::DataObject* dataObject = mtdisasm::CreateObjectFromType(objectType);
+		if (!dataObject)
+		{
+			fprintf(stderr, "Stream %i: Unknown object type %x revision %i at position %x (global position %x)\n", streamIndex, static_cast<int>(objectType), static_cast<int>(revision), static_cast<int>(pos), static_cast<int>(pos + streamPos));
+			return;
+		}
+
+		const bool succeeded = dataObject->Load(reader, revision, sp);
+		if (succeeded)
+		{
+			uint32_t prevPos = stream.Tell();
+			ExtractAsset(assetIDs, *dataObject, globalStream, sp, basePath);
+			if (!stream.SeekSet(prevPos))
+			{
+				fprintf(stderr, "Failed to reset stream position\n");
+				return;
+			}
+		}
+		else
+			fprintf(stderr, "Stream %i: Object type %s revision %i at position %x (global position %x) failed to load\n", streamIndex, NameObjectType(dataObject->GetType()), static_cast<int>(revision), static_cast<int>(pos), static_cast<int>(pos + streamPos));
+
+		dataObject->Delete();
+
+		if (!succeeded)
+			break;
+	}
+}
+
 void DisassembleStream(mtdisasm::IOStream& stream, size_t streamSize, int streamIndex, uint32_t streamPos, const mtdisasm::SerializationProperties& sp, FILE* f)
 {
 	mtdisasm::DataReader reader(stream, sp.m_isByteSwapped);
@@ -2436,7 +2652,7 @@ int main(int argc, const char** argv)
 	std::string seg1Path = argv[2];
 	std::string outputDir = argv[3];
 
-	if (mode != "bin" && mode != "text")
+	if (mode != "bin" && mode != "text" && mode != "assets")
 	{
 		fprintf(stderr, "Supported disassembly modes: bin, text\n");
 		return -1;
@@ -2579,6 +2795,8 @@ int main(int argc, const char** argv)
 
 	printf("Unbundling %i streams...\n", static_cast<int>(numStreams));
 
+	std::unordered_set<uint32_t> extractedAssets;
+
 	for (size_t i = 0; i < numStreams; i++)
 	{
 		const mtdisasm::StreamDesc& streamDesc = catalog.GetStream(i);
@@ -2638,6 +2856,13 @@ int main(int argc, const char** argv)
 
 			mtdisasm::SliceIOStream slice(stream, streamDesc.m_pos, streamDesc.m_size);
 			DisassembleStream(slice, streamDesc.m_size, static_cast<int>(i), streamDesc.m_pos, sp, dumpF);
+		}
+		else if (mode == "assets")
+		{
+			fprintf(dumpF, "Stream %i   Segment: %i   Position in file: %x\n\n", static_cast<int>(i), static_cast<int>(streamDesc.m_segmentNumber), static_cast<int>(streamDesc.m_pos));
+
+			mtdisasm::SliceIOStream slice(stream, streamDesc.m_pos, streamDesc.m_size);
+			ExtractAssetsFromStream(extractedAssets, stream, slice, streamDesc.m_size, static_cast<int>(i), streamDesc.m_pos, sp, outputDir);
 		}
 		else
 		{
