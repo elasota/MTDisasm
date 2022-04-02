@@ -2356,6 +2356,134 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 	}
 }
 
+#define ATOM(a,b,c,d) static_cast<uint32_t>((a << 24) + (b << 16) + (c << 8) + d)
+
+bool RecursiveFixupSTCOChunkFromAtomStart(FILE* f, uint32_t basePosition, uint32_t atomSize)
+{
+	static const uint32_t descendableAtoms[] = {
+		ATOM('m', 'o', 'o', 'v'),
+		ATOM('t', 'r', 'a', 'k'),
+		ATOM('m', 'd', 'i', 'a'),
+		ATOM('m', 'i', 'n', 'f'),
+		ATOM('s', 't', 'b', 'l')
+	};
+
+	uint32_t atomStartPos = ftell(f);
+	uint8_t atomHeader[8];
+	if (fread(atomHeader, 1, 8, f) != 8)
+		return false;
+
+	uint32_t atomCodedSize = (atomHeader[0] << 24) + (atomHeader[1] << 16) + (atomHeader[2] << 8) + atomHeader[3];
+	uint32_t atomID = (atomHeader[4] << 24) + (atomHeader[5] << 16) + (atomHeader[6] << 8) + atomHeader[7];
+
+	if (atomCodedSize == 0)
+		atomCodedSize = atomSize;
+
+	if (atomCodedSize < 8)
+		return false;
+
+	uint32_t atomEndPos = atomCodedSize + atomStartPos;
+
+	bool isDescendable = false;
+	for (uint32_t descendable : descendableAtoms)
+	{
+		if (descendable == atomID)
+		{
+			isDescendable = true;
+			break;
+		}
+	}
+
+	if (isDescendable)
+	{
+		// Descendable atom
+		uint32_t remainingSize = atomCodedSize - 8;
+		while (remainingSize > 0)
+		{
+			if (!RecursiveFixupSTCOChunkFromAtomStart(f, basePosition, remainingSize))
+				return false;
+
+			remainingSize = atomEndPos - ftell(f);
+		}
+	}
+	else if (atomID == ATOM('s', 't', 'c', 'o'))
+	{
+		uint8_t stcoData[8];
+		if (fread(stcoData, 1, 8, f) != 8)
+			return false;
+
+		uint8_t version = stcoData[0];
+		uint32_t flags = (stcoData[1] << 16) + (stcoData[2] << 8) + stcoData[3];
+		uint32_t numEntries = (stcoData[4] << 24) + (stcoData[5] << 16) + (stcoData[6] << 8) + stcoData[7];
+
+		for (uint32_t i = 0; i < numEntries; i++)
+		{
+			long chunkOffsetPos = ftell(f);
+			uint8_t chunkOffsetData[4];
+			if (fread(chunkOffsetData, 1, 4, f) != 4)
+				return false;
+
+			uint32_t offset = (chunkOffsetData[0] << 24) + (chunkOffsetData[1] << 16) + (chunkOffsetData[2] << 8) + chunkOffsetData[3];
+			offset -= basePosition;
+			chunkOffsetData[0] = (offset >> 24) & 0xff;
+			chunkOffsetData[1] = (offset >> 16) & 0xff;
+			chunkOffsetData[2] = (offset >> 8) & 0xff;
+			chunkOffsetData[3] = offset & 0xff;
+
+			fseek(f, chunkOffsetPos, SEEK_SET);
+			if (fwrite(chunkOffsetData, 1, 4, f) != 4)
+				return false;
+			fseek(f, chunkOffsetPos + 4, SEEK_SET);
+		}
+	}
+
+	fseek(f, atomEndPos, SEEK_SET);
+
+	return true;
+}
+
+void FixupQuickTimeFileOffsets(FILE* f, uint32_t basePosition, uint32_t moovAtomPositionAbsolute, uint32_t moovDataSize)
+{
+	uint32_t moovAtomPos = moovAtomPositionAbsolute - basePosition;
+
+	fseek(f, moovAtomPos, SEEK_SET);
+	RecursiveFixupSTCOChunkFromAtomStart(f, basePosition, moovDataSize);
+}
+
+void ExtractMovieAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::DOMovieAsset& asset, mtdisasm::IOStream& stream, const mtdisasm::SerializationProperties& sp, const std::string& basePath)
+{
+	if (assetIDs.find(asset.m_assetID) != assetIDs.end())
+		return;
+
+	assetIDs.insert(asset.m_assetID);
+
+	std::string outPath = basePath + "/asset_" + std::to_string(asset.m_assetID) + ".mov";
+
+	FILE* outF = fopen(outPath.c_str(), "w+b");
+
+	if (!outF)
+		return;
+
+	stream.SeekSet(asset.m_movieDataPos);
+	size_t remainingSize = asset.m_movieDataSize;
+
+	uint8_t dataChunk[2048];
+	while (remainingSize > 0)
+	{
+		size_t chunkSize = sizeof(dataChunk);
+		if (remainingSize < chunkSize)
+			chunkSize = remainingSize;
+
+		stream.ReadAll(dataChunk, chunkSize);
+		fwrite(dataChunk, 1, chunkSize, outF);
+		remainingSize -= chunkSize;
+	}
+
+	FixupQuickTimeFileOffsets(outF, asset.m_movieDataPos, asset.m_moovAtomPos, asset.m_movieDataSize);
+
+	fclose(outF);
+}
+
 void ExtractImageAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::DOImageAsset& asset, mtdisasm::IOStream& stream, const mtdisasm::SerializationProperties& sp, const std::string& basePath)
 {
 	if (assetIDs.find(asset.m_assetID) != assetIDs.end())
@@ -2512,8 +2640,10 @@ void ExtractAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::DataOb
 	case mtdisasm::DataObjectType::kImageAsset:
 		ExtractImageAsset(assetIDs, static_cast<const mtdisasm::DOImageAsset&>(dataObject), stream, sp, basePath);
 		break;
-	case mtdisasm::DataObjectType::kAudioAsset:
 	case mtdisasm::DataObjectType::kMovieAsset:
+		ExtractMovieAsset(assetIDs, static_cast<const mtdisasm::DOMovieAsset&>(dataObject), stream, sp, basePath);
+		break;
+	case mtdisasm::DataObjectType::kAudioAsset:
 	case mtdisasm::DataObjectType::kMToonAsset:
 	default:
 		break;
