@@ -656,7 +656,13 @@ Structure tree flags:
 	byte[4] unknown (0)
 	uint32_t unknown - file position
 	uint32_t unknown - size
-	byte[extra data size] extra data
+	CUEPOINT[number of cue points] cue points
+
+	CUEPOINT:
+		byte[2] unknown (0)
+		uint32_t unknown
+		uint32_t position
+		uint32_t cue point ID
 
 0xa: Unknown  Known revisions: 3
 
@@ -690,11 +696,12 @@ Mac dc1-e37-ead-f23-f99
 	byte[8] unknown (0)
 	uint32_t asset ID
 	Mac:
-		byte[92] unknown
+		byte[88] unknown
 	Win:
-		byte[58] unknown
-		
-	uint32_t size of mToon frame data (does not include mToon header!!)
+		byte[54] unknown
+	
+	uint32_t data file position
+	uint32_t size of mToon frame data
 	mToon data (see "mtoon notes.txt")
 
 0xffff: Stream terminator.   Known revisions: 0

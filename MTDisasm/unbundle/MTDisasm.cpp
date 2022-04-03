@@ -21,6 +21,77 @@ extern "C"
 #include "stb_image_write.h"
 }
 
+struct RGBColor
+{
+	uint8_t r, g, b;
+};
+
+RGBColor g_macStandardPalette[256];
+
+void GenerateMacStandardPalette()
+{
+	int outColor = 0;
+	for (int r = 0; r < 6; r++)
+	{
+		for (int g = 0; g < 6; g++)
+		{
+			int maxB = 6;
+			if (r == 5 && g == 5)
+				maxB = 5;
+			for (int b = 0; b < maxB; b++)
+			{
+				RGBColor& clr = g_macStandardPalette[outColor++];
+				clr.r = 255 - 51 * r;
+				clr.g = 255 - 51 * g;
+				clr.b = 255 - 51 * b;
+			}
+		}
+	}
+
+	for (int v = 0; v < 16; v++)
+	{
+		if (v % 3 == 0)
+			continue;
+		RGBColor& clr = g_macStandardPalette[outColor++];
+		clr.r = 255 - 17 * v;
+		clr.g = 0;
+		clr.b = 0;
+	}
+
+	for (int v = 0; v < 16; v++)
+	{
+		if (v % 3 == 0)
+			continue;
+		RGBColor& clr = g_macStandardPalette[outColor++];
+		clr.r = 0;
+		clr.g = 255 - 17 * v;
+		clr.b = 0;
+	}
+
+	for (int v = 0; v < 16; v++)
+	{
+		if (v % 3 == 0)
+			continue;
+		RGBColor& clr = g_macStandardPalette[outColor++];
+		clr.r = 0;
+		clr.g = 0;
+		clr.b = 255 - 17 * v;
+	}
+
+	for (int v = 0; v < 16; v++)
+	{
+		if (v % 3 == 0)
+			continue;
+		RGBColor& clr = g_macStandardPalette[outColor++];
+		clr.r = 255 - 17 * v;
+		clr.g = clr.r;
+		clr.b = clr.g;
+	}
+
+	RGBColor& lastClr = g_macStandardPalette[outColor++];
+	lastClr.r = lastClr.g = lastClr.b = 0;
+}
+
 const char* NameObjectType(mtdisasm::DataObjectType dot)
 {
 	switch (dot)
@@ -2187,7 +2258,8 @@ void PrintObjectDisassembly(const mtdisasm::DOMToonAsset& obj, FILE* f)
 	PrintHex("Marker", obj.m_marker, f);
 	PrintHex("Unknown1", obj.m_unknown1, f);
 	PrintVal("AssetID", obj.m_assetID, f);
-	PrintHex("SizeOfFrameData", obj.m_sizeOfFrameData, f);
+	PrintHex("FrameDataPosition", obj.m_frameDataPosition, f);
+	PrintVal("SizeOfFrameData", obj.m_sizeOfFrameData, f);
 
 	PrintHex("MToonHeader", obj.m_mtoonHeader, f);
 	PrintVal("Version", obj.m_version, f);
@@ -2203,15 +2275,37 @@ void PrintObjectDisassembly(const mtdisasm::DOMToonAsset& obj, FILE* f)
 	PrintHex("CodecDataSize", obj.m_codecDataSize, f);
 	PrintHex("Unknown4_2", obj.m_unknown4_2, f);
 
+	if (obj.m_haveMacPart)
+		PrintHex("Unknown10", obj.m_platform.m_mac.m_unknown10, f);
+	if (obj.m_haveWinPart)
+		PrintHex("Unknown11", obj.m_platform.m_win.m_unknown11, f);
+
 	for (size_t i = 0; i < obj.m_numFrames; i++)
 	{
 		fprintf(f, "Frame %i:\n", static_cast<int>(i));
 		const mtdisasm::DOMToonAsset::FrameDef& frame = obj.m_frames[i];
 
+		PrintHex("    Unknown12", frame.m_unknown12, f);
+		PrintVal("    Rect1", frame.m_rect1, f);
+		PrintHex("    DataOffset", frame.m_dataOffset, f);
+		PrintHex("    Unknown13", frame.m_unknown13, f);
+		PrintVal("    CompressedSize", frame.m_compressedSize, f);
+		PrintHex("    Unknown14", frame.m_unknown14, f);
+		PrintHex("    KeyframeFlag", frame.m_keyframeFlag, f);
+		PrintHex("    PlatformBit", frame.m_platformBit, f);
+		PrintHex("    Unknown15", frame.m_unknown15, f);
+		PrintVal("    Rect2", frame.m_rect2, f);
+		PrintHex("    HdpiFixed", frame.m_hdpiFixed, f);
+		PrintHex("    VdpiFixed", frame.m_vdpiFixed, f);
+		PrintVal("    BitsPerPixel", frame.m_bitsPerPixel, f);
+		PrintHex("    Unknown16", frame.m_unknown16, f);
+		PrintVal("    DecompressedBytesPerRow", frame.m_decompressedBytesPerRow, f);
+		PrintVal("    DecompressedSize", frame.m_decompressedSize, f);
+
 		if (obj.m_haveMacPart)
-			PrintHex("Unknown12", frame.m_platform.m_mac.m_unknown12, f);
+			PrintHex("    Unknown12", frame.m_platform.m_mac.m_unknown17, f);
 		if (obj.m_haveWinPart)
-			PrintHex("Unknown13", frame.m_platform.m_win.m_unknown13, f);
+			PrintHex("    Unknown13", frame.m_platform.m_win.m_unknown18, f);
 	}
 
 	fprintf(f, "CodecData:");
@@ -2642,18 +2736,369 @@ void ExtractImageAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 	stbi_write_png(outPath.c_str(), width, height, 3, &decoded[0], outBytesPerRow);
 }
 
+void DecodeRGB15(uint16_t v, RGBColor& color)
+{
+	int b = v & 0x1f;
+	int g = (v >> 5) & 0x1f;
+	int r = (v >> 10) & 0x1f;
+
+	color.r = (r * 33) >> 2;
+	color.g = (g * 33) >> 2;
+	color.b = (b * 33) >> 2;
+}
+
+void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::DOMToonAsset& asset, mtdisasm::IOStream& stream, const mtdisasm::SerializationProperties& sp, const std::string& basePath)
+{
+	if (assetIDs.find(asset.m_assetID) != assetIDs.end())
+		return;
+
+	assetIDs.insert(asset.m_assetID);
+
+	bool isMToonRLE = (asset.m_codecID == 0x2e524c45);
+	bool isUncompressed = (asset.m_codecID == 0);
+
+	if (!isMToonRLE && !isUncompressed)
+	{
+		fprintf(stderr, "Not yet supported mToon compression type\n");
+		return;
+	}
+
+	std::vector<uint8_t> frameData;
+	stream.SeekSet(asset.m_frameDataPosition);
+	frameData.resize(asset.m_sizeOfFrameData);
+
+	stream.ReadAll(&frameData[0], asset.m_sizeOfFrameData);
+
+	for (size_t i = 0; i < asset.m_numFrames; i++)
+	{
+		const mtdisasm::DOMToonAsset::FrameDef& frameDef = asset.m_frames[i];
+
+		size_t numRows = frameDef.m_rect1.m_bottom - frameDef.m_rect1.m_top;
+		size_t numCols = frameDef.m_rect1.m_right - frameDef.m_rect1.m_left;
+		size_t dataOffset = frameDef.m_dataOffset;
+		bool isKeyframe = (frameDef.m_keyframeFlag != 0);
+
+		bool isBottomUp = (sp.m_systemType == mtdisasm::SystemType::kWindows);
+
+		if (isMToonRLE)
+		{
+			uint8_t rleHeaderBytes[20];
+			for (size_t b = 0; b < 20; b++)
+				rleHeaderBytes[b] = frameData[dataOffset++];
+
+			uint32_t rleHeaderInts[5];
+			for (size_t i = 0; i < 5; i++)
+				rleHeaderInts[i] = (rleHeaderBytes[i * 4 + 0] << 24) + (rleHeaderBytes[i * 4 + 1] << 16) + (rleHeaderBytes[i * 4 + 2] << 8) + rleHeaderBytes[i * 4 + 3];
+
+			const uint32_t expectedHeader = isKeyframe ? 0x524c4520 : 1;
+			if (isKeyframe && rleHeaderInts[0] == 0x524c4520)
+			{
+				fprintf(stderr, "Keyframe header in non-keyframe mToon frame for some reason?\n");
+			}
+
+			if (rleHeaderInts[1] == 0x01000001 && asset.m_bitsPerPixel == 8)
+			{
+				size_t rleCols = rleHeaderInts[2];
+				size_t rleRows = rleHeaderInts[3];
+				size_t rleSize = rleHeaderInts[4];
+
+				if (rleSize < 20)
+				{
+					fprintf(stderr, "RLE data size is too small\n");
+					break;
+				}
+
+				//rleSize -= 20;
+				rleSize = frameDef.m_compressedSize - 20;
+
+				std::vector<uint8_t> imageData;
+				imageData.resize(rleCols * rleRows * 4);
+
+				std::vector<uint8_t> compressedData;
+				compressedData.resize(rleSize);
+
+				for (size_t j = 0; j < rleSize; j++)
+					compressedData[j] = frameData[dataOffset++];
+
+				size_t rleDataOffset = 0;
+				for (size_t row = 0; row < rleRows; row++)
+				{
+					size_t colDataStart = row * rleCols * 4;
+
+					if (isBottomUp)
+						colDataStart = (rleRows - 1 - row) * rleCols * 4;
+
+					for (size_t col = 0; col < rleCols; )
+					{
+						size_t numDecompressed = 0;
+						if (rleDataOffset == compressedData.size())
+							break;
+
+						uint8_t rleCode = compressedData[rleDataOffset++];
+						if (rleCode == 0)
+						{
+							uint8_t numTransparent = compressedData[rleDataOffset++];
+							for (size_t tr = 0; tr < numTransparent; tr++)
+							{
+								if (col == rleCols)
+									break;	// Last row transparent run sometimes overruns the end of the buffer...
+
+								imageData[colDataStart + col * 4 + 0] = 0;
+								imageData[colDataStart + col * 4 + 1] = 0;
+								imageData[colDataStart + col * 4 + 2] = 0;
+								imageData[colDataStart + col * 4 + 3] = 0;
+								col++;
+							}
+						}
+						else if (rleCode & 0x80)
+						{
+							uint8_t numLiterals = rleCode & 0x7f;
+							for (size_t lit = 0; lit < numLiterals; lit++)
+							{
+								uint8_t litByte = compressedData[rleDataOffset++];
+								const RGBColor& color = g_macStandardPalette[litByte];
+								imageData[colDataStart + col * 4 + 0] = color.r;
+								imageData[colDataStart + col * 4 + 1] = color.g;
+								imageData[colDataStart + col * 4 + 2] = color.b;
+								imageData[colDataStart + col * 4 + 3] = 255;
+								col++;
+							}
+						}
+						else
+						{
+							uint8_t repeatedByte = compressedData[rleDataOffset++];
+							uint8_t numRepeats = rleCode;
+							const RGBColor& color = g_macStandardPalette[repeatedByte];
+							for (size_t rep = 0; rep < numRepeats; rep++)
+							{
+								imageData[colDataStart + col * 4 + 0] = color.r;
+								imageData[colDataStart + col * 4 + 1] = color.g;
+								imageData[colDataStart + col * 4 + 2] = color.b;
+								imageData[colDataStart + col * 4 + 3] = 255;
+								col++;
+							}
+						}
+					}
+				}
+
+				std::string outPath = basePath + "/asset_" + std::to_string(asset.m_assetID) + "_frame_" + std::to_string(i) + ".png";
+				stbi_write_png(outPath.c_str(), rleCols, rleRows, 4, &imageData[0], rleCols * 4);
+			}
+			else if (rleHeaderInts[1] == 0x01000002 && asset.m_bitsPerPixel == 16)
+			{
+				size_t rleCols = rleHeaderInts[2];
+				size_t rleRows = rleHeaderInts[3];
+				size_t rleSize = rleHeaderInts[4];
+
+				// In this version rleSize appears to NOT include the header
+
+				//rleSize -= 20;
+				rleSize = frameDef.m_compressedSize - 20;
+
+				std::vector<uint8_t> imageData;
+				imageData.resize(rleCols * rleRows * 4);
+
+				std::vector<uint8_t> compressedDataBytes;
+				compressedDataBytes.resize(rleSize);
+
+				for (size_t j = 0; j < rleSize; j++)
+					compressedDataBytes[j] = frameData[dataOffset++];
+
+				std::vector<uint16_t> compressedData;
+				compressedData.resize(rleSize / 2);
+
+				for (size_t j = 0; j < rleSize / 2; j++)
+					compressedData[j] = (compressedDataBytes[j * 2 + 1] << 8) + compressedDataBytes[j * 2];
+
+				compressedDataBytes.clear();
+
+				size_t rleDataOffset = 0;
+
+				for (size_t row = 0; row < rleRows; row++)
+				{
+					size_t colDataStart = row * rleCols * 4;
+					for (size_t col = 0; col < rleCols; )
+					{
+						size_t numDecompressed = 0;
+						if (rleDataOffset == compressedData.size())
+							break;
+
+						uint16_t rleCode = compressedData[rleDataOffset++];
+						if (rleCode == 0)
+						{
+							uint16_t numTransparent = compressedData[rleDataOffset++];
+							if (numTransparent & 0x8000)
+							{
+								// Appears to be vertical displacement...?
+								row += (numTransparent & 0x7fff) - 1;
+								break;
+							}
+							else
+							{
+								for (size_t tr = 0; tr < numTransparent; tr++)
+								{
+									if (col == rleCols)
+										break;	// Last row transparent run sometimes overruns the end of the buffer...
+
+									imageData[colDataStart + col * 4 + 0] = 0;
+									imageData[colDataStart + col * 4 + 1] = 0;
+									imageData[colDataStart + col * 4 + 2] = 0;
+									imageData[colDataStart + col * 4 + 3] = 0;
+									col++;
+								}
+							}
+						}
+						else if (rleCode & 0x8000)
+						{
+							uint8_t numLiterals = rleCode & 0x7fff;
+							for (size_t lit = 0; lit < numLiterals; lit++)
+							{
+								uint16_t litWord = compressedData[rleDataOffset++];
+								RGBColor color;
+								DecodeRGB15(litWord, color);
+								imageData[colDataStart + col * 4 + 0] = color.r;
+								imageData[colDataStart + col * 4 + 1] = color.g;
+								imageData[colDataStart + col * 4 + 2] = color.b;
+								imageData[colDataStart + col * 4 + 3] = 255;
+								col++;
+							}
+						}
+						else
+						{
+							if (rleDataOffset == compressedData.size())
+							{
+								while (col < rleCols)
+								{
+									imageData[colDataStart + col * 4 + 0] = 255;
+									imageData[colDataStart + col * 4 + 1] = 0;
+									imageData[colDataStart + col * 4 + 2] = 255;
+									imageData[colDataStart + col * 4 + 3] = 255;
+									col++;
+								}
+								break;
+							}
+
+							uint16_t repeatedWord = compressedData[rleDataOffset++];
+							uint16_t numRepeats = rleCode;
+							RGBColor color;
+							DecodeRGB15(repeatedWord, color);
+							for (size_t rep = 0; rep < numRepeats; rep++)
+							{
+								if (col == rleCols)
+									break;
+								imageData[colDataStart + col * 4 + 0] = color.r;
+								imageData[colDataStart + col * 4 + 1] = color.g;
+								imageData[colDataStart + col * 4 + 2] = color.b;
+								imageData[colDataStart + col * 4 + 3] = 255;
+								col++;
+							}
+						}
+					}
+				}
+
+				std::string outPath = basePath + "/asset_" + std::to_string(asset.m_assetID) + "_frame_" + std::to_string(i) + ".png";
+				stbi_write_png(outPath.c_str(), rleCols, rleRows, 4, &imageData[0], rleCols * 4);
+			}
+		}
+		else if (isUncompressed)
+		{
+			std::vector<uint8_t> imageData;
+			size_t numPixels = numCols * numRows;
+			imageData.resize(numPixels * 4);
+
+			size_t bytesPerRow = frameDef.m_decompressedBytesPerRow;
+
+			if (asset.m_bitsPerPixel == 8)
+			{
+				for (size_t row = 0; row < numRows; row++)
+				{
+					size_t rowOffset = dataOffset + row * bytesPerRow;
+					if (isBottomUp)
+						rowOffset = dataOffset + (numRows - 1 - row) * bytesPerRow;
+
+					for (size_t col = 0; col < numCols; col++)
+					{
+						uint8_t pixel8 = frameData[rowOffset + col];
+						const RGBColor& color = g_macStandardPalette[pixel8];
+
+						const size_t px = col + row * numCols;
+						imageData[px * 4 + 0] = color.r;
+						imageData[px * 4 + 1] = color.g;
+						imageData[px * 4 + 2] = color.b;
+						imageData[px * 4 + 3] = 255;
+					}
+				}
+			}
+			else if (asset.m_bitsPerPixel == 16)
+			{
+				for (size_t row = 0; row < numRows; row++)
+				{
+					size_t rowOffset = dataOffset + row * bytesPerRow;
+					if (isBottomUp)
+						rowOffset = dataOffset + (numRows - 1 - row) * bytesPerRow;
+
+					for (size_t col = 0; col < numCols; col++)
+					{
+						const size_t px = col + row * numCols;
+
+						uint16_t pixel16 = frameData[rowOffset + col * 2 + 0] + (frameData[rowOffset + col * 2 + 1] << 8);
+						RGBColor color;
+						DecodeRGB15(pixel16, color);
+						imageData[px * 4 + 0] = color.r;
+						imageData[px * 4 + 1] = color.g;
+						imageData[px * 4 + 2] = color.b;
+						imageData[px * 4 + 3] = 255;
+					}
+				}
+			}
+			else if (asset.m_bitsPerPixel == 32)
+			{
+				for (size_t row = 0; row < numRows; row++)
+				{
+					size_t rowOffset = dataOffset + row * bytesPerRow;
+					if (isBottomUp)
+						rowOffset = dataOffset + (numRows - 1 - row) * bytesPerRow;
+
+					for (size_t col = 0; col < numCols; col++)
+					{
+						const size_t px = col + row * numCols;
+
+						const uint8_t* pixel32 = &frameData[rowOffset + col * 4];
+
+						imageData[px * 4 + 0] = pixel32[0];
+						imageData[px * 4 + 1] = pixel32[1];
+						imageData[px * 4 + 2] = pixel32[2];
+						imageData[px * 4 + 3] = 255;
+					}
+				}
+			}
+			else
+			{
+				fprintf(stderr, "Unsupported uncompressed bit count\n");
+				return;
+			}
+
+			std::string outPath = basePath + "/asset_" + std::to_string(asset.m_assetID) + "_frame_" + std::to_string(i) + ".png";
+			stbi_write_png(outPath.c_str(), numCols, numRows, 4, &imageData[0], numCols * 4);
+		}
+	}
+}
+
+
 void ExtractAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::DataObject& dataObject, mtdisasm::IOStream& stream, const mtdisasm::SerializationProperties& sp, const std::string& basePath)
 {
 	switch (dataObject.GetType())
 	{
 	case mtdisasm::DataObjectType::kImageAsset:
-		ExtractImageAsset(assetIDs, static_cast<const mtdisasm::DOImageAsset&>(dataObject), stream, sp, basePath);
+		//ExtractImageAsset(assetIDs, static_cast<const mtdisasm::DOImageAsset&>(dataObject), stream, sp, basePath);
 		break;
 	case mtdisasm::DataObjectType::kMovieAsset:
-		ExtractMovieAsset(assetIDs, static_cast<const mtdisasm::DOMovieAsset&>(dataObject), stream, sp, basePath);
+		//ExtractMovieAsset(assetIDs, static_cast<const mtdisasm::DOMovieAsset&>(dataObject), stream, sp, basePath);
+		break;
+	case mtdisasm::DataObjectType::kMToonAsset:
+		ExtractMToonAsset(assetIDs, static_cast<const mtdisasm::DOMToonAsset&>(dataObject), stream, sp, basePath);
 		break;
 	case mtdisasm::DataObjectType::kAudioAsset:
-	case mtdisasm::DataObjectType::kMToonAsset:
 	default:
 		break;
 	}
@@ -2786,6 +3231,8 @@ int main(int argc, const char** argv)
 		fprintf(stderr, "Usage: unbundle <mode> <segment 1 path> <output dir>\n");
 		return -1;
 	}
+
+	GenerateMacStandardPalette();
 
 	std::string mode = argv[1];
 	std::string seg1Path = argv[2];

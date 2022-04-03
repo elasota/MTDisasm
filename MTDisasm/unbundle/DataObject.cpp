@@ -1279,20 +1279,21 @@ namespace mtdisasm
 		{
 			m_haveMacPart = true;
 
-			if (!reader.ReadBytes(m_platform.m_mac.m_unknown10, 92))
+			if (!reader.ReadBytes(m_platform.m_mac.m_unknown10, 88))
 				return false;
 		}
 		else if (sp.m_systemType == SystemType::kWindows)
 		{
 			m_haveWinPart = true;
 
-			if (!reader.ReadBytes(m_platform.m_win.m_unknown11, 58))
+			if (!reader.ReadBytes(m_platform.m_win.m_unknown11, 54))
 				return false;
 		}
 		else
 			return false;
 
-		if (!reader.ReadU32(m_sizeOfFrameData)
+		if (!reader.ReadU32(m_frameDataPosition)
+			|| !reader.ReadU32(m_sizeOfFrameData)
 			|| !reader.ReadU32(m_mtoonHeader[0])
 			|| !reader.ReadU32(m_mtoonHeader[1])
 			|| !reader.ReadU16(m_version)
@@ -1319,17 +1320,37 @@ namespace mtdisasm
 			{
 				FrameDef& frame = m_frames[i];
 
+				if (!reader.ReadBytes(frame.m_unknown12, 4)
+					|| !frame.m_rect1.Load(reader, sp)
+					|| !reader.ReadU32(frame.m_dataOffset)
+					|| !reader.ReadBytes(frame.m_unknown13, 2)
+					|| !reader.ReadU32(frame.m_compressedSize)
+					|| !reader.ReadU8(frame.m_unknown14)
+					|| !reader.ReadU8(frame.m_keyframeFlag)
+					|| !reader.ReadU8(frame.m_platformBit)
+					|| !reader.ReadU8(frame.m_unknown15)
+					|| !frame.m_rect2.Load(reader, sp)
+					|| !reader.ReadU32(frame.m_hdpiFixed)
+					|| !reader.ReadU32(frame.m_vdpiFixed)
+					|| !reader.ReadU16(frame.m_bitsPerPixel)
+					|| !reader.ReadU32(frame.m_unknown16)
+					|| !reader.ReadU16(frame.m_decompressedBytesPerRow))
+					return false;
+
 				if (sp.m_systemType == SystemType::kMac)
 				{
-					if (!reader.ReadBytes(frame.m_platform.m_mac.m_unknown12, 58))
+					if (!reader.ReadBytes(frame.m_platform.m_mac.m_unknown17, 4))
 						return false;
 				}
 				else if (sp.m_systemType == SystemType::kWindows)
 				{
-					if (!reader.ReadBytes(frame.m_platform.m_win.m_unknown13, 56))
+					if (!reader.ReadBytes(frame.m_platform.m_win.m_unknown18, 2))
 						return false;
 				}
 				else
+					return false;
+
+				if (!reader.ReadU32(frame.m_decompressedSize))
 					return false;
 			}
 		}

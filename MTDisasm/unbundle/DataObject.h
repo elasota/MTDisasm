@@ -762,24 +762,24 @@ namespace mtdisasm
 
 		struct MacPart
 		{
-			uint8_t m_unknown10[92];
+			uint8_t m_unknown10[88];
 		};
 
 		struct WinPart
 		{
-			uint8_t m_unknown11[58];
+			uint8_t m_unknown11[54];
 		};
 
 		struct FrameDef
 		{
 			struct MacPart
 			{
-				uint8_t m_unknown12[58];
+				uint8_t m_unknown17[4];
 			};
 
 			struct WinPart
 			{
-				uint8_t m_unknown13[56];
+				uint8_t m_unknown18[2];
 			};
 
 			union PlatformUnion
@@ -787,6 +787,23 @@ namespace mtdisasm
 				MacPart m_mac;
 				WinPart m_win;
 			} m_platform;
+
+			uint8_t m_unknown12[4];
+			DORect m_rect1;
+			uint32_t m_dataOffset;
+			uint8_t m_unknown13[2];
+			uint32_t m_compressedSize;
+			uint8_t m_unknown14;
+			uint8_t m_keyframeFlag;
+			uint8_t m_platformBit;
+			uint8_t m_unknown15;
+			DORect m_rect2;
+			uint32_t m_hdpiFixed;
+			uint32_t m_vdpiFixed;
+			uint16_t m_bitsPerPixel;
+			uint32_t m_unknown16;
+			uint16_t m_decompressedBytesPerRow;
+			uint32_t m_decompressedSize;
 		};
 
 		struct FrameRangeDef
@@ -819,6 +836,7 @@ namespace mtdisasm
 			WinPart m_win;
 		} m_platform;
 
+		uint32_t m_frameDataPosition;
 		uint32_t m_sizeOfFrameData;
 
 		// mToon data

@@ -42,11 +42,27 @@ uint32_t number of frame ranges
 FRAME_RANGE frame ranges
 
 FRAME_TABLE_ENTRY: 58 bytes on Mac and 56 bytes on Windows
-	Data offset is at +12(dec)
-	Compressed size is at +18(dec)
-	Keyframe flag byte is at +23(dec)
-	Decompressed size is at +52(dec) on Win, +54(dec) on Mac
-	???
+	byte[4] unknown (0)
+	RECT rect
+	uint32_t data offset
+	byte[2] unknown (0)
+	uint32_t compressed size
+	uint8_t unknown (ff)
+	uint8_t keyframe
+	uint8_t unknown (0 on Win, 1 on Mac)
+	byte unknown
+	RECT rect
+	FIXED hdpi
+	FIXED vdpi
+	uint16_t bits per pixel
+	uint32_t unknown
+	uint16_t bytes per row
+	Mac:
+		byte[4] unknown
+	Win:
+		byte[2] unknown
+	uint32_t decompressed size
+
 
 FRAME_RANGE:
 	uint32_t start frame
@@ -55,16 +71,36 @@ FRAME_RANGE:
 	char[length of name] name - null terminated
 
 
-mToon RLE compression:
-Sequence of RLE codes.  Runs can not run past the end of a row.  High bit is literal flag, low 7 bits are length.  If the high bit is set, the next N bytes follow.  If the high bit is clear, then the next byte is repeated length times.
+mToon RLE version 1 8-bit compression:
+Sequence of RLE codes.  Runs can not run past the end of a row:
+0: Transparent (temporal), next byte is number of transparent consecutive pixels
+0x80-0xff: Literal, low 7 bits are number of bytes that follow.
+0x01-0x7f: RLE, low 7 bits are number of repeats.  Single byte follows.
+
+mToon RLE version 2 16-bit compression:
+0: Transparent (temporal), next word is number of transparent consecutive pixels if the high bit is clear, or rows to skip in the low 15 bits if the high bit is set
+0x8000-0xffff: Literal, low 15 bits are number of bytes that follow.
+0x0001-0x7fff: RLE, low 15 bits are number of repeats.  Single byte follows.
+
+
+High bit is literal flag, low 7 bits are length.  If the high bit is set, the next N bytes follow.  If the high bit is clear, then the next byte is repeated length times.
+
+
 
 
 RLE compressed frame looks like:
 	'RLE ' for keyframes, 00 00 00 01 for temporal frames
-	01 00 00 01
+	01 00 00 01 (version 1) or 10 00 00 02 ( version 2)
 	uint32_t width (big endian)
 	uint32_t height (big endian)
 	uint32_t total frame size (including RLE tag and header)
 	frame data
 
 On Windows, frames are bottom-up, on Mac they're top-down
+
+Temporally-compressed mToon frames MAY NOT BE THE SAME SIZE AS THE FRAME PROVIDED and are generally the same size every frame.
+
+
+
+
+
