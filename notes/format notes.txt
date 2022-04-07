@@ -130,6 +130,111 @@ uint32_t flags?  (0x80 flag = final object?)
 uint32_t size (including tag)
 
 
+MINISCRIPT PROGRAM:
+	unt32_t 0xfffffffb
+	uint32_t size of instructions
+	uint32_t number of instructions
+	uint32_t number of local references
+	uint32_t number of attributes
+	INSTRUCTION[number of instructions]
+	LOCALREF[number of local references]
+	ATTRIBUTE[number of attributes]
+
+	INSTRUCTION:
+		uint16_t opcode
+		uint16_t flags
+		uint16_t size (includes opcode header)
+		byte[size - 6] instruction data
+
+	LOCALREF:
+		uint32_t unknown
+		uint8_t length of name
+		uint8_t unknown
+		char[length of name] name (null terminated)
+
+	ATTRIBUTE:
+		uint16_t length of string
+		char[length of string] string (null terminated)
+
+	Opcodes:
+		0x834: set
+			pop value, pop destination, assign
+		0x898: send
+			EVENT event
+			pop destination, pop additional, send event
+			flags:
+				0x04 = no immediate
+				0x08 = no cascade
+				0x10 = no relay
+		0xd8: builtin function
+			uint32_t builtin function ID
+				0x01: sin
+				0x02: cos
+				0x03: random
+				0x04: sqrt
+				0x05: tan
+				0x06: abs
+				0x07: sgn
+				0x08: arctangent
+				0x09: exp
+				0x0a: ln
+				0x0b: log
+				0x0c: cosh
+				0x0d: sinh
+				0x0e: tanh
+				0x0f: rect2polar
+				0x10: polar2rect
+				0x11: trunc
+				0x12: round
+				0x13: num2str
+				0x14: str2num
+		0xd2: compare equal
+			pop a, pop b, push a == b
+		0x12f: create point
+			pop max, pop min, push point
+		0x130: create integer range
+			pop max, pop min, push int range
+		0x131: create vector
+			pop magnitude, pop degrees, push vector
+		0x135: get child item
+			uint32_t index into string table
+			pop reference, push retrieved attribute reference
+			flags:
+				1 = reference
+				32 = array index (NOTE: This still requires looking up the attribute.  If no attribute is specified, the "value" attribute is used.)
+		0x191: push constant/local value
+			uint16_t type
+				0x00 = null?
+				0x15 = double (8 bytes)
+				0x1a = boolean (1 byte)
+				0x1f9 = local object reference (4 bytes)
+				0x1fa = global object reference (4 bytes)
+			flags:
+				1 = reference
+		0x192: push global
+			uint32_t global ID
+				1 = element
+				2 = subsection
+				3 = source
+				4 = incoming
+				5 = mouse
+				6 = ticks
+				7 = scene
+				8 = sharedScene
+				9 = section
+				10 = project
+				11 = sharedScene
+			flags:
+				1 = reference
+		0x193: push string constant
+			uint16_t length
+			char[length + 1] str (null terminated)
+		0x7d3: jump
+			uint32_t flags (2 = conditional, 1 = unconditional)
+			uint32_t unknown
+			uint32_t offset of new instruction FROM THIS INSTRUCTION
+
+
 -------------------------------------------------------------------------------------------
 KNOWN DATA OBJECT TAGS AND FORMATS
 -------------------------------------------------------------------------------------------
@@ -379,6 +484,9 @@ Structure tree flags:
 	For each child:
 		child object
 
+
+
+
 0x3c0: Miniscript modifier   Known revisions: 0x3eb
 	uint32_t unknown (0x222)
 	uint32_t size including tag
@@ -391,113 +499,74 @@ Structure tree flags:
 	EVENT "enable when"
 	byte[11] unknown (0)
 	uint8_t unknown (0 or 1)
-	unt32_t 0xfffffffb
-	uint32_t size of instructions
-	uint32_t number of instructions
-	uint32_t number of local references
-	uint32_t number of attributes
-	INSTRUCTION[number of instructions]
-	LOCALREF[number of local references]
-	ATTRIBUTE[number of attributes]
+	MINISCRIPT_PROGRAM program
 
-	INSTRUCTION:
-		uint16_t opcode
-		uint16_t flags
-		uint16_t size (includes opcode header)
-		byte[size - 6] instruction data
 
-	LOCALREF:
-		uint32_t unknown
-		uint8_t length of name
-		uint8_t unknown
-		char[length of name] name (null terminated)
+Message destination codes:
+	0x65: Shared scene
+	0x66: Scene
+	0x67: Section
+	0x68: Project
+	0x69: Active scene
+	0x6a: Element's parent
+	0x6b: Children
+	0x6c: Modifier's parent
+	0x6d: Subsection
+	0xc9: Element
+	0xcf: Source's parent
+	0xd4: Behavior
+	0xd1: Next Element
+	0xd2: Prev Element
+	0xd3: Behavior's parent
+	Element GUID: Direct reference
 
-	ATTRIBUTE:
-		uint16_t length of string
-		char[length of string] string (null terminated)
+"With" codes:
+	0x1b: Incoming data
+	0x1c: String reference
 
-	Opcodes:
-		0x834: set
-			pop value, pop destination, assign
-		0x898: send
-			EVENT event
-			pop destination, pop additional, send event
-			flags:
-				0x04 = no immediate
-				0x08 = no cascade
-				0x10 = no relay
-		0xd8: builtin function
-			uint32_t builtin function ID
-				0x01: sin
-				0x02: cos
-				0x03: random
-				0x04: sqrt
-				0x05: tan
-				0x06: abs
-				0x07: sgn
-				0x08: arctangent
-				0x09: exp
-				0x0a: ln
-				0x0b: log
-				0x0c: cosh
-				0x0d: sinh
-				0x0e: tanh
-				0x0f: rect2polar
-				0x10: polar2rect
-				0x11: trunc
-				0x12: round
-				0x13: num2str
-				0x14: str2num
-		0xd2: compare equal
-			pop a, pop b, push a == b
-		0x12f: create point
-			pop max, pop min, push point
-		0x130: create integer range
-			pop max, pop min, push int range
-		0x131: create vector
-			pop magnitude, pop degrees, push vector
-		0x135: get child item
-			uint32_t index into string table
-			pop reference, push retrieved attribute reference
-			flags:
-				1 = reference
-				32 = array index (NOTE: This still requires looking up the attribute.  If no attribute is specified, the "value" attribute is used.)
-		0x191: push constant/local value
-			uint16_t type
-				0x00 = null?
-				0x15 = double (8 bytes)
-				0x1a = boolean (1 byte)
-				0x1f9 = local object reference (4 bytes)
-				0x1fa = global object reference (4 bytes)
-			flags:
-				1 = reference
-		0x192: push global
-			uint32_t global ID
-				1 = element
-				2 = subsection
-				3 = source
-				4 = incoming
-				5 = mouse
-				6 = ticks
-				7 = scene
-				8 = sharedScene
-				9 = section
-				10 = project
-				11 = sharedScene
-			flags:
-				1 = reference
-		0x193: push string constant
-			uint16_t length
-			char[length + 1] str (null terminated)
-		0x7d3: jump
-			uint32_t flags (2 = conditional, 1 = unconditional)
-			uint32_t unknown
-			uint32_t offset of new instruction FROM THIS INSTRUCTION
-	
-
-0x2da: Messenger modifier
+0x2da: Messenger modifier  Known revisions: 0x3ea
+	uint32_t unknown
+	uint32_t size including tag
+	uint32_t guid
+	byte[6] unknown (0)
+	uint32_t unknown (varies)
+	byte[4] unknown (ff)
+	uint16_t length of name
+	char[length of name] name - null terminated
+	uint32_t message flags
+	uint32_t when event ID
+	EVENT send event
+	uint16_t unknown (5)
+	uint32_t destination
+	byte[10] unknown (0)
+	uint16_t with
+	byte[44] unknown (garbage)
+	uint32_t when event info
+	uint16_t with source string length
+	char[source string length] with source - not null terminated
 
 0x2bc: If Messenger modifier
+	uint32_t unknown
+	uint32_t size including tag
+	uint32_t guid
+	byte[6] unknown (0)
+	uint32_t unknown (varies)
+	byte[4] unknown (ff)
+	uint16_t length of name
+	char[length of name] name - null terminated
+	uint32_t message flags
+	EVENT execute when
+	EVENT message to send
+	uint16_t unknown (5)
+	uint32_t destination
+	byte[10] unknown (0)
+	uint16_t with
+	byte[4] unknown
+	uint32 with source GUID
+	byte[46] unknown
+	uint16_t with source string length
+	char[source string length] with source - not null terminated
+	MINISCRIPT_PROGRAM program
 
 0x2e4: Timer Messenger modifier
 

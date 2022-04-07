@@ -138,6 +138,10 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "MToonStructuralDef";
 	case mtdisasm::DataObjectType::kBehaviorModifier:
 		return "BehaviorModifier";
+	case mtdisasm::DataObjectType::kMessengerModifier:
+		return "MessengerModifier";
+	case mtdisasm::DataObjectType::kIfMessengerModifier:
+		return "IfMessengerModifier";
 	case mtdisasm::DataObjectType::kNotYetImplemented:
 		return "NotYetImplemented";
 	case mtdisasm::DataObjectType::kPlugInModifier:
@@ -979,6 +983,7 @@ void ResolveBinaryOpExprFragmentationPrecedence(const MiniscriptExpressionTree* 
 		break;
 	case 0xcb:
 	case 0xcc:
+	case 0xd9:
 	case 0xda:
 		thisPrec = kOpPrec_Mul;
 		break;
@@ -1069,6 +1074,7 @@ void ResolveExprFragmentationPrecedence(const MiniscriptExpressionTree* expr, Mi
 	case 0xdb:
 	case 0xcb:
 	case 0xcc:
+	case 0xd9:
 	case 0xda:
 	case 0xcd:
 	case 0xce:
@@ -1098,7 +1104,7 @@ void ResolveExprFragmentationPrecedence(const MiniscriptExpressionTree* expr, Mi
 	}
 }
 
-void PrintExpression(const MiniscriptExpressionTree* expr, const mtdisasm::DOMiniscriptModifier& obj, FILE* f);
+void PrintExpression(const MiniscriptExpressionTree* expr, const mtdisasm::DOMiniscriptProgram& obj, FILE* f);
 
 bool GetBuiltinFunctionProperties(uint32_t builtinId, uint32_t& outNumParams, const char*& outName)
 {
@@ -1131,7 +1137,7 @@ bool GetBuiltinFunctionProperties(uint32_t builtinId, uint32_t& outNumParams, co
 	}
 }
 
-void PrintBinaryExpression(const MiniscriptExpressionTree* expr, const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
+void PrintBinaryExpression(const MiniscriptExpressionTree* expr, const mtdisasm::DOMiniscriptProgram& obj, FILE* f)
 {
 	const char* op = "???";
 
@@ -1150,6 +1156,7 @@ void PrintBinaryExpression(const MiniscriptExpressionTree* expr, const mtdisasm:
 	case 0xd5: op = "<"; break;
 	case 0xd6: op = ">="; break;
 	case 0xd7: op = ">"; break;
+	case 0xd9: op = "div"; break;
 	case 0xda: op = "mod"; break;
 	case 0xdb: op = "&"; break;
 	default:
@@ -1178,7 +1185,7 @@ void PrintBinaryExpression(const MiniscriptExpressionTree* expr, const mtdisasm:
 		fputc(')', f);
 }
 
-void PrintUnaryExpression(const MiniscriptExpressionTree* expr, const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
+void PrintUnaryExpression(const MiniscriptExpressionTree* expr, const mtdisasm::DOMiniscriptProgram& obj, FILE* f)
 {
 	const char* op = "???";
 
@@ -1242,7 +1249,7 @@ void EmitStr(const std::vector<char>& str, FILE* f)
 		fputc('\"', f);
 }
 
-void EmitPushValue(const MiniscriptInstruction& instr, const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
+void EmitPushValue(const MiniscriptInstruction& instr, const mtdisasm::DOMiniscriptProgram& obj, FILE* f)
 {
 	if (instr.m_contents.size() != 0)
 	{
@@ -1296,7 +1303,7 @@ void EmitPushValue(const MiniscriptInstruction& instr, const mtdisasm::DOMiniscr
 					uint32_t u32;
 					if (reader.ReadU32(u32))
 					{
-						fprintf(f, "%08x", static_cast<int>(u32));
+						fprintf(f, "global:%08x", static_cast<int>(u32));
 						return;
 					}
 				}
@@ -1308,7 +1315,7 @@ void EmitPushValue(const MiniscriptInstruction& instr, const mtdisasm::DOMiniscr
 	fputs("<BAD VALUE>", f);
 }
 
-void EmitPushGlobal(const MiniscriptInstruction& instr, const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
+void EmitPushGlobal(const MiniscriptInstruction& instr, const mtdisasm::DOMiniscriptProgram& obj, FILE* f)
 {
 	if (instr.m_contents.size() < 4)
 		return;
@@ -1341,7 +1348,7 @@ void EmitPushGlobal(const MiniscriptInstruction& instr, const mtdisasm::DOMinisc
 	fputs(name, f);
 }
 
-void EmitPushStr(const MiniscriptInstruction& instr, const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
+void EmitPushStr(const MiniscriptInstruction& instr, const mtdisasm::DOMiniscriptProgram& obj, FILE* f)
 {
 	fputc('\"', f);
 
@@ -1358,7 +1365,7 @@ void EmitPushStr(const MiniscriptInstruction& instr, const mtdisasm::DOMiniscrip
 	fputc('\"', f);
 }
 
-void EmitGetChild(const MiniscriptExpressionTree* expr, const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
+void EmitGetChild(const MiniscriptExpressionTree* expr, const mtdisasm::DOMiniscriptProgram& obj, FILE* f)
 {
 	if (expr->m_instr->m_contents.size() < 4)
 		return;
@@ -1385,7 +1392,7 @@ void EmitGetChild(const MiniscriptExpressionTree* expr, const mtdisasm::DOMinisc
 	}
 }
 
-void PrintExpression(const MiniscriptExpressionTree* expr, const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
+void PrintExpression(const MiniscriptExpressionTree* expr, const mtdisasm::DOMiniscriptProgram& obj, FILE* f)
 {
 	switch (expr->m_instr->m_opcode)
 	{
@@ -1402,6 +1409,7 @@ void PrintExpression(const MiniscriptExpressionTree* expr, const mtdisasm::DOMin
 	case 0xd5:
 	case 0xd6:
 	case 0xd7:
+	case 0xd9:
 	case 0xda:
 	case 0xdb:
 		PrintBinaryExpression(expr, obj, f);
@@ -1534,7 +1542,7 @@ bool CombineExpr(MiniscriptExpressionTree& stack, const MiniscriptInstruction* i
 }
 
 
-bool EmitMiniscriptIsland(int indentationLevel, const MiniscriptControlFlowIsland* island, const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
+bool EmitMiniscriptIsland(int indentationLevel, const MiniscriptControlFlowIsland* island, const mtdisasm::DOMiniscriptProgram& obj, bool forceExpression, FILE* f)
 {
 	MiniscriptExpressionTree stack;
 
@@ -1599,6 +1607,9 @@ bool EmitMiniscriptIsland(int indentationLevel, const MiniscriptControlFlowIslan
 							fputs(" relay", f);
 					}
 					fputs("\n", f);
+
+					delete dest;
+					delete addl;
 				}
 				break;
 			case 0xc9:
@@ -1614,6 +1625,7 @@ bool EmitMiniscriptIsland(int indentationLevel, const MiniscriptControlFlowIslan
 			case 0xd5:
 			case 0xd6:
 			case 0xd7:
+			case 0xd9:
 			case 0xda:
 			case 0xdb:
 			case 0x12f:
@@ -1689,7 +1701,6 @@ bool EmitMiniscriptIsland(int indentationLevel, const MiniscriptControlFlowIslan
 
 			MiniscriptExpressionTree* condition = PopOne(stack);
 
-
 			PrintIndent(indentationLevel, f);
 			fputs("if ", f);
 			PrintExpression(condition, obj, f);
@@ -1698,14 +1709,14 @@ bool EmitMiniscriptIsland(int indentationLevel, const MiniscriptControlFlowIslan
 			const MiniscriptControlFlowIsland* trueIsland = island->m_successorIslands[0];
 			const MiniscriptControlFlowIsland* falseIsland = island->m_successorIslands[1];
 
-			if (trueIsland && !EmitMiniscriptIsland(indentationLevel + 1, trueIsland, obj, f))
+			if (trueIsland && !EmitMiniscriptIsland(indentationLevel + 1, trueIsland, obj, false, f))
 				return false;
 
 			if (falseIsland)
 			{
 				PrintIndent(indentationLevel, f);
 				fputs("else\n", f);
-				if (falseIsland && !EmitMiniscriptIsland(indentationLevel + 1, falseIsland, obj, f))
+				if (falseIsland && !EmitMiniscriptIsland(indentationLevel + 1, falseIsland, obj, false, f))
 					return false;
 			}
 
@@ -1718,10 +1729,24 @@ bool EmitMiniscriptIsland(int indentationLevel, const MiniscriptControlFlowIslan
 		island = island->m_sinkIsland;
 	}
 
+	if (stack.m_children.size() > 0)
+	{
+		if (forceExpression)
+		{
+			MiniscriptExpressionTree* expr = PopOne(stack);
+			PrintIndent(indentationLevel, f);
+			PrintExpression(expr, obj, f);
+			fputs("\n", f);
+			delete expr;
+		}
+		else
+			fputs("Program ended with trailing stack values!\n", f);
+	}
+
 	return true;
 }
 
-bool DecompileMiniscript(const mtdisasm::DOMiniscriptModifier& obj, const mtdisasm::SerializationProperties& sp, FILE* f)
+bool DecompileMiniscript(const mtdisasm::DOMiniscriptProgram& obj, const mtdisasm::SerializationProperties& sp, bool isExpression, FILE* f)
 {
 	if (obj.m_numOfInstructions == 0)
 		return true;
@@ -1976,40 +2001,23 @@ bool DecompileMiniscript(const mtdisasm::DOMiniscriptModifier& obj, const mtdisa
 
 	cfResolver.ResolveAll();
 
-	if (!EmitMiniscriptIsland(1, initialIsland, obj, f))
+	if (!EmitMiniscriptIsland(1, initialIsland, obj, isExpression, f))
 		return false;
 
 	return true;
 }
-
-void PrintObjectDisassembly(const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
+void PrintObjectDisassembly(const mtdisasm::DOMiniscriptProgram& obj, FILE* f, bool isExpression)
 {
-	assert(obj.GetType() == mtdisasm::DataObjectType::kMiniscriptModifier);
-
-	PrintHex("Unknown1", obj.m_unknown1, f);
-	PrintHex("SizeIncludingTag", obj.m_sizeIncludingTag, f);
-	PrintHex("Unknown2", obj.m_unknown2, f);
-	PrintHex("Unknown3", obj.m_unknown3, f);
-	PrintHex("Unknown4", obj.m_unknown4, f);
-	PrintHex("LengthOfName", obj.m_lengthOfName, f);
-	PrintHex("EnableWhen", obj.m_enableWhen, f);
-	PrintHex("Unknown6", obj.m_unknown6, f);
-	PrintHex("Unknown7", obj.m_unknown7, f);
-	PrintHex("Unknown8", obj.m_unknown8, f);
+	PrintHex("Unknown8", obj.m_unknown1, f);
 	PrintHex("SizeOfInstructions", obj.m_sizeOfInstructions, f);
 	PrintHex("NumOfInstructions", obj.m_numOfInstructions, f);
 	PrintHex("NumLocalRefs", obj.m_numLocalRefs, f);
 	PrintHex("NumAttributes", obj.m_numAttributes, f);
 
-	fputs("Name: '", f);
-	if (obj.m_lengthOfName > 0)
-		fwrite(&obj.m_name[0], 1, obj.m_lengthOfName - 1, f);
-	fputs("'\n", f);
-
 	fputs("Attributes:\n", f);
 	for (size_t i = 0; i < obj.m_numAttributes; i++)
 	{
-		const mtdisasm::DOMiniscriptModifier::Attribute& attrib = obj.m_attributes[i];
+		const mtdisasm::DOMiniscriptProgram::Attribute& attrib = obj.m_attributes[i];
 		fprintf(f, "    % 5i: %02x '", static_cast<int>(i), static_cast<int>(attrib.m_unknown11));
 		if (attrib.m_name.size() > 1)
 			fwrite(&attrib.m_name[0], 1, attrib.m_name.size() - 1, f);
@@ -2019,7 +2027,7 @@ void PrintObjectDisassembly(const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
 	fputs("Local references:\n", f);
 	for (size_t i = 0; i < obj.m_numLocalRefs; i++)
 	{
-		const mtdisasm::DOMiniscriptModifier::LocalRef& ref = obj.m_localRefs[i];
+		const mtdisasm::DOMiniscriptProgram::LocalRef& ref = obj.m_localRefs[i];
 		fprintf(f, "    % 5i: %08x %02x '", static_cast<int>(i), static_cast<int>(ref.m_guid), static_cast<int>(ref.m_unknown10));
 		if (ref.m_name.size() > 1)
 			fwrite(&ref.m_name[0], 1, ref.m_name.size() - 1, f);
@@ -2065,6 +2073,7 @@ void PrintObjectDisassembly(const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
 			case 0xd6: opName = "cmp_ge"; break;
 			case 0xd7: opName = "cmp_gt"; break;
 			case 0xd8: opName = "builtin_func"; break;
+			case 0xd9: opName = "div_int"; break;
 			case 0xda: opName = "mod"; break;
 			case 0xdb: opName = "str_concat"; break;
 			case 0x12f: opName = "point_create"; break;
@@ -2115,10 +2124,32 @@ void PrintObjectDisassembly(const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
 	}
 
 	fputs("Decompiled:\n", f);
-	if (!DecompileMiniscript(obj, obj.m_sp, f))
+	if (!DecompileMiniscript(obj, obj.m_sp, isExpression, f))
 	{
 		fputs("Decompile failed\n", f);
 	}
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kMiniscriptModifier);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("SizeIncludingTag", obj.m_sizeIncludingTag, f);
+	PrintHex("GUID", obj.m_guid, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintHex("Unknown4", obj.m_unknown4, f);
+	PrintHex("LengthOfName", obj.m_lengthOfName, f);
+	PrintHex("EnableWhen", obj.m_enableWhen, f);
+	PrintHex("Unknown6", obj.m_unknown6, f);
+	PrintHex("Unknown7", obj.m_unknown7, f);
+	fputs("Name: '", f);
+	if (obj.m_lengthOfName > 0)
+		fwrite(&obj.m_name[0], 1, obj.m_lengthOfName - 1, f);
+	fputs("'\n", f);
+
+	fputs("Program:\n", f);
+	PrintObjectDisassembly(obj.m_program, f, false);
 }
 
 void PrintObjectDisassembly(const mtdisasm::DONotYetImplemented& obj, FILE* f)
@@ -2351,7 +2382,7 @@ void PrintObjectDisassembly(const mtdisasm::DOBehaviorModifier& obj, FILE* f)
 	PrintHex("Unknown1", obj.m_unknown1, f);
 	PrintHex("SizeIncludingTag", obj.m_sizeIncludingTag, f);
 	PrintHex("Unknown2", obj.m_unknown2, f);
-	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintHex("GUID", obj.m_guid, f);
 	PrintHex("Unknown4", obj.m_unknown4, f);
 	PrintHex("Unknown5", obj.m_unknown5, f);
 	PrintHex("Unknown6", obj.m_unknown6, f);
@@ -2369,6 +2400,85 @@ void PrintObjectDisassembly(const mtdisasm::DOBehaviorModifier& obj, FILE* f)
 		fwrite(&obj.m_name[0], 1, obj.m_name.size() - 1u, f);
 		fputs("'\n", f);
 	}
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOMessengerModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kMessengerModifier);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintHex("Unknown4", obj.m_unknown4, f);
+	PrintHex("Unknown5", obj.m_unknown5, f);
+	PrintHex("MessageFlags", obj.m_messageFlags, f);
+	PrintHex("Unknown11", obj.m_unknown11, f);
+	PrintHex("Unknown12", obj.m_unknown12, f);
+	PrintHex("Unknown13", obj.m_unknown13, f);
+	PrintHex("Unknown14", obj.m_unknown14, f);
+	PrintHex("Unknown15", obj.m_unknown15, f);
+	PrintVal("Send", obj.m_send, f);
+	PrintVal("When", obj.m_when, f);
+	PrintHex("GUID", obj.m_guid, f);
+	PrintHex("SizeIncludingTag", obj.m_sizeIncludingTag, f);
+	PrintVal("LengthOfName", obj.m_lengthOfName, f);
+	PrintHex("Destination", obj.m_destination, f);
+	PrintHex("With", obj.m_with, f);
+	PrintHex("WithSourceGUID", obj.m_withSourceGUID, f);
+
+	if (obj.m_withSource.size() > 1)
+	{
+		fputs("WithSource: '", f);
+		fwrite(&obj.m_withSource[0], 1, obj.m_withSource.size() - 1u, f);
+		fputs("'\n", f);
+	}
+
+	if (obj.m_name.size() > 1)
+	{
+		fputs("Name: '", f);
+		fwrite(&obj.m_name[0], 1, obj.m_name.size() - 1u, f);
+		fputs("'\n", f);
+	}
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOIfMessengerModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kIfMessengerModifier);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintHex("Unknown4", obj.m_unknown4, f);
+	PrintHex("Unknown5", obj.m_unknown5, f);
+	PrintHex("Unknown6", obj.m_unknown6, f);
+	PrintHex("Unknown7", obj.m_unknown7, f);
+	PrintHex("Unknown8", obj.m_unknown8, f);
+	PrintHex("Unknown9", obj.m_unknown9, f);
+	PrintHex("Unknown10", obj.m_unknown10, f);
+	PrintHex("MessageFlags", obj.m_messageFlags, f);
+	PrintVal("Send", obj.m_send, f);
+	PrintVal("When", obj.m_when, f);
+	PrintHex("GUID", obj.m_guid, f);
+	PrintHex("SizeIncludingTag", obj.m_sizeIncludingTag, f);
+	PrintVal("LengthOfName", obj.m_lengthOfName, f);
+	PrintHex("Destination", obj.m_destination, f);
+	PrintHex("With", obj.m_with, f);
+	PrintHex("WithSourceGUID", obj.m_withSourceGUID, f);
+
+	if (obj.m_withSource.size() > 1)
+	{
+		fputs("WithSource: '", f);
+		fwrite(&obj.m_withSource[0], 1, obj.m_withSource.size() - 1u, f);
+		fputs("'\n", f);
+	}
+
+	if (obj.m_name.size() > 1)
+	{
+		fputs("Name: '", f);
+		fwrite(&obj.m_name[0], 1, obj.m_name.size() - 1u, f);
+		fputs("'\n", f);
+	}
+
+	fputs("Program:\n", f);
+	PrintObjectDisassembly(obj.m_program, f, true);
 }
 
 void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
@@ -2440,6 +2550,12 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kBehaviorModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOBehaviorModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kMessengerModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOMessengerModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kIfMessengerModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOIfMessengerModifier&>(obj), f);
 		break;
 	case mtdisasm::DataObjectType::kMiniscriptModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOMiniscriptModifier&>(obj), f);

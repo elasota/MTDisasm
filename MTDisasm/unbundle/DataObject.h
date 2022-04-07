@@ -70,6 +70,8 @@ namespace mtdisasm
 		kPlugInModifier,
 		kMacOnlyCursorModifier,	// Obsolete
 		kMiniscriptModifier,
+		kMessengerModifier,
+		kIfMessengerModifier,
 
 		kColorTableAsset,
 		kAudioAsset,
@@ -471,33 +473,9 @@ namespace mtdisasm
 		std::vector<char> m_name;
 	};
 
-	struct DOBehaviorModifier final : public DataObject
+	struct DOMiniscriptProgram
 	{
-		DataObjectType GetType() const override;
-		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
-
-		uint32_t m_unknown1;
-		uint32_t m_sizeIncludingTag;
-		uint8_t m_unknown2[2];
-		uint32_t m_unknown3;
-		uint32_t m_unknown4;
-		uint16_t m_unknown5;
-		uint32_t m_unknown6;
-		DOPoint m_editorLayoutPosition;
-		uint16_t m_lengthOfName;
-		uint16_t m_numChildren;
-		uint32_t m_flags;
-		DOEvent m_enableWhen;
-		DOEvent m_disableWhen;
-		uint8_t m_unknown7[2];
-
-		std::vector<char> m_name;
-	};
-
-	struct DOMiniscriptModifier final : public DataObject
-	{
-		DataObjectType GetType() const override;
-		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+		bool Load(DataReader& reader, const SerializationProperties& sp);
 
 		struct LocalRef
 		{
@@ -517,16 +495,6 @@ namespace mtdisasm
 		};
 
 		uint32_t m_unknown1;
-		uint32_t m_sizeIncludingTag;
-		uint32_t m_unknown2;
-		uint8_t m_unknown3[6];
-		uint32_t m_unknown4;
-		uint8_t m_unknown5[4];
-		uint16_t m_lengthOfName;
-		DOEvent m_enableWhen;
-		uint8_t m_unknown6[11];
-		uint8_t m_unknown7;
-		uint32_t m_unknown8;
 
 		uint32_t m_sizeOfInstructions;
 		uint32_t m_numOfInstructions;
@@ -534,9 +502,120 @@ namespace mtdisasm
 		uint32_t m_numAttributes;
 
 		std::vector<uint8_t> m_bytecode;
-		std::vector<char> m_name;
 		std::vector<LocalRef> m_localRefs;
 		std::vector<Attribute> m_attributes;
+
+		SerializationProperties m_sp;
+
+	};
+
+	enum MessageFlags
+	{
+		kMessageFlagNoRelay = 0x20000000,
+		kMessageFlagNoCascade = 0x40000000,
+		kMessageFlagNoImmediate = 0x80000000,
+	};
+
+	struct DOMessengerModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		uint32_t m_unknown1;
+		uint32_t m_sizeIncludingTag;
+		uint32_t m_guid;
+		uint8_t m_unknown3[6];
+		uint32_t m_unknown4;
+		uint8_t m_unknown5[4];
+		uint16_t m_lengthOfName;
+		uint32_t m_messageFlags;
+		DOEvent m_send;
+		DOEvent m_when;
+		uint16_t m_unknown14;
+		uint32_t m_destination;
+		uint8_t m_unknown11[10];
+		uint16_t m_with;
+		uint8_t m_unknown15[4];
+		uint32_t m_withSourceGUID;
+		uint8_t m_unknown12[36];
+		uint8_t m_withSourceLength;
+		uint8_t m_unknown13;
+
+		std::vector<char> m_name;
+		std::vector<char> m_withSource;
+	};
+
+	struct DOIfMessengerModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		uint32_t m_unknown1;
+		uint32_t m_sizeIncludingTag;
+		uint32_t m_guid;
+		uint8_t m_unknown3[6];
+		uint32_t m_unknown4;
+		uint8_t m_unknown5[4];
+		uint16_t m_lengthOfName;
+		uint32_t m_messageFlags;
+		DOEvent m_send;
+		DOEvent m_when;
+		uint16_t m_unknown6;
+		uint32_t m_destination;
+		uint8_t m_unknown7[10];
+		uint16_t m_with;
+		uint8_t m_unknown8[4];
+		uint32_t m_withSourceGUID;
+		uint8_t m_unknown9[46];
+		uint8_t m_withSourceLength;
+		uint8_t m_unknown10;
+		DOMiniscriptProgram m_program;
+
+		std::vector<char> m_name;
+		std::vector<char> m_withSource;
+	};
+
+	struct DOBehaviorModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		uint32_t m_unknown1;
+		uint32_t m_sizeIncludingTag;
+		uint8_t m_unknown2[2];
+		uint32_t m_guid;
+		uint32_t m_unknown4;
+		uint16_t m_unknown5;
+		uint32_t m_unknown6;
+		DOPoint m_editorLayoutPosition;
+		uint16_t m_lengthOfName;
+		uint16_t m_numChildren;
+		uint32_t m_flags;
+		DOEvent m_enableWhen;
+		DOEvent m_disableWhen;
+		uint8_t m_unknown7[2];
+
+		std::vector<char> m_name;
+	};
+
+	struct DOMiniscriptModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		uint32_t m_unknown1;
+		uint32_t m_sizeIncludingTag;
+		uint32_t m_guid;
+		uint8_t m_unknown3[6];
+		uint32_t m_unknown4;
+		uint8_t m_unknown5[4];
+		uint16_t m_lengthOfName;
+		DOEvent m_enableWhen;
+		uint8_t m_unknown6[11];
+		uint8_t m_unknown7;
+		DOMiniscriptProgram m_program;
+
+		std::vector<char> m_name;
 
 		SerializationProperties m_sp;
 	};
