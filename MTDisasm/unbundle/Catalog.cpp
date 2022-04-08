@@ -67,7 +67,8 @@ namespace mtdisasm
 		if (m_catHeader.m_unknown26 != 2 && m_catHeader.m_unknown26 != 3)
 			return false;
 
-		bool hasStreamDescPadding = (m_catHeader.m_unknown26 == 3);
+		bool hasStreamDescPrePadding = (m_catHeader.m_unknown26 == 3 && m_systemDesc == SystemDesc::kWindows);
+		bool hasStreamDescPostPadding = (m_catHeader.m_unknown26 == 3 && m_systemDesc == SystemDesc::kMac);
 
 		m_streams.resize(m_catHeader.m_numStreams);
 
@@ -79,7 +80,7 @@ namespace mtdisasm
 				|| !reader.ReadU16(desc.m_segmentNumber))
 				return false;
 
-			if (hasStreamDescPadding)
+			if (hasStreamDescPrePadding)
 			{
 				uint32_t padding[2];
 				if (!reader.ReadBytes(&padding, 8))
@@ -92,6 +93,16 @@ namespace mtdisasm
 			if (!reader.ReadU32(desc.m_pos)
 				|| !reader.ReadU32(desc.m_size))
 				return false;
+
+			if (hasStreamDescPostPadding)
+			{
+				uint32_t padding[2];
+				if (!reader.ReadBytes(&padding, 8))
+					return false;
+
+				if (padding[0] != 0 || padding[1] != 0)
+					return false;
+			}
 
 			if (desc.m_segmentNumber == 0 || desc.m_segmentNumber > m_catHeader.m_numSegments)
 				return false;
