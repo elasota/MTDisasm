@@ -28,6 +28,28 @@ namespace mtdisasm
 		return reader.ReadU32(m_eventID) && reader.ReadU32(m_eventInfo);
 	}
 
+	bool DOTypicalModifierHeader::Load(DataReader& reader)
+	{
+		if (!reader.ReadU32(m_unknown1)
+			|| !reader.ReadU32(m_sizeIncludingTag)
+			|| !reader.ReadU32(m_guid)
+			|| !reader.ReadBytes(m_unknown2, 6)
+			|| !reader.ReadU32(m_unknown3)
+			|| !reader.ReadBytes(m_unknown4, 4)
+			|| !reader.ReadU16(m_lengthOfName))
+			return false;
+
+		if (m_lengthOfName > 0)
+		{
+			m_name.resize(m_lengthOfName);
+
+			if (!reader.ReadBytes(&m_name[0], m_lengthOfName))
+				return false;
+		}
+
+		return true;
+	}
+
 	DataObject::~DataObject()
 	{
 	}
@@ -102,7 +124,7 @@ namespace mtdisasm
 		case 0x302:
 			return new DONotYetImplemented(objectType, "Keyboard Messenger modifier");
 		case 0x321:
-			return new DONotYetImplemented(objectType, "Boolean Variable modifier");
+			return new DOBooleanVariableModifier();
 		case 0x2c7:
 			return new DONotYetImplemented(objectType, "Compound Variable modifier");
 		case 0x322:
@@ -116,7 +138,7 @@ namespace mtdisasm
 		case 0x327:
 			return new DONotYetImplemented(objectType, "Vector Variable modifier");
 		case 0x326:
-			return new DONotYetImplemented(objectType, "Point Variable modifier");
+			return new DOPointVariableModifier();
 		case 0x136:
 			return new DONotYetImplemented(objectType, "Change Scene modifier");
 		case 0x140:
@@ -1001,6 +1023,73 @@ namespace mtdisasm
 		return true;
 	}
 
+	DataObjectType DOBooleanVariableModifier::GetType() const
+	{
+		return DataObjectType::kBooleanVariableModifier;
+	}
+
+	bool DOBooleanVariableModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3e8)
+			return false;
+
+		if (!reader.ReadU32(m_unknown1)
+			|| !reader.ReadU32(m_sizeIncludingTag)
+			|| !reader.ReadU32(m_guid)
+			|| !reader.ReadBytes(m_unknown2, 6)
+			|| !reader.ReadU32(m_unknown3)
+			|| !reader.ReadBytes(m_unknown4, 4)
+			|| !reader.ReadU16(m_lengthOfName))
+			return false;
+
+		if (m_lengthOfName > 0)
+		{
+			m_name.resize(m_lengthOfName);
+			if (!reader.ReadBytes(&m_name[0], m_lengthOfName) || m_name[m_lengthOfName - 1] != 0)
+				return false;
+		}
+
+		if (!reader.ReadU8(m_value)
+			|| !reader.ReadU8(m_unknown5))
+			return false;
+
+		return true;
+	}
+
+	DataObjectType DOPointVariableModifier::GetType() const
+	{
+		return DataObjectType::kPointVariableModifier;
+	}
+
+	bool DOPointVariableModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3e8)
+			return false;
+
+		if (!reader.ReadU32(m_unknown1)
+			|| !reader.ReadU32(m_sizeIncludingTag)
+			|| !reader.ReadU32(m_guid)
+			|| !reader.ReadBytes(m_unknown2, 6)
+			|| !reader.ReadU32(m_unknown3)
+			|| !reader.ReadBytes(m_unknown4, 4)
+			|| !reader.ReadU16(m_lengthOfName))
+			return false;
+
+
+		if (m_lengthOfName > 0)
+		{
+			m_name.resize(m_lengthOfName);
+			if (!reader.ReadBytes(&m_name[0], m_lengthOfName) || m_name[m_lengthOfName - 1] != 0)
+				return false;
+		}
+
+		if (!reader.ReadBytes(m_unknown5, 4)
+			|| !m_value.Load(reader, sp))
+			return false;
+
+		return true;
+	}
+
 	DataObjectType DOMiniscriptModifier::GetType() const
 	{
 		return DataObjectType::kMiniscriptModifier;
@@ -1066,6 +1155,53 @@ namespace mtdisasm
 		return true;
 	}
 
+	PlugInObject::~PlugInObject()
+	{
+	}
+
+	DOPlugInModifier::DOPlugInModifier()
+		: m_plugInData(nullptr)
+	{
+	}
+
+	DOPlugInModifier::~DOPlugInModifier()
+	{
+		if (m_plugInData)
+			delete m_plugInData;
+	}
+
+	PlugInObjectType POCursorMod::GetType() const
+	{
+		return PlugInObjectType::kCursorMod;
+	}
+
+	bool POCursorMod::Load(const DOPlugInModifier& base, DataReader& reader, const SerializationProperties& sp)
+	{
+		if (!reader.ReadU16(m_unknown1)
+			|| !m_applyWhen.Load(reader)
+			|| !reader.ReadU16(m_unknown2)
+			|| !m_removeWhen.Load(reader)
+			|| !reader.ReadU16(m_unknown3)
+			|| !reader.ReadU32(m_cursorID)
+			|| !reader.ReadBytes(m_unknown4, 4))
+			return false;
+
+		return true;
+	}
+
+	PlugInObjectType POUnknown::GetType() const
+	{
+		return PlugInObjectType::kUnknown;
+	}
+
+	bool POUnknown::Load(const DOPlugInModifier& base, DataReader& reader, const SerializationProperties& sp)
+	{
+		m_data.resize(base.m_privateDataSize);
+		if (base.m_privateDataSize > 0 && !reader.ReadBytes(&m_data[0], base.m_privateDataSize))
+			return false;
+
+		return true;
+	}
 
 	DataObjectType DOPlugInModifier::GetType() const
 	{
@@ -1082,7 +1218,11 @@ namespace mtdisasm
 			return false;
 
 		if (!reader.ReadBytes(m_plugin, 16)
-			|| !reader.ReadBytes(m_unknown2, 20)
+			|| !reader.ReadU32(m_guid)
+			|| !reader.ReadBytes(m_unknown2, 6)
+			|| !reader.ReadU16(m_unknown3)
+			|| !reader.ReadU32(m_unknown4)
+			|| !reader.ReadBytes(m_unknown5, 4)
 			|| !reader.ReadU16(m_lengthOfName))
 			return false;
 
@@ -1113,7 +1253,13 @@ namespace mtdisasm
 			return false;
 		m_privateDataSize -= 52;
 
-		if (m_privateDataSize && !reader.Skip(m_privateDataSize))
+		if (!strcmp(m_plugin, "CursorMod"))
+			m_plugInData = new POCursorMod();
+
+		if (!m_plugInData)
+			m_plugInData = new POUnknown();
+
+		if (!m_plugInData->Load(*this, reader, sp))
 			return false;
 
 		return true;

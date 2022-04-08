@@ -666,10 +666,59 @@ Message destination codes:
 	uint32_t weirdly-coded size
 		For some reason this is the total size on MacOS but on Windows it's the size excluding the name length + name length * 256
 	char[16] modifier name
-	byte[20] unknown
+	uint32_t guid
+	byte[6] unknown (0)
+	uint16_t extension modifier revision
+	uint32_t unknown
+	byte[4] unknown
 	uint16_t name length
 	char[name length] name - null terminated
-	...
+	Modifier data
+
+CursorMod: Cursor modifier   Known revisions: 1
+	uint16_t unknown (0x17)
+	EVENT apply when
+	uint16_t unknown (0x17)
+	EVENT remove when
+	uint16_t unknown
+	uint32_t cursor: (loaded from extension resources)
+		10003: hand grab B&W
+		10004: hand open B&W
+		10005: hand point up
+		10006: hand point right
+		10007: hand point left
+		10008: hand point down
+		10009: hand grab color
+		10010: hand open color
+		10011: arrow
+		10012: pencil
+		10013: smiley
+		10014: wait
+		10015: hidden
+		10016: empty speech bubble right
+		10017: empty speech bubble left
+		10020: filled speech bubble right
+		10021: filled speech bubble left
+		10022: eyedropper
+		10023: sparkles
+		10024: circular crosshairs
+		10025: magnifying glass
+		10026: paint bucket
+		10027: eraser
+		10028: scissors
+		10029: "no" symbol
+		10030: movie symbol
+		10031: paintbrush
+		10032: checkmark
+		10033: music notes
+		10034: tick crosshairs
+		10035: white-filled arrow
+		10036: skull and crossbones
+		10037: arrow down 3D
+		10038: arrow up 3D
+		
+	byte[4] unknown (0)
+
 
 0x10: QuickTime movie data  Known revisions: 0
 	uint32_t marker (0x80 bit clear on Windows = external.   0x800 bit set on Mac = external.)
@@ -755,10 +804,6 @@ Message destination codes:
 	RECT rect
 	uint32_t file position
 	uint32_t size
-	
-	
-
-Mac dc1-e37-ead-f23-f99
 
 0xf: mToon asset  Known revisions: 1
 	marker

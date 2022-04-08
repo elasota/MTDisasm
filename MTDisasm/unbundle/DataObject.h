@@ -46,6 +46,13 @@ namespace mtdisasm
 		kWindows,
 	};
 
+	enum class PlugInObjectType
+	{
+		kUnknown,
+
+		kCursorMod,
+	};
+
 	enum class DataObjectType
 	{
 		kUnknown,
@@ -72,6 +79,8 @@ namespace mtdisasm
 		kMiniscriptModifier,
 		kMessengerModifier,
 		kIfMessengerModifier,
+		kBooleanVariableModifier,
+		kPointVariableModifier,
 
 		kColorTableAsset,
 		kAudioAsset,
@@ -113,6 +122,21 @@ namespace mtdisasm
 
 		uint32_t m_eventID;
 		uint32_t m_eventInfo;
+	};
+
+	struct DOTypicalModifierHeader
+	{
+		uint32_t m_unknown1;
+		uint32_t m_sizeIncludingTag;
+		uint32_t m_guid;
+		uint8_t m_unknown2[6];	// 0
+		uint32_t m_unknown3;
+		uint8_t m_unknown4[4];	// ff
+		uint16_t m_lengthOfName;
+
+		std::vector<char> m_name;
+
+		bool Load(DataReader& reader);
 	};
 
 	class DataObject
@@ -597,6 +621,42 @@ namespace mtdisasm
 		std::vector<char> m_name;
 	};
 
+	struct DOBooleanVariableModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		uint32_t m_unknown1;
+		uint32_t m_sizeIncludingTag;
+		uint32_t m_guid;
+		uint8_t m_unknown2[6];
+		uint32_t m_unknown3;
+		uint8_t m_unknown4[4];
+		uint16_t m_lengthOfName;
+		uint8_t m_value;
+		uint8_t m_unknown5;
+
+		std::vector<char> m_name;
+	};
+
+	struct DOPointVariableModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		uint32_t m_unknown1;
+		uint32_t m_sizeIncludingTag;
+		uint32_t m_guid;
+		uint8_t m_unknown2[6];
+		uint32_t m_unknown3;
+		uint8_t m_unknown4[4];
+		uint16_t m_lengthOfName;
+		uint8_t m_unknown5[4];
+		DOPoint m_value;
+
+		std::vector<char> m_name;
+	};
+
 	struct DOMiniscriptModifier final : public DataObject
 	{
 		DataObjectType GetType() const override;
@@ -634,20 +694,76 @@ namespace mtdisasm
 		const char* m_name;
 	};
 
+	struct DOPlugInModifier;
+
+	struct PlugInObject
+	{
+		virtual ~PlugInObject();
+		virtual PlugInObjectType GetType() const = 0;
+		virtual bool Load(const DOPlugInModifier& base, DataReader& reader, const SerializationProperties& sp) = 0;
+	};
+
+	struct POCursorMod final : public PlugInObject
+	{
+		PlugInObjectType GetType() const override;
+		bool Load(const DOPlugInModifier& base, DataReader& reader, const SerializationProperties& sp) override;
+
+		uint16_t m_unknown1;
+		DOEvent m_applyWhen;
+		uint16_t m_unknown2;
+		DOEvent m_removeWhen;
+		uint16_t m_unknown3;
+
+		uint32_t m_cursorID;
+		uint8_t m_unknown4[4];
+	};
+
+	struct POSTransCt final : public PlugInObject
+	{
+		PlugInObjectType GetType() const override;
+		bool Load(const DOPlugInModifier& base, DataReader& reader, const SerializationProperties& sp) override;
+
+		uint16_t m_unknown1;
+		DOEvent m_applyWhen;
+		uint16_t m_unknown2;
+		DOEvent m_removeWhen;
+		uint16_t m_unknown3;
+
+		uint32_t m_cursorID;
+		uint8_t m_unknown4[4];
+	};
+
+	struct POUnknown final : public PlugInObject
+	{
+		PlugInObjectType GetType() const override;
+		bool Load(const DOPlugInModifier& base, DataReader& reader, const SerializationProperties& sp) override;
+
+		std::vector<uint8_t> m_data;
+	};
+
 	struct DOPlugInModifier final : public DataObject
 	{
+		DOPlugInModifier();
+		~DOPlugInModifier();
+
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
 
 		char m_plugin[17];
 		uint32_t m_unknown1;
 		uint32_t m_weirdSize;
-		uint8_t m_unknown2[20];
+		uint32_t m_guid;
+		uint8_t m_unknown2[6];
+		uint16_t m_unknown3;
+		uint32_t m_unknown4;
+		uint8_t m_unknown5[4];
 		uint16_t m_lengthOfName;
 
 		uint32_t m_privateDataSize;
 
 		std::vector<char> m_name;
+
+		PlugInObject* m_plugInData;
 	};
 
 	struct DOMacOnlyCursorModifier final : public DataObject
