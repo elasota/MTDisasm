@@ -506,7 +506,6 @@ namespace mtdisasm
 		std::vector<Attribute> m_attributes;
 
 		SerializationProperties m_sp;
-
 	};
 
 	enum MessageFlags

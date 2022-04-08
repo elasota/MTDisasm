@@ -808,7 +808,6 @@ namespace mtdisasm
 			|| !reader.ReadU16(m_lengthOfName))
 			return false;
 
-
 		if (m_lengthOfName > 0)
 		{
 			m_name.resize(m_lengthOfName);
