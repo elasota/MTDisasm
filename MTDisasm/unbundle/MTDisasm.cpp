@@ -673,7 +673,7 @@ bool PrintMiniscriptInstructionDisassembly(FILE* f, mtdisasm::DataReader& reader
 				double d;
 				if (sp.m_systemType == mtdisasm::SystemType::kMac)
 				{
-					if (!reader.ReadF64_XP(d))
+					if (!reader.ReadF80BE(d))
 						return false;
 				}
 				else
@@ -1281,7 +1281,7 @@ void EmitPushValue(const MiniscriptInstruction& instr, const mtdisasm::DOMiniscr
 					double d;
 					bool readOK = false;
 					if (obj.m_sp.m_systemType == mtdisasm::SystemType::kMac)
-						readOK = reader.ReadF64_XP(d);
+						readOK = reader.ReadF80BE(d);
 					else
 						readOK = reader.ReadF64(d);
 
@@ -2214,7 +2214,7 @@ void PrintObjectDisassembly(const mtdisasm::DOPlugInModifier& obj, FILE* f)
 	fprintf(f, "Plug-in modifier '%s'  PrivateDataSize=%u\n", obj.m_plugin, obj.m_privateDataSize);
 	PrintHex("Unknown1", obj.m_unknown1, f);
 	PrintHex("Unknown2", obj.m_unknown2, f);
-	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintHex("PlugInRevision", obj.m_plugInRevision, f);
 	PrintHex("Unknown4", obj.m_unknown4, f);
 	PrintHex("Unknown5", obj.m_unknown5, f);
 	PrintHex("GUID", obj.m_guid, f);

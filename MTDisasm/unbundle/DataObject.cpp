@@ -1220,7 +1220,7 @@ namespace mtdisasm
 		if (!reader.ReadBytes(m_plugin, 16)
 			|| !reader.ReadU32(m_guid)
 			|| !reader.ReadBytes(m_unknown2, 6)
-			|| !reader.ReadU16(m_unknown3)
+			|| !reader.ReadU16(m_plugInRevision)
 			|| !reader.ReadU32(m_unknown4)
 			|| !reader.ReadBytes(m_unknown5, 4)
 			|| !reader.ReadU16(m_lengthOfName))

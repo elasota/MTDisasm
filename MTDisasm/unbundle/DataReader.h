@@ -22,7 +22,7 @@ namespace mtdisasm
 		bool ReadU8(uint8_t& v);
 		bool ReadS8(int8_t& v);
 		bool ReadF64(double& v);
-		bool ReadF64_XP(double& v);
+		bool ReadF80BE(double& v);
 		bool ReadF32(float& v);
 
 		bool ReadPStr16(std::string& str);

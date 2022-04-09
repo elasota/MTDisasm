@@ -754,7 +754,7 @@ namespace mtdisasm
 		uint32_t m_weirdSize;
 		uint32_t m_guid;
 		uint8_t m_unknown2[6];
-		uint16_t m_unknown3;
+		uint16_t m_plugInRevision;
 		uint32_t m_unknown4;
 		uint8_t m_unknown5[4];
 		uint16_t m_lengthOfName;
