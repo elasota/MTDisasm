@@ -671,8 +671,16 @@ bool PrintMiniscriptInstructionDisassembly(FILE* f, mtdisasm::DataReader& reader
 			else if (dataType == 0x15)
 			{
 				double d;
-				if (!reader.ReadF64(d))
-					return false;
+				if (sp.m_systemType == mtdisasm::SystemType::kMac)
+				{
+					if (!reader.ReadF64_XP(d))
+						return false;
+				}
+				else
+				{
+					if (!reader.ReadF64(d))
+						return false;
+				}
 				fprintf(f, "double %g", d);
 			}
 			else if (dataType == 0x1a)
@@ -1271,7 +1279,13 @@ void EmitPushValue(const MiniscriptInstruction& instr, const mtdisasm::DOMiniscr
 			case 0x15:
 				{
 					double d;
-					if (reader.ReadF64(d))
+					bool readOK = false;
+					if (obj.m_sp.m_systemType == mtdisasm::SystemType::kMac)
+						readOK = reader.ReadF64_XP(d);
+					else
+						readOK = reader.ReadF64(d);
+
+					if (readOK)
 					{
 						fprintf(f, "%g", d);
 						return;

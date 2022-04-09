@@ -99,6 +99,64 @@ namespace mtdisasm
 		return m_stream.ReadAll(&v, 1);
 	}
 
+	bool DataReader::ReadF64_XP(double& v)
+	{
+		// Weird truncated extended precision double format
+		uint64_t u64;
+		if (!this->ReadU64(u64))
+			return false;
+
+		if ((u64 & 0x7fffffffffffffffULL) == 0)
+		{
+			// +0 or -0
+			memcpy(&v, &u64, 8);
+		}
+		else
+		{
+			uint8_t sign = static_cast<uint16_t>((u64 >> 63) & 1);
+			int16_t exponent = static_cast<int16_t>((u64 >> 48) & 0x7fff);
+			uint64_t mantissa = (u64 & 0x7fffffffffffULL);
+
+			// Adjust exponent
+			exponent = exponent - 15360;
+			if (exponent > 2047)
+			{
+				// Too big
+				if (sign)
+					v = -DBL_MAX;
+				else
+					v = DBL_MAX;
+			}
+			else if (exponent > 0)
+			{
+				// Normal number
+				uint64_t recombined = (sign << 63) | (static_cast<uint64_t>(exponent) << 52) | (static_cast<uint64_t>(mantissa) << 5);
+				memcpy(&v, &recombined, 8);
+			}
+			else
+			{
+				// Subnormal number
+				mantissa |= 0x800000000000ULL;
+				mantissa <<= 5;
+				if (exponent <= -52)
+				{
+					mantissa = 0;
+					exponent = 0;
+				}
+				else
+				{
+					mantissa >>= (-exponent);
+					exponent = 0;
+				}
+
+				uint64_t recombined = (sign << 63) | (static_cast<uint64_t>(exponent) << 52) | (static_cast<uint64_t>(mantissa) << 5);
+				memcpy(&v, &recombined, 8);
+			}
+		}
+
+		return true;
+	}
+
 	bool DataReader::ReadF64(double& v)
 	{
 		uint64_t u64;
