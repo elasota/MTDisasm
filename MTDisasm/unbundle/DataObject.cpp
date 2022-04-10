@@ -920,7 +920,7 @@ namespace mtdisasm
 		if (!m_modHeader.Load(reader))
 			return false;
 
-		if (!reader.ReadU32(m_messageFlags)
+		if (!reader.ReadU32(m_messageFlagsAndKeyStates)
 			|| !reader.ReadU16(m_unknown2)
 			|| !reader.ReadU16(m_keyModifiers)
 			|| !reader.ReadU8(m_keycode)

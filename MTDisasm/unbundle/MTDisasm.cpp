@@ -2557,7 +2557,7 @@ void PrintObjectDisassembly(const mtdisasm::DOKeyboardMessengerModifier& obj, FI
 	assert(obj.GetType() == mtdisasm::DataObjectType::kKeyboardMessengerModifier);
 
 	PrintObjectDisassembly(obj.m_modHeader, f);
-	PrintHex("MessageFlags", obj.m_messageFlags, f);
+	PrintHex("MessageFlagsAndKeyStates", obj.m_messageFlagsAndKeyStates, f);
 	PrintHex("Unknown2", obj.m_unknown2, f);
 	PrintHex("KeyModifiers", obj.m_keyModifiers, f);
 	PrintHex("Unknown4", obj.m_unknown4, f);

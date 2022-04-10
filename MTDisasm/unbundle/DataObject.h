@@ -614,7 +614,7 @@ namespace mtdisasm
 		};
 
 		DOTypicalModifierHeader m_modHeader;
-		uint32_t m_messageFlags;
+		uint32_t m_messageFlagsAndKeyStates;
 		uint16_t m_unknown2;
 		uint16_t m_keyModifiers;
 		uint8_t m_keycode;
