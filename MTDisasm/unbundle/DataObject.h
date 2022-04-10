@@ -79,6 +79,7 @@ namespace mtdisasm
 		kMiniscriptModifier,
 		kMessengerModifier,
 		kIfMessengerModifier,
+		kKeyboardMessengerModifier,
 		kBooleanVariableModifier,
 		kPointVariableModifier,
 
@@ -573,13 +574,7 @@ namespace mtdisasm
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
 
-		uint32_t m_unknown1;
-		uint32_t m_sizeIncludingTag;
-		uint32_t m_guid;
-		uint8_t m_unknown3[6];
-		uint32_t m_unknown4;
-		uint8_t m_unknown5[4];
-		uint16_t m_lengthOfName;
+		DOTypicalModifierHeader m_modHeader;
 		uint32_t m_messageFlags;
 		DOEvent m_send;
 		DOEvent m_when;
@@ -594,7 +589,47 @@ namespace mtdisasm
 		uint8_t m_unknown10;
 		DOMiniscriptProgram m_program;
 
-		std::vector<char> m_name;
+		std::vector<char> m_withSource;
+	};
+
+	struct DOKeyboardMessengerModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		enum MessageFlagEmbeds
+		{
+			kOnDown = 0x10000000,
+			kOnUp = 0x4000000,
+			kOnRepeat = 0x8000000,
+
+			kKeyStateMask = (kOnDown | kOnUp | kOnRepeat),
+		};
+
+		enum KeyModifiers
+		{
+			kControl = 0x1000,
+			kCommand = 0x0100,
+			kOption = 0x0800,
+		};
+
+		DOTypicalModifierHeader m_modHeader;
+		uint32_t m_messageFlags;
+		uint16_t m_unknown2;
+		uint16_t m_keyModifiers;
+		uint8_t m_keycode;
+		uint8_t m_unknown4[7];
+		DOEvent m_message;
+		uint16_t m_unknown7;
+		uint32_t m_destination;
+		uint8_t m_unknown9[10];
+		uint16_t m_with;
+		uint8_t m_unknown11[4];
+		uint32_t m_withSourceGUID;
+		uint8_t m_unknown13[36];
+		uint8_t m_withSourceLength;
+		uint8_t m_unknown14;
+
 		std::vector<char> m_withSource;
 	};
 
@@ -626,17 +661,9 @@ namespace mtdisasm
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
 
-		uint32_t m_unknown1;
-		uint32_t m_sizeIncludingTag;
-		uint32_t m_guid;
-		uint8_t m_unknown2[6];
-		uint32_t m_unknown3;
-		uint8_t m_unknown4[4];
-		uint16_t m_lengthOfName;
+		DOTypicalModifierHeader m_modHeader;
 		uint8_t m_value;
 		uint8_t m_unknown5;
-
-		std::vector<char> m_name;
 	};
 
 	struct DOPointVariableModifier final : public DataObject

@@ -142,6 +142,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "MessengerModifier";
 	case mtdisasm::DataObjectType::kIfMessengerModifier:
 		return "IfMessengerModifier";
+	case mtdisasm::DataObjectType::kKeyboardMessengerModifier:
+		return "KeyboardMessengerModifier";
 	case mtdisasm::DataObjectType::kBooleanVariableModifier:
 		return "BooleanVariableModifier";
 	case mtdisasm::DataObjectType::kPointVariableModifier:
@@ -2505,15 +2507,28 @@ void PrintObjectDisassembly(const mtdisasm::DOMessengerModifier& obj, FILE* f)
 		fputs("'\n", f);
 	}
 }
+void PrintObjectDisassembly(const mtdisasm::DOTypicalModifierHeader& obj, FILE* f)
+{
+	PrintHex("ModHeader_Unknown1", obj.m_unknown1, f);
+	PrintHex("ModHeader_Unknown3", obj.m_unknown3, f);
+	PrintHex("ModHeader_Unknown4", obj.m_unknown4, f);
+	PrintHex("GUID", obj.m_guid, f);
+	PrintHex("SizeIncludingTag", obj.m_sizeIncludingTag, f);
+	PrintVal("LengthOfName", obj.m_lengthOfName, f);
+
+	if (obj.m_name.size() > 1)
+	{
+		fputs("Name: '", f);
+		fwrite(&obj.m_name[0], 1, obj.m_name.size() - 1u, f);
+		fputs("'\n", f);
+	}
+}
 
 void PrintObjectDisassembly(const mtdisasm::DOIfMessengerModifier& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kIfMessengerModifier);
 
-	PrintHex("Unknown1", obj.m_unknown1, f);
-	PrintHex("Unknown3", obj.m_unknown3, f);
-	PrintHex("Unknown4", obj.m_unknown4, f);
-	PrintHex("Unknown5", obj.m_unknown5, f);
+	PrintObjectDisassembly(obj.m_modHeader, f);
 	PrintHex("Unknown6", obj.m_unknown6, f);
 	PrintHex("Unknown7", obj.m_unknown7, f);
 	PrintHex("Unknown8", obj.m_unknown8, f);
@@ -2522,9 +2537,6 @@ void PrintObjectDisassembly(const mtdisasm::DOIfMessengerModifier& obj, FILE* f)
 	PrintHex("MessageFlags", obj.m_messageFlags, f);
 	PrintVal("Send", obj.m_send, f);
 	PrintVal("When", obj.m_when, f);
-	PrintHex("GUID", obj.m_guid, f);
-	PrintHex("SizeIncludingTag", obj.m_sizeIncludingTag, f);
-	PrintVal("LengthOfName", obj.m_lengthOfName, f);
 	PrintHex("Destination", obj.m_destination, f);
 	PrintHex("With", obj.m_with, f);
 	PrintHex("WithSourceGUID", obj.m_withSourceGUID, f);
@@ -2536,34 +2548,46 @@ void PrintObjectDisassembly(const mtdisasm::DOIfMessengerModifier& obj, FILE* f)
 		fputs("'\n", f);
 	}
 
-	if (obj.m_name.size() > 1)
-	{
-		fputs("Name: '", f);
-		fwrite(&obj.m_name[0], 1, obj.m_name.size() - 1u, f);
-		fputs("'\n", f);
-	}
-
 	fputs("Program:\n", f);
 	PrintObjectDisassembly(obj.m_program, f, true);
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOKeyboardMessengerModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kKeyboardMessengerModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+	PrintHex("MessageFlags", obj.m_messageFlags, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("KeyModifiers", obj.m_keyModifiers, f);
+	PrintHex("Unknown4", obj.m_unknown4, f);
+	PrintHex("Message", obj.m_message, f);
+	PrintHex("Unknown7", obj.m_unknown7, f);
+	PrintHex("Destination", obj.m_destination, f);
+	PrintHex("Unknown9", obj.m_unknown9, f);
+	PrintHex("With", obj.m_with, f);
+	PrintHex("Unknown11", obj.m_unknown11, f);
+	PrintHex("WithSourceGUID", obj.m_withSourceGUID, f);
+	PrintHex("Unknown13", obj.m_unknown13, f);
+	PrintHex("Unknown14", obj.m_unknown14, f);
+
+	PrintHex("KeyCode", obj.m_keycode, f);
+	PrintVal("WithSourceLength", obj.m_withSourceLength, f);
+
+	if (obj.m_withSource.size() > 1)
+	{
+		fputs("WithSource: '", f);
+		fwrite(&obj.m_withSource[0], 1, obj.m_withSource.size() - 1u, f);
+		fputs("'\n", f);
+	}
 }
 
 void PrintObjectDisassembly(const mtdisasm::DOBooleanVariableModifier& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kBooleanVariableModifier);
 
-	PrintHex("Unknown1", obj.m_unknown1, f);
-	PrintHex("SizeIncludingTag", obj.m_sizeIncludingTag, f);
-	PrintHex("GUID", obj.m_guid, f);
-	PrintHex("Unknown2", obj.m_unknown2, f);
-	PrintHex("Unknown3", obj.m_unknown3, f);
-	PrintHex("LengthOfName", obj.m_lengthOfName, f);
-	PrintHex("Unknown4", obj.m_unknown4, f);
+	PrintObjectDisassembly(obj.m_modHeader, f);
 	PrintHex("Unknown5", obj.m_unknown5, f);
-
-	fputs("Name: '", f);
-	if (obj.m_lengthOfName > 0)
-		fwrite(&obj.m_name[0], 1, obj.m_lengthOfName - 1, f);
-	fputs("'\n", f);
 
 	PrintVal("Value", obj.m_value, f);
 }
@@ -2664,6 +2688,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kIfMessengerModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOIfMessengerModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kKeyboardMessengerModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOKeyboardMessengerModifier&>(obj), f);
 		break;
 	case mtdisasm::DataObjectType::kMiniscriptModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOMiniscriptModifier&>(obj), f);

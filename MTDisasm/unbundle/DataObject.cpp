@@ -122,7 +122,7 @@ namespace mtdisasm
 		case 0x2ee:
 			return new DONotYetImplemented(objectType, "Collision Detection Messenger modifier");
 		case 0x302:
-			return new DONotYetImplemented(objectType, "Keyboard Messenger modifier");
+			return new DOKeyboardMessengerModifier();
 		case 0x321:
 			return new DOBooleanVariableModifier();
 		case 0x2c7:
@@ -876,24 +876,8 @@ namespace mtdisasm
 		if (revision != 0x3ea)
 			return false;
 
-		if (!reader.ReadU32(m_unknown1)
-			|| !reader.ReadU32(m_sizeIncludingTag)
-			|| !reader.ReadU32(m_guid)
-			|| !reader.ReadBytes(m_unknown3, 6)
-			|| !reader.ReadU32(m_unknown4)
-			|| !reader.ReadBytes(m_unknown5, 4)
-			|| !reader.ReadU16(m_lengthOfName))
+		if (!m_modHeader.Load(reader))
 			return false;
-
-		if (m_lengthOfName > 0)
-		{
-			m_name.resize(m_lengthOfName);
-			if (!reader.ReadBytes(&m_name[0], m_lengthOfName))
-				return false;
-
-			if (m_name[m_lengthOfName - 1] != 0)
-				return false;
-		}
 
 		if (!reader.ReadU32(m_messageFlags)
 			|| !m_when.Load(reader)
@@ -919,6 +903,47 @@ namespace mtdisasm
 
 		if (!m_program.Load(reader, sp))
 			return false;
+
+		return true;
+	}
+
+	DataObjectType DOKeyboardMessengerModifier::GetType() const
+	{
+		return DataObjectType::kKeyboardMessengerModifier;
+	}
+
+	bool DOKeyboardMessengerModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3eb)
+			return false;
+
+		if (!m_modHeader.Load(reader))
+			return false;
+
+		if (!reader.ReadU32(m_messageFlags)
+			|| !reader.ReadU16(m_unknown2)
+			|| !reader.ReadU16(m_keyModifiers)
+			|| !reader.ReadU8(m_keycode)
+			|| !reader.ReadBytes(m_unknown4, 7)
+			|| !m_message.Load(reader)
+			|| !reader.ReadU16(m_unknown7)
+			|| !reader.ReadU32(m_destination)
+			|| !reader.ReadBytes(m_unknown9, 10)
+			|| !reader.ReadU16(m_with)
+			|| !reader.ReadBytes(m_unknown11, 4)
+			|| !reader.ReadU32(m_withSourceGUID)
+			|| !reader.ReadBytes(m_unknown13, 36)
+			|| !reader.ReadU8(m_withSourceLength)
+			|| !reader.ReadU8(m_unknown14))
+			return false;
+
+		if (m_withSourceLength > 0)
+		{
+			m_withSource.resize(m_withSourceLength + 1);
+			if (!reader.ReadBytes(&m_withSource[0], m_withSourceLength))
+				return false;
+			m_withSource[m_withSourceLength] = 0;
+		}
 
 		return true;
 	}
@@ -1033,21 +1058,8 @@ namespace mtdisasm
 		if (revision != 0x3e8)
 			return false;
 
-		if (!reader.ReadU32(m_unknown1)
-			|| !reader.ReadU32(m_sizeIncludingTag)
-			|| !reader.ReadU32(m_guid)
-			|| !reader.ReadBytes(m_unknown2, 6)
-			|| !reader.ReadU32(m_unknown3)
-			|| !reader.ReadBytes(m_unknown4, 4)
-			|| !reader.ReadU16(m_lengthOfName))
+		if (!m_modHeader.Load(reader))
 			return false;
-
-		if (m_lengthOfName > 0)
-		{
-			m_name.resize(m_lengthOfName);
-			if (!reader.ReadBytes(&m_name[0], m_lengthOfName) || m_name[m_lengthOfName - 1] != 0)
-				return false;
-		}
 
 		if (!reader.ReadU8(m_value)
 			|| !reader.ReadU8(m_unknown5))

@@ -556,7 +556,7 @@ Message destination codes:
 	0x1b: Incoming data
 	0x1c: String reference
 
-0x2da: Messenger modifier  Known revisions: 0x3ea
+TYPICAL_MODIFIER_HEADER:
 	uint32_t unknown
 	uint32_t size including tag
 	uint32_t guid
@@ -565,6 +565,9 @@ Message destination codes:
 	byte[4] unknown (ff)
 	uint16_t length of name
 	char[length of name] name - null terminated
+		
+0x2da: Messenger modifier  Known revisions: 0x3ea
+	TYPICAL_MODIFIER_HEADER modifier header
 	uint32_t message flags
 	uint32_t when event ID
 	EVENT send event
@@ -578,14 +581,7 @@ Message destination codes:
 	char[source string length] with source - not null terminated
 
 0x2bc: If Messenger modifier
-	uint32_t unknown
-	uint32_t size including tag
-	uint32_t guid
-	byte[6] unknown (0)
-	uint32_t unknown (varies)
-	byte[4] unknown (ff)
-	uint16_t length of name
-	char[length of name] name - null terminated
+	TYPICAL_MODIFIER_HEADER modifier header
 	uint32_t message flags
 	EVENT execute when
 	EVENT message to send
@@ -597,16 +593,57 @@ Message destination codes:
 	uint32 with source GUID
 	byte[46] unknown
 	uint16_t with source string length
-	char[source string length] with source - not null terminated
+	char[with source string length] with source - not null terminated
 	MINISCRIPT_PROGRAM program
+
+0x302: Keyboard Messenger modifier   Known revisions: 0x3eb
+	TYPICAL_MODIFIER_HEADER modifier header
+	uint32_t message flags
+		embeds additional flags:
+			0x1000000 - on key down
+			0x4000000 - on key up
+			0x8000000 - on key repeat
+		uint16_t unknown
+		uint16_t key modifiers
+			control: 0x1000
+			command: 0x0100
+			option: 0x0800
+		uint8_t keycode - May be a Mac Roman character, if so this is case sensitive!
+			0x00 = Any key
+			0x01 = Home
+			0x03 = Num pad enter
+			0x04 = End
+			0x05 = Help (F1 on Windows)
+			0x08 = Backspace
+			0x09 = Tab
+			0x0b = Page up
+			0x0c = Page down
+			0x0d = Return
+			0x1b = Escape
+			0x1c = Arrow left
+			0x1d = Arrow right
+			0x1e = Arrow up
+			0x1f = Arrow down
+			0x7f = Delete
+			
+		byte[8] unknown
+		EVENT message
+		uint16_t unknown
+		uint32_t destination
+		byte[10] unknown
+		uint16_t with
+		uint8_t unknown11
+		uint32_t withSourceGUID
+		byte[36] unknown13
+		uint8_t with source string length
+		uint8_t unknown
+	char[with source string length] with source - not null terminated
 
 0x2e4: Timer Messenger modifier
 
 0x2f8: Boundary Detection Messenger modifier
 
 0x2ee: Collision Detection Messenger modifier
-
-0x302: Keyboard Messenger modifier
 
 0x321: Boolean Variable modifier
 
