@@ -204,7 +204,7 @@ namespace mtdisasm
 		case 0x21c:
 			return new DONotYetImplemented(objectType, "Path Motion modifier - obsolete version");
 		case 0x208:
-			return new DONotYetImplemented(objectType, "Drag Motion modifier");
+			return new DODragMotionModifier();
 		case 0x226:
 			return new DONotYetImplemented(objectType, "Vector Motion modifier");
 		case 0x1a4:
@@ -1645,6 +1645,56 @@ namespace mtdisasm
 
 			m_fontName[m_lengthOfFontName] = 0;
 		}
+
+		return true;
+	}
+
+
+
+	DataObjectType DODragMotionModifier::GetType() const
+	{
+		return DataObjectType::kDragMotionModifier;
+	}
+
+	bool DODragMotionModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3e8)
+			return false;
+
+		if (!m_modHeader.Load(reader))
+			return false;
+
+		if (!m_enableWhen.Load(reader)
+			|| !m_disableWhen.Load(reader))
+			return false;
+
+		if (sp.m_systemType == mtdisasm::SystemType::kMac)
+		{
+			if (!reader.ReadU8(m_platform.m_mac.m_flags)
+				|| !reader.ReadU8(m_platform.m_mac.m_unknown3))
+				return false;
+
+			m_haveMacPart = true;
+		}
+		else
+			m_haveMacPart = false;
+
+		if (sp.m_systemType == mtdisasm::SystemType::kWindows)
+		{
+			if (!reader.ReadU8(m_platform.m_win.m_unknown2)
+				|| !reader.ReadU8(m_platform.m_win.m_constrainHorizontal)
+				|| !reader.ReadU8(m_platform.m_win.m_constrainVertical)
+				|| !reader.ReadU8(m_platform.m_win.m_constrainToParent))
+				return false;
+
+			m_haveWinPart = true;
+		}
+		else
+			m_haveWinPart = false;
+
+		if (!m_constraints.Load(reader, sp)
+			|| !reader.ReadU16(m_unknown1))
+			return false;
 
 		return true;
 	}

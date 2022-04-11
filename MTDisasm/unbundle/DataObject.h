@@ -88,6 +88,7 @@ namespace mtdisasm
 		kPointVariableModifier,
 		kGraphicModifier,
 		kTextStyleModifier,
+		kDragMotionModifier,
 
 		kColorTableAsset,
 		kAudioAsset,
@@ -1081,12 +1082,49 @@ namespace mtdisasm
 		std::vector<char> m_fontName;
 	};
 
-	struct DOSetStyleModifier final : public DataObject {
+	struct DODragMotionModifier final : public DataObject {
 
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
 
 		DOTypicalModifierHeader m_modHeader;
+
+		DOEvent m_enableWhen;
+		DOEvent m_disableWhen;
+
+		struct WinPart
+		{
+			uint8_t m_unknown2;
+			uint8_t m_constrainHorizontal;
+			uint8_t m_constrainVertical;
+			uint8_t m_constrainToParent;
+		};
+
+		struct MacPart
+		{
+			uint8_t m_flags;
+			uint8_t m_unknown3;
+
+			enum Flags
+			{
+				kConstrainToParent = 0x10,
+				kConstrainVertical = 0x20,
+				kConstrainHorizontal = 0x40,
+			};
+		};
+
+		union PlatformPart
+		{
+			WinPart m_win;
+			MacPart m_mac;
+		};
+
+		PlatformPart m_platform;
+
+		bool m_haveMacPart;
+		bool m_haveWinPart;
+		DORect m_constraints;
+		uint16_t m_unknown1;
 	};
 
 	struct DOAudioAsset final : public DataObject

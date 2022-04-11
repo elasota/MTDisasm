@@ -158,6 +158,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "GraphicModifier";
 	case mtdisasm::DataObjectType::kTextStyleModifier:
 		return "TextStyleModifier";
+	case mtdisasm::DataObjectType::kDragMotionModifier:
+		return "DragMotionModifier";
 	case mtdisasm::DataObjectType::kNotYetImplemented:
 		return "NotYetImplemented";
 	case mtdisasm::DataObjectType::kPlugInModifier:
@@ -2816,7 +2818,6 @@ void PrintObjectDisassembly(const mtdisasm::DOGraphicModifier& obj, FILE* f)
 		PrintVal("Pt", pt, f);
 }
 
-
 void PrintObjectDisassembly(const mtdisasm::DOTextStyleModifier& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kTextStyleModifier);
@@ -2841,6 +2842,23 @@ void PrintObjectDisassembly(const mtdisasm::DOTextStyleModifier& obj, FILE* f)
 		fwrite(&obj.m_fontName[0], 1, obj.m_lengthOfFontName, f);
 		fputs("'\n", f);
 	}
+}
+
+void PrintObjectDisassembly(const mtdisasm::DODragMotionModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kDragMotionModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+
+	PrintVal("EnableWhen", obj.m_enableWhen, f);
+	PrintVal("DisableWhen", obj.m_disableWhen, f);
+	PrintVal("Constraints", obj.m_constraints, f);
+	PrintVal("Unknown", obj.m_unknown, f);
+
+	if (obj.m_haveMacPart)
+		PrintHex("MacPart", obj.m_macPart, f);
+	if (obj.m_haveWinPart)
+		PrintHex("WinPart", obj.m_winPart, f);
 }
 
 void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
@@ -2945,6 +2963,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kTextStyleModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOTextStyleModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kDragMotionModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DODragMotionModifier&>(obj), f);
 		break;
 
 	default:
