@@ -142,6 +142,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "MessengerModifier";
 	case mtdisasm::DataObjectType::kIfMessengerModifier:
 		return "IfMessengerModifier";
+	case mtdisasm::DataObjectType::kSetModifier:
+		return "SetModifier";
 	case mtdisasm::DataObjectType::kKeyboardMessengerModifier:
 		return "KeyboardMessengerModifier";
 	case mtdisasm::DataObjectType::kBooleanVariableModifier:
@@ -2567,6 +2569,46 @@ void PrintObjectDisassembly(const mtdisasm::DOIfMessengerModifier& obj, FILE* f)
 	PrintObjectDisassembly(obj.m_program, f, true);
 }
 
+void PrintObjectDisassembly(const mtdisasm::DOMessageDataLocator& obj, FILE* f)
+{
+	PrintHex("Code", obj.m_withCode, f);
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("GUID", obj.m_guid, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOSetModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kSetModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintVal("When", obj.m_when, f);
+	fputs("Source:\n", f);
+	PrintObjectDisassembly(obj.m_sourceLocator, f);
+	fputs("Target:\n", f);
+	PrintObjectDisassembly(obj.m_targetLocator, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintHex("SourceNameLength", obj.m_sourceNameLength, f);
+	PrintHex("TargetNameLength", obj.m_targetNameLength, f);
+	PrintHex("Unknown4", obj.m_unknown4, f);
+
+	if (obj.m_sourceName.size() > 1)
+	{
+		fputs("Source: '", f);
+		fwrite(&obj.m_sourceName[0], 1, obj.m_sourceName.size() - 1u, f);
+		fputs("'\n", f);
+	}
+
+	if (obj.m_targetName.size() > 1)
+	{
+		fputs("Target: '", f);
+		fwrite(&obj.m_sourceName[0], 1, obj.m_targetName.size() - 1u, f);
+		fputs("'\n", f);
+	}
+}
+
 void PrintObjectDisassembly(const mtdisasm::DOKeyboardMessengerModifier& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kKeyboardMessengerModifier);
@@ -2767,6 +2809,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kIfMessengerModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOIfMessengerModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kSetModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOSetModifier&>(obj), f);
 		break;
 	case mtdisasm::DataObjectType::kKeyboardMessengerModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOKeyboardMessengerModifier&>(obj), f);

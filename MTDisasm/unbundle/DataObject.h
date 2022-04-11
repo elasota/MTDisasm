@@ -79,6 +79,7 @@ namespace mtdisasm
 		kMiniscriptModifier,
 		kMessengerModifier,
 		kIfMessengerModifier,
+		kSetModifier,
 		kKeyboardMessengerModifier,
 		kBooleanVariableModifier,
 		kPointVariableModifier,
@@ -147,6 +148,16 @@ namespace mtdisasm
 		uint16_t m_lengthOfName;
 
 		std::vector<char> m_name;
+
+		bool Load(DataReader& reader);
+	};
+
+	struct DOMessageDataLocator
+	{
+		uint16_t m_withCode;
+		uint8_t m_unknown1[4];
+		uint32_t m_guid;
+		uint8_t m_unknown2[36];
 
 		bool Load(DataReader& reader);
 	};
@@ -590,6 +601,26 @@ namespace mtdisasm
 		std::vector<char> m_withSource;
 	};
 
+	struct DOSetModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		DOTypicalModifierHeader m_modHeader;
+
+		uint8_t m_unknown1[4];
+		DOEvent m_when;
+		DOMessageDataLocator m_sourceLocator;
+		DOMessageDataLocator m_targetLocator;
+		uint8_t m_unknown3;
+		uint8_t m_sourceNameLength;
+		uint8_t m_targetNameLength;
+		uint8_t m_unknown4[3];
+
+		std::vector<char> m_sourceName;
+		std::vector<char> m_targetName;
+	};
+
 	struct DOIfMessengerModifier final : public DataObject
 	{
 		DataObjectType GetType() const override;
@@ -928,6 +959,14 @@ namespace mtdisasm
 		uint16_t m_lengthOfFontName;
 
 		std::vector<char> m_fontName;
+	};
+
+	struct DOSetStyleModifier final : public DataObject {
+
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		DOTypicalModifierHeader m_modHeader;
 	};
 
 	struct DOAudioAsset final : public DataObject

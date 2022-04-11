@@ -74,6 +74,15 @@ namespace mtdisasm
 		return true;
 	}
 
+	bool DOMessageDataLocator::Load(DataReader& reader)
+	{
+		if (!reader.ReadU16(m_withCode) || !reader.ReadBytes(m_unknown1, 4)
+			|| !reader.ReadU32(m_guid) || !reader.ReadBytes(m_unknown2, 36))
+			return false;
+
+		return true;
+	}
+
 	DataObject::~DataObject()
 	{
 	}
@@ -170,7 +179,7 @@ namespace mtdisasm
 		case 0x29a:
 			return new DONotYetImplemented(objectType, "Shared Scene modifier");
 		case 0x2df:
-			return new DONotYetImplemented(objectType, "Set modifier");
+			return new DOSetModifier();
 		case 0x4d8:
 			return new DONotYetImplemented(objectType, "Save and Restore modifier");
 		case 0x26c:
@@ -885,6 +894,40 @@ namespace mtdisasm
 			if (!reader.ReadBytes(&m_withSource[0], m_withSourceLength))
 				return false;
 			m_withSource[m_withSourceLength] = 0;
+		}
+
+		return true;
+	}
+
+	DataObjectType DOSetModifier::GetType() const
+	{
+		return DataObjectType::kSetModifier;
+	}
+
+	bool DOSetModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3e8)
+			return false;
+
+		if (!m_modHeader.Load(reader) || !reader.ReadBytes(m_unknown1, 4) || !reader.ReadU32(m_when.m_eventID) || !m_sourceLocator.Load(reader)
+			|| !m_targetLocator.Load(reader) || !reader.ReadU32(m_when.m_eventInfo) || !reader.ReadU8(m_unknown3) || !reader.ReadU8(m_sourceNameLength)
+			|| !reader.ReadU8(m_targetNameLength) || !reader.ReadBytes(m_unknown4, 3))
+			return false;
+
+		if (m_sourceNameLength > 0)
+		{
+			m_sourceName.resize(m_sourceNameLength + 1);
+			if (!reader.ReadBytes(&m_sourceName[0], m_sourceNameLength))
+				return false;
+			m_sourceName[m_sourceNameLength] = 0;
+		}
+
+		if (m_targetNameLength > 0)
+		{
+			m_targetName.resize(m_targetNameLength + 1);
+			if (!reader.ReadBytes(&m_targetName[0], m_targetNameLength))
+				return false;
+			m_targetName[m_targetNameLength] = 0;
 		}
 
 		return true;

@@ -570,8 +570,9 @@ Message destination codes:
 	Element GUID: Direct reference
 
 "With" codes:
+	0: None
 	0x1b: Incoming data
-	0x1c: String reference
+	0x1c: Reference
 
 TYPICAL_MODIFIER_HEADER:
 	uint32_t unknown
@@ -582,6 +583,15 @@ TYPICAL_MODIFIER_HEADER:
 	byte[4] unknown (ff)
 	uint16_t length of name
 	char[length of name] name - null terminated
+
+MESSAGE_DATA_LOCATOR:
+	uint16_t type code
+		0x00: none
+		0x1b: incoming data
+		0x1c: object reference
+	byte[4] unknown (0)
+	uint32_t guid
+	byte[36] unknown (garbage)
 		
 0x2da: Messenger modifier  Known revisions: 0x3ea
 	TYPICAL_MODIFIER_HEADER modifier header
@@ -684,7 +694,19 @@ TYPICAL_MODIFIER_HEADER:
 
 0x29a: Shared Scene modifier
 
-0x2df: Set modifier
+0x2df: Set modifier    Known revisions: 0x3e8
+	TYPICAL_MODIFIER_HEADER modifier header
+	byte[4] unknown (0)
+	uint32_t execute when event type
+	MESSAGE_DATA_LOCATOR source
+	MESSAGE_DATA_LOCATOR target
+	uint32_t execute when event info
+	uint8_t unknown (0)
+	uint8_t source name length
+	uint8_t target name length
+	byte[3] unknown (00 00 05)
+	char[source name length] source name - not null terminated
+	char[target name length] target name - not null terminated
 
 0x4d8: Save and Restore modifier
 
