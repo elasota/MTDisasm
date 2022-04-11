@@ -190,7 +190,7 @@ namespace mtdisasm
 		case 0x1a4:
 			return new DONotYetImplemented(objectType, "Sound Effect modifier");
 		case 0x32a:
-			return new DONotYetImplemented(objectType, "Text Style modifier");
+			return new DOTextStyleModifier();
 		case 0x334:
 			return new DOGraphicModifier();
 		case 0x4c4:
@@ -1409,6 +1409,45 @@ namespace mtdisasm
 		{
 			if (!m_polyPoints[i].Load(reader, sp))
 				return false;
+		}
+
+		return true;
+	}
+
+	DataObjectType DOTextStyleModifier::GetType() const
+	{
+		return DataObjectType::kTextStyleModifier;
+	}
+
+	bool DOTextStyleModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3e8)
+			return false;
+
+		if (!m_modHeader.Load(reader))
+			return false;
+
+		if (!reader.ReadBytes(m_unknown1, 4)
+			|| !reader.ReadU16(m_macFontID)
+			|| !reader.ReadU8(m_flags)
+			|| !reader.ReadU8(m_unknown2)
+			|| !reader.ReadU16(m_size)
+			|| !m_textColor.Load(reader, sp)
+			|| !m_backgroundColor.Load(reader, sp)
+			|| !reader.ReadU16(m_alignment)
+			|| !reader.ReadU16(m_unknown3)
+			|| !m_applyWhen.Load(reader)
+			|| !m_removeWhen.Load(reader)
+			|| !reader.ReadU16(m_lengthOfFontName))
+			return false;
+
+		if (m_lengthOfFontName > 0)
+		{
+			m_fontName.resize(m_lengthOfFontName + 1);
+			if (!reader.ReadBytes(&m_fontName[0], m_lengthOfFontName))
+				return false;
+
+			m_fontName[m_lengthOfFontName] = 0;
 		}
 
 		return true;

@@ -83,6 +83,7 @@ namespace mtdisasm
 		kBooleanVariableModifier,
 		kPointVariableModifier,
 		kGraphicModifier,
+		kTextStyleModifier,
 
 		kColorTableAsset,
 		kAudioAsset,
@@ -905,6 +906,28 @@ namespace mtdisasm
 		uint8_t m_unknown6[8];
 
 		std::vector<DOPoint> m_polyPoints;
+	};
+
+	struct DOTextStyleModifier final : public DataObject {
+
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		DOTypicalModifierHeader m_modHeader;
+		uint8_t m_unknown1[4];
+		uint16_t m_macFontID;
+		uint8_t m_flags;
+		uint8_t m_unknown2;
+		uint16_t m_size;
+		DOColor m_textColor;
+		DOColor m_backgroundColor;
+		uint16_t m_alignment;
+		uint16_t m_unknown3;
+		DOEvent m_applyWhen;
+		DOEvent m_removeWhen;
+		uint16_t m_lengthOfFontName;
+
+		std::vector<char> m_fontName;
 	};
 
 	struct DOAudioAsset final : public DataObject

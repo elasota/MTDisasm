@@ -704,7 +704,33 @@ TYPICAL_MODIFIER_HEADER:
 
 0x1a4: Sound Effect modifier
 
-0x32a: Text Style modifier
+0x32a: Text Style modifier    Known revisions: 0x3e8
+	TYPICAL_MODIFIER_HEADER modifier header
+	byte[4] unknown (0)
+	uint16_t font ID
+	uint8_t flags
+		0x01: Bold
+		0x02: Italic
+		0x04: Underline
+		0x08: Outline
+		0x10: Shadow
+		0x20: Condensed
+		0x40: Expanded
+	byte padding
+	uint16_t size
+	COLOR text color?
+	COLOR background color?
+	uint16_t alignment
+		0x0000: Left
+		0x0001: Center
+		0xffff: Right
+	uint16_t unknown (24)
+	EVENT apply when
+	EVENT remove when
+	uint16_t length of font name
+	char[length of font name] font name - not null terminated
+		
+	
 
 0x334: Graphic modifier   Known revisions: 0x3e9
 	TYPICAL_MODIFIER_HEADER modifier header

@@ -150,6 +150,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "PointVariableModifier";
 	case mtdisasm::DataObjectType::kGraphicModifier:
 		return "GraphicModifier";
+	case mtdisasm::DataObjectType::kTextStyleModifier:
+		return "TextStyleModifier";
 	case mtdisasm::DataObjectType::kNotYetImplemented:
 		return "NotYetImplemented";
 	case mtdisasm::DataObjectType::kPlugInModifier:
@@ -2626,8 +2628,6 @@ void PrintObjectDisassembly(const mtdisasm::DOPointVariableModifier& obj, FILE* 
 	PrintVal("Value", obj.m_value, f);
 }
 
-
-
 void PrintObjectDisassembly(const mtdisasm::DOGraphicModifier& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kGraphicModifier);
@@ -2663,6 +2663,33 @@ void PrintObjectDisassembly(const mtdisasm::DOGraphicModifier& obj, FILE* f)
 
 	for (const mtdisasm::DOPoint &pt : obj.m_polyPoints)
 		PrintVal("Pt", pt, f);
+}
+
+
+void PrintObjectDisassembly(const mtdisasm::DOTextStyleModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kTextStyleModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintHex("Flags", obj.m_flags, f);
+	PrintVal("MacFontID", obj.m_macFontID, f);
+	PrintVal("Size", obj.m_size, f);
+	PrintHex("TextColor", obj.m_textColor, f);
+	PrintHex("BackgroundColor", obj.m_backgroundColor, f);
+	PrintHex("Alignment", obj.m_alignment, f);
+	PrintVal("ApplyWhen", obj.m_applyWhen, f);
+	PrintVal("RemoveWhen", obj.m_removeWhen, f);
+
+	if (obj.m_lengthOfFontName > 0)
+	{
+		fputs("Font Family Name: '", f);
+		fwrite(&obj.m_fontName[0], 1, obj.m_lengthOfFontName, f);
+		fputs("'\n", f);
+	}
 }
 
 void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
@@ -2755,6 +2782,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kGraphicModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOGraphicModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kTextStyleModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOTextStyleModifier&>(obj), f);
 		break;
 
 	default:
