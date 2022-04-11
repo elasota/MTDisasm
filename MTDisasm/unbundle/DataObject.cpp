@@ -52,6 +52,17 @@ namespace mtdisasm
 		return false;
 	}
 
+	bool DOFloat::Load(DataReader& reader, const SerializationProperties& sp)
+	{
+		if (sp.m_systemType == mtdisasm::SystemType::kMac)
+			return reader.ReadF80BE(m_value);
+
+		if (sp.m_systemType == mtdisasm::SystemType::kWindows)
+			return reader.ReadF64(m_value);
+
+		return false;
+	}
+
 	bool DOTypicalModifierHeader::Load(DataReader& reader)
 	{
 		if (!reader.ReadU32(m_modifierFlags)
@@ -149,11 +160,11 @@ namespace mtdisasm
 		case 0x2bc:
 			return new DOIfMessengerModifier();
 		case 0x2e4:
-			return new DONotYetImplemented(objectType, "Timer Messenger modifier");
+			return new DOTimerMessengerModifier();
 		case 0x2f8:
 			return new DONotYetImplemented(objectType, "Boundary Detection Messenger modifier");
 		case 0x2ee:
-			return new DONotYetImplemented(objectType, "Collision Detection Messenger modifier");
+			return new DOCollisionDetectionMessengerModifier();
 		case 0x302:
 			return new DOKeyboardMessengerModifier();
 		case 0x321:
@@ -974,6 +985,85 @@ namespace mtdisasm
 		return true;
 	}
 
+	DataObjectType DOTimerMessengerModifier::GetType() const
+	{
+		return DataObjectType::kTimerMessengerModifier;
+	}
+
+	bool DOTimerMessengerModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3ea)
+			return false;
+
+		if (!m_modHeader.Load(reader))
+			return false;
+
+		if (!reader.ReadU32(m_messageAndTimerFlags)
+			|| !m_executeWhen.Load(reader)
+			|| !m_send.Load(reader)
+			|| !m_terminateWhen.Load(reader)
+			|| !reader.ReadU16(m_unknown2)
+			|| !reader.ReadU32(m_destination)
+			|| !reader.ReadBytes(m_unknown4, 10)
+			|| !m_with.Load(reader)
+			|| !reader.ReadU8(m_unknown5)
+			|| !reader.ReadU8(m_minutes)
+			|| !reader.ReadU8(m_seconds)
+			|| !reader.ReadU8(m_hundredthsOfSeconds)
+			|| !reader.ReadU32(m_unknown6)
+			|| !reader.ReadU32(m_unknown7)
+			|| !reader.ReadBytes(m_unknown8, 10)
+			|| !reader.ReadU8(m_withSourceLength)
+			|| !reader.ReadU8(m_unknown9))
+			return false;
+
+		if (m_withSourceLength > 0)
+		{
+			m_withSource.resize(m_withSourceLength + 1);
+			if (!reader.ReadBytes(&m_withSource[0], m_withSourceLength))
+				return false;
+			m_withSource[m_withSourceLength] = 0;
+		}
+
+		return true;
+	}
+
+	DataObjectType DOCollisionDetectionMessengerModifier::GetType() const
+	{
+		return DataObjectType::kCollisionDetectionMessengerModifier;
+	}
+
+	bool DOCollisionDetectionMessengerModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3ea)
+			return false;
+
+		if (!m_modHeader.Load(reader))
+			return false;
+
+		if (!reader.ReadU32(m_messageAndModifierFlags)
+			|| !m_enableWhen.Load(reader)
+			|| !m_disableWhen.Load(reader)
+			|| !m_send.Load(reader)
+			|| !reader.ReadU16(m_unknown2)
+			|| !reader.ReadU32(m_destination)
+			|| !reader.ReadBytes(m_unknown3, 10)
+			|| !m_with.Load(reader)
+			|| !reader.ReadU8(m_withSourceLength)
+			|| !reader.ReadU8(m_unknown4))
+			return false;
+
+		if (m_withSourceLength > 0)
+		{
+			m_withSource.resize(m_withSourceLength + 1);
+			if (!reader.ReadBytes(&m_withSource[0], m_withSourceLength))
+				return false;
+			m_withSource[m_withSourceLength] = 0;
+		}
+
+		return true;
+	}
+
 	DataObjectType DOKeyboardMessengerModifier::GetType() const
 	{
 		return DataObjectType::kKeyboardMessengerModifier;
@@ -1282,6 +1372,67 @@ namespace mtdisasm
 		return true;
 	}
 
+	PlugInObjectType POMidiModifier::GetType() const
+	{
+		return PlugInObjectType::kMIDIModf;
+	}
+
+	bool POMidiModifier::Load(const DOPlugInModifier& base, DataReader& reader, const SerializationProperties& sp)
+	{
+		if (base.m_plugInRevision != 1 && base.m_plugInRevision != 2)
+			return false;
+
+		if (!reader.ReadU16(m_unknown1)
+			|| !m_executeWhen.Load(reader)
+			|| !reader.ReadU16(m_unknown2)
+			|| !m_terminateWhen.Load(reader)
+			|| !reader.ReadU8(m_embeddedFlag))
+			return false;
+
+		if (m_embeddedFlag)
+		{
+			if (!reader.ReadU8(m_typeDependent.m_embedded.m_hasFile))
+				return false;
+			if (m_typeDependent.m_embedded.m_hasFile)
+			{
+				if (!reader.ReadBytes(m_typeDependent.m_embedded.m_bigEndianLength, 4))
+					return false;
+
+				uint32_t length = (m_typeDependent.m_embedded.m_bigEndianLength[0] << 24)
+					+ (m_typeDependent.m_embedded.m_bigEndianLength[1] << 16)
+					+ (m_typeDependent.m_embedded.m_bigEndianLength[2] << 8)
+					+ m_typeDependent.m_embedded.m_bigEndianLength[3];
+
+				m_data.resize(length);
+				if (length > 0 && !reader.ReadBytes(&m_data[0], length))
+					return false;
+			}
+
+			if (!reader.ReadU8(m_typeDependent.m_embedded.m_loop)
+				|| !reader.ReadU8(m_typeDependent.m_embedded.m_overrideTempo)
+				|| !reader.ReadU8(m_typeDependent.m_embedded.m_volume)
+				|| !reader.ReadU16(m_typeDependent.m_embedded.m_tempoTypeTag)
+				|| !m_typeDependent.m_embedded.m_tempo.Load(reader, sp)
+				|| !reader.ReadU16(m_typeDependent.m_embedded.m_fadeInTypeTag)
+				|| !m_typeDependent.m_embedded.m_fadeIn.Load(reader, sp)
+				|| !reader.ReadU16(m_typeDependent.m_embedded.m_fadeOutTypeTag)
+				|| !m_typeDependent.m_embedded.m_fadeOut.Load(reader, sp))
+				return false;
+		}
+		else
+		{
+			if (!reader.ReadU8(m_typeDependent.m_singleNote.m_channel)
+				|| !reader.ReadU8(m_typeDependent.m_singleNote.m_note)
+				|| !reader.ReadU8(m_typeDependent.m_singleNote.m_velocity)
+				|| !reader.ReadU8(m_typeDependent.m_singleNote.m_program)
+				|| !reader.ReadU16(m_typeDependent.m_singleNote.m_durationTypeTag)
+				|| !m_typeDependent.m_singleNote.m_duration.Load(reader, sp))
+				return false;
+		}
+
+		return true;
+	}
+
 	DataObjectType DOPlugInModifier::GetType() const
 	{
 		return DataObjectType::kPlugInModifier;
@@ -1334,6 +1485,8 @@ namespace mtdisasm
 
 		if (!strcmp(m_plugin, "CursorMod"))
 			m_plugInData = new POCursorMod();
+		else if (!strcmp(m_plugin, "MIDIModf"))
+			m_plugInData = new POMidiModifier();
 
 		if (!m_plugInData)
 			m_plugInData = new POUnknown();

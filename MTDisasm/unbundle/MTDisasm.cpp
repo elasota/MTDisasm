@@ -142,6 +142,10 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "MessengerModifier";
 	case mtdisasm::DataObjectType::kIfMessengerModifier:
 		return "IfMessengerModifier";
+	case mtdisasm::DataObjectType::kTimerMessengerModifier:
+		return "TimerMessengerModifier";
+	case mtdisasm::DataObjectType::kCollisionDetectionMessengerModifier:
+		return "CollisionDetectionMessengerModifier";
 	case mtdisasm::DataObjectType::kSetModifier:
 		return "SetModifier";
 	case mtdisasm::DataObjectType::kKeyboardMessengerModifier:
@@ -287,6 +291,11 @@ void PrintSingleVal(const mtdisasm::DOColor& clr, bool asHex, FILE* f)
 	fputs(",", f);
 	PrintSingleVal(clr.m_blue, asHex, f);
 	fputs(")", f);
+}
+
+void PrintSingleVal(const mtdisasm::DOFloat& fl, bool asHex, FILE* f)
+{
+	fprintf(f, "%g", fl.m_value);
 }
 
 template<size_t TSize, class T>
@@ -2226,6 +2235,42 @@ void PrintObjectDisassembly(const mtdisasm::POCursorMod& obj, FILE* f)
 	PrintVal("CursorID", obj.m_cursorID, f);
 }
 
+void PrintObjectDisassembly(const mtdisasm::POMidiModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::PlugInObjectType::kMIDIModf);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintVal("ExecuteWhen", obj.m_executeWhen, f);
+	PrintVal("TerminateWhen", obj.m_terminateWhen, f);
+	PrintVal("IsEmbeddedMode", obj.m_embeddedFlag, f);
+
+	if (obj.m_embeddedFlag)
+	{
+		const mtdisasm::POMidiModifier::EmbeddedPart& emb = obj.m_typeDependent.m_embedded;
+		PrintVal("HasFile", emb.m_hasFile, f);
+		if (emb.m_hasFile)
+			PrintHex("BigEndianLength", emb.m_bigEndianLength, f);
+
+		PrintVal("Loop", emb.m_loop, f);
+		PrintVal("OverrideTempo", emb.m_overrideTempo, f);
+		PrintVal("Volume", emb.m_volume, f);
+		PrintVal("Tempo", emb.m_tempo, f);
+		PrintVal("FadeIn", emb.m_fadeIn, f);
+		PrintVal("FadeOut", emb.m_fadeOut, f);
+	}
+	else
+	{
+		const mtdisasm::POMidiModifier::SingleNotePart& sn = obj.m_typeDependent.m_singleNote;
+
+		PrintVal("Channel", sn.m_channel, f);
+		PrintVal("Note", sn.m_note, f);
+		PrintVal("Velocity", sn.m_velocity, f);
+		PrintVal("Program", sn.m_program, f);
+		PrintVal("Duration", sn.m_duration, f);
+	}
+}
+
 void PrintObjectDisassembly(const mtdisasm::DOPlugInModifier& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kPlugInModifier);
@@ -2251,6 +2296,9 @@ void PrintObjectDisassembly(const mtdisasm::DOPlugInModifier& obj, FILE* f)
 		break;
 	case mtdisasm::PlugInObjectType::kCursorMod:
 		PrintObjectDisassembly(static_cast<const mtdisasm::POCursorMod&>(*obj.m_plugInData), f);
+		break;
+	case mtdisasm::PlugInObjectType::kMIDIModf:
+		PrintObjectDisassembly(static_cast<const mtdisasm::POMidiModifier&>(*obj.m_plugInData), f);
 		break;
 	default:
 		break;
@@ -2571,10 +2619,71 @@ void PrintObjectDisassembly(const mtdisasm::DOIfMessengerModifier& obj, FILE* f)
 
 void PrintObjectDisassembly(const mtdisasm::DOMessageDataLocator& obj, FILE* f)
 {
-	PrintHex("Code", obj.m_withCode, f);
-	PrintHex("Unknown1", obj.m_unknown1, f);
-	PrintHex("GUID", obj.m_guid, f);
+	PrintHex("    Code", obj.m_withCode, f);
+	PrintHex("    Unknown1", obj.m_unknown1, f);
+	PrintHex("    GUID", obj.m_guid, f);
+	PrintHex("    Unknown2", obj.m_unknown2, f);
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOTimerMessengerModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kTimerMessengerModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+
 	PrintHex("Unknown2", obj.m_unknown2, f);
+
+	PrintHex("Unknown4", obj.m_unknown4, f);
+	PrintHex("Unknown5", obj.m_unknown5, f);
+	PrintHex("Unknown6", obj.m_unknown6, f);
+	PrintHex("Unknown7", obj.m_unknown7, f);
+	PrintHex("Unknown8", obj.m_unknown8, f);
+	PrintHex("Unknown9", obj.m_unknown9, f);
+	PrintHex("MessageAndTimerFlags", obj.m_messageAndTimerFlags, f);
+	PrintVal("ExecuteWhen", obj.m_executeWhen, f);
+	PrintVal("Send", obj.m_send, f);
+	PrintVal("TerminateWhen", obj.m_terminateWhen, f);
+	PrintHex("MessageFlags", obj.m_destination, f);
+	fputs("With:\n", f);
+	PrintObjectDisassembly(obj.m_with, f);
+	PrintVal("Minutes", obj.m_minutes, f);
+	PrintVal("Seconds", obj.m_seconds, f);
+	PrintVal("HundredthsOfSeconds", obj.m_hundredthsOfSeconds, f);
+
+	if (obj.m_withSource.size() > 1)
+	{
+		fputs("WithSource: '", f);
+		fwrite(&obj.m_withSource[0], 1, obj.m_withSource.size() - 1u, f);
+		fputs("'\n", f);
+	}
+}
+
+
+void PrintObjectDisassembly(const mtdisasm::DOCollisionDetectionMessengerModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kCollisionDetectionMessengerModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+
+	PrintHex("MessageAndModifierFlags", obj.m_messageAndModifierFlags, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("Destination", obj.m_destination, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintHex("Unknown4", obj.m_unknown4, f);
+
+	PrintVal("EnableWhen", obj.m_enableWhen, f);
+	PrintVal("DisableWhen", obj.m_disableWhen, f);
+	PrintVal("Send", obj.m_send, f);
+
+	fputs("With:\n", f);
+	PrintObjectDisassembly(obj.m_with, f);
+
+	if (obj.m_withSource.size() > 1)
+	{
+		fputs("WithSource: '", f);
+		fwrite(&obj.m_withSource[0], 1, obj.m_withSource.size() - 1u, f);
+		fputs("'\n", f);
+	}
 }
 
 void PrintObjectDisassembly(const mtdisasm::DOSetModifier& obj, FILE* f)
@@ -2604,7 +2713,7 @@ void PrintObjectDisassembly(const mtdisasm::DOSetModifier& obj, FILE* f)
 	if (obj.m_targetName.size() > 1)
 	{
 		fputs("Target: '", f);
-		fwrite(&obj.m_sourceName[0], 1, obj.m_targetName.size() - 1u, f);
+		fwrite(&obj.m_targetName[0], 1, obj.m_targetName.size() - 1u, f);
 		fputs("'\n", f);
 	}
 }
@@ -2809,6 +2918,12 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kIfMessengerModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOIfMessengerModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kTimerMessengerModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOTimerMessengerModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kCollisionDetectionMessengerModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOCollisionDetectionMessengerModifier&>(obj), f);
 		break;
 	case mtdisasm::DataObjectType::kSetModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOSetModifier&>(obj), f);
@@ -3472,18 +3587,40 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 }
 
 
-void ExtractAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::DataObject& dataObject, mtdisasm::IOStream& stream, const mtdisasm::SerializationProperties& sp, const std::string& basePath)
+void ExtractAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::DataObject& dataObject, mtdisasm::IOStream& stream, const mtdisasm::SerializationProperties& sp, const std::string& basePath, int segmentNum, int streamNum)
 {
 	switch (dataObject.GetType())
 	{
 	case mtdisasm::DataObjectType::kImageAsset:
-		//ExtractImageAsset(assetIDs, static_cast<const mtdisasm::DOImageAsset&>(dataObject), stream, sp, basePath);
+		ExtractImageAsset(assetIDs, static_cast<const mtdisasm::DOImageAsset&>(dataObject), stream, sp, basePath);
 		break;
 	case mtdisasm::DataObjectType::kMovieAsset:
-		//ExtractMovieAsset(assetIDs, static_cast<const mtdisasm::DOMovieAsset&>(dataObject), stream, sp, basePath);
+		ExtractMovieAsset(assetIDs, static_cast<const mtdisasm::DOMovieAsset&>(dataObject), stream, sp, basePath);
 		break;
 	case mtdisasm::DataObjectType::kMToonAsset:
 		ExtractMToonAsset(assetIDs, static_cast<const mtdisasm::DOMToonAsset&>(dataObject), stream, sp, basePath);
+		break;
+	case mtdisasm::DataObjectType::kPlugInModifier:
+		{
+			const mtdisasm::DOPlugInModifier& plugin = static_cast<const mtdisasm::DOPlugInModifier&>(dataObject);
+			if (!strcmp(plugin.m_plugin, "MIDIModf"))
+			{
+				const mtdisasm::POMidiModifier* midiModifier = static_cast<const mtdisasm::POMidiModifier*>(plugin.m_plugInData);
+				if (midiModifier->m_data.size() > 0)
+				{
+					char midiName[64];
+					sprintf(midiName, "/midi-%i-%x.mid", segmentNum, static_cast<int>(stream.TellGlobal()));
+
+					std::string outPath = basePath + midiName;
+					FILE* fOut = fopen(outPath.c_str(), "wb");
+					if (fOut)
+					{
+						fwrite(&midiModifier->m_data[0], 1, midiModifier->m_data.size(), fOut);
+						fclose(fOut);
+					}
+				}
+			}
+		}
 		break;
 	case mtdisasm::DataObjectType::kAudioAsset:
 	default:
@@ -3491,7 +3628,7 @@ void ExtractAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::DataOb
 	}
 }
 
-void ExtractAssetsFromStream(std::unordered_set<uint32_t>& assetIDs, mtdisasm::IOStream& globalStream, mtdisasm::IOStream& stream, size_t streamSize, int streamIndex, uint32_t streamPos, const mtdisasm::SerializationProperties& sp, const std::string& basePath)
+void ExtractAssetsFromStream(std::unordered_set<uint32_t>& assetIDs, mtdisasm::IOStream& globalStream, mtdisasm::IOStream& stream, size_t streamSize, int segmentIndex, int streamIndex, uint32_t streamPos, const mtdisasm::SerializationProperties& sp, const std::string& basePath)
 {
 	mtdisasm::DataReader reader(stream, sp.m_isByteSwapped);
 
@@ -3520,7 +3657,7 @@ void ExtractAssetsFromStream(std::unordered_set<uint32_t>& assetIDs, mtdisasm::I
 		if (succeeded)
 		{
 			uint32_t prevPos = stream.Tell();
-			ExtractAsset(assetIDs, *dataObject, globalStream, sp, basePath);
+			ExtractAsset(assetIDs, *dataObject, globalStream, sp, basePath, segmentIndex, streamIndex);
 			if (!stream.SeekSet(prevPos))
 			{
 				fprintf(stderr, "Failed to reset stream position\n");
@@ -3835,7 +3972,7 @@ int main(int argc, const char** argv)
 			fprintf(dumpF, "Stream %i   Segment: %i   Position in file: %x\n\n", static_cast<int>(i), static_cast<int>(streamDesc.m_segmentNumber), static_cast<int>(streamDesc.m_pos));
 
 			mtdisasm::SliceIOStream slice(stream, streamDesc.m_pos, streamDesc.m_size);
-			ExtractAssetsFromStream(extractedAssets, stream, slice, streamDesc.m_size, static_cast<int>(i), streamDesc.m_pos, sp, outputDir);
+			ExtractAssetsFromStream(extractedAssets, stream, slice, streamDesc.m_size, static_cast<int>(streamDesc.m_segmentNumber), static_cast<int>(i), streamDesc.m_pos, sp, outputDir);
 		}
 		else
 		{

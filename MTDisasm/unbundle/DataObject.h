@@ -51,6 +51,7 @@ namespace mtdisasm
 		kUnknown,
 
 		kCursorMod,
+		kMIDIModf,
 	};
 
 	enum class DataObjectType
@@ -79,6 +80,8 @@ namespace mtdisasm
 		kMiniscriptModifier,
 		kMessengerModifier,
 		kIfMessengerModifier,
+		kTimerMessengerModifier,
+		kCollisionDetectionMessengerModifier,
 		kSetModifier,
 		kKeyboardMessengerModifier,
 		kBooleanVariableModifier,
@@ -135,6 +138,13 @@ namespace mtdisasm
 		uint16_t m_red;
 		uint16_t m_green;
 		uint16_t m_blue;
+	};
+
+	struct DOFloat
+	{
+		bool Load(DataReader& reader, const SerializationProperties& sp);
+
+		double m_value;
 	};
 
 	struct DOTypicalModifierHeader
@@ -439,7 +449,7 @@ namespace mtdisasm
 
 		enum
 		{
-			kSceneLocatorStreamIDMask = 0xff,
+			kSceneLocatorStreamIDMask = 0xfffffff,
 		};
 
 		uint32_t m_unknown1;
@@ -644,6 +654,69 @@ namespace mtdisasm
 		std::vector<char> m_withSource;
 	};
 
+	struct DOCollisionDetectionMessengerModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		enum ModifierFlags
+		{
+			kDetectLayerInFront              = 0x10000000,
+			kDetectLayerBehind               = 0x08000000,
+			kSendToCollidingElement          = 0x02000000,
+			kSendToOnlyFirstCollidingElement = 0x00200000,
+
+			kDetectionModeMask               = 0x01c00000,
+			kDetectionModeFirstContact       = 0x01400000,
+			kDetectionModeWhileInContact     = 0x01000000,
+			kDetectionModeExiting            = 0x00800000,
+
+			kNoCollideWithParent             = 0x00100000,
+		};
+
+		DOTypicalModifierHeader m_modHeader;
+
+		uint32_t m_messageAndModifierFlags;
+		DOEvent m_enableWhen;
+		DOEvent m_disableWhen;
+		DOEvent m_send;
+		uint16_t m_unknown2;
+		uint32_t m_destination;
+		uint8_t m_unknown3[10];
+		DOMessageDataLocator m_with;
+		uint8_t m_withSourceLength;
+		uint8_t m_unknown4;
+
+		std::vector<char> m_withSource;
+	};
+
+	struct DOTimerMessengerModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		DOTypicalModifierHeader m_modHeader;
+		uint32_t m_messageAndTimerFlags;
+		DOEvent m_executeWhen;
+		DOEvent m_send;
+		DOEvent m_terminateWhen;
+		uint16_t m_unknown2;
+		uint32_t m_destination;
+		uint8_t m_unknown4[10];
+		DOMessageDataLocator m_with;
+		uint8_t m_unknown5;
+		uint8_t m_minutes;
+		uint8_t m_seconds;
+		uint8_t m_hundredthsOfSeconds;
+		uint32_t m_unknown6;
+		uint32_t m_unknown7;
+		uint8_t m_unknown8[10];
+		uint8_t m_withSourceLength;
+		uint8_t m_unknown9;
+
+		std::vector<char> m_withSource;
+	};
+
 	struct DOKeyboardMessengerModifier final : public DataObject
 	{
 		DataObjectType GetType() const override;
@@ -816,6 +889,53 @@ namespace mtdisasm
 	{
 		PlugInObjectType GetType() const override;
 		bool Load(const DOPlugInModifier& base, DataReader& reader, const SerializationProperties& sp) override;
+
+		std::vector<uint8_t> m_data;
+	};
+
+	struct POMidiModifier final : public PlugInObject
+	{
+		PlugInObjectType GetType() const override;
+		bool Load(const DOPlugInModifier& base, DataReader& reader, const SerializationProperties& sp) override;
+
+		struct EmbeddedPart
+		{
+			uint8_t m_hasFile;
+			uint8_t m_bigEndianLength[4];
+			uint8_t m_loop;
+			uint8_t m_overrideTempo;
+			uint8_t m_volume;
+			uint16_t m_tempoTypeTag;
+			DOFloat m_tempo;
+			uint16_t m_fadeInTypeTag;
+			DOFloat m_fadeIn;
+			uint16_t m_fadeOutTypeTag;
+			DOFloat m_fadeOut;
+		};
+
+		struct SingleNotePart
+		{
+			uint8_t m_channel;
+			uint8_t m_note;
+			uint8_t m_velocity;
+			uint8_t m_program;
+			uint16_t m_durationTypeTag;
+			DOFloat m_duration;
+		};
+
+		union TypeDependentPart
+		{
+			EmbeddedPart m_embedded;
+			SingleNotePart m_singleNote;
+		};
+
+		uint16_t m_unknown1;
+		DOEvent m_executeWhen;
+		uint16_t m_unknown2;
+		DOEvent m_terminateWhen;
+		uint8_t m_embeddedFlag;
+
+		TypeDependentPart m_typeDependent;
 
 		std::vector<uint8_t> m_data;
 	};

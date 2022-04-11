@@ -71,7 +71,9 @@ TYPE_TAGGED_VALUE
 			SYSTEM_FLOAT unknown (1000.0)
 		0x14: Boolean
 			uint16 value
-			
+		0x17: Event?
+			EVENT value
+
 		0x66: String
 			uint32 length
 			uint32 length (again??)
@@ -652,7 +654,6 @@ MESSAGE_DATA_LOCATOR:
 			0x1e = Arrow up
 			0x1f = Arrow down
 			0x7f = Delete
-			
 		byte[8] unknown
 		EVENT message
 		uint16_t unknown
@@ -667,10 +668,50 @@ MESSAGE_DATA_LOCATOR:
 	char[with source string length] with source - not null terminated
 
 0x2e4: Timer Messenger modifier
+	TYPICAL_MODIFIER_HEADER modifier header
+	uint32 message and timer flags
+		0x10000000: Looping
+	EVENT execute when
+	EVENT send
+	EVENT terminate when
+	uint16 unknown
+	uint32 destination
+	uint8 unknown4
+	MESSAGE_DATA_LOCATOR with
+	uint8 unknown (0)
+	uint8 minutes
+	uint8 seconds
+	uint8 hundredths of seconds
+	uint32 unknown
+	uint32 unknown
+	byte m_unknown8
+	uint8 with source length
+	uint8 unknown
+	char[with source string length] with source - not null terminated
 
 0x2f8: Boundary Detection Messenger modifier
 
-0x2ee: Collision Detection Messenger modifier
+0x2ee: Collision Detection Messenger modifier    Known revisions: 0x3ea
+	TYPICAL_MODIFIER_HEADER modifier header
+	uint32 message and collision flags
+		0x10000000: Detect in front
+		0x08000000: Detect behind
+		0x02000000: Send to colliding element instead of specified destination
+		0x00200000: Send only to first colliding element
+		0x01400000: Detect on first contact
+		0x01000000: Detect while in contact continuously
+		0x00800000: Detect while exiting
+		0x00100000: Don't collide with parent element
+	EVENT enable when
+	EVENT disable when
+	EVENT send
+	uint16_t unknown
+	uint32_t destination GUID
+	byte[10] unknown
+	MESSAGE_DATA_LOCATOR with
+	uint8 with source length
+	uint8 unknown
+	char[with source string length] with source - not null terminated
 
 0x321: Boolean Variable modifier
 
@@ -896,6 +937,37 @@ ListMod: List modifier   Known revisions: 2 (1.1), 3 (Obsidian)
 			uint32 number of values
 			TYPE_TAGGED_VALUE[number of values]
 
+MIDIModf: MIDI modifier   Known revisions: 1 (1.1)  2 (Obsidian)
+	uint16_t unknown (0x17)
+	EVENT execute when
+	uint16_t unknown (0x17)
+	EVENT terminate when
+	uint8_t embedded flag
+
+	If embedded flag == 0:
+		uint8_t channel
+		uint8_t note
+		uint8_t velocity
+		uint8_t program
+		uint16_t unknown (type tag?)
+		SYSTEM_FLOAT duration
+		
+	If embedded flag == 1:
+		uint8_t inline file flag
+		if inline file flag == 1:
+			byte[4] length of embedded MIDI data - big endian
+			byte[length of embedded midi data]
+		uint8_t loop flag
+		uint8_t override tempo flag
+		uint8_t volume
+		uint16_t unknown (0x0f)
+		SYSTEM_FLOAT tempo
+		uint16_t unknown (0x0f)
+		SYSTEM_FLOAT fade in
+		uint16_t unknown (0x0f)
+		SYSTEM_FLOAT fade out
+
+	
 0x10: QuickTime movie data  Known revisions: 0
 	uint32_t marker (0x80 bit clear on Windows = external.   0x800 bit set on Mac = external.)
 	uint32_t combined size of this element desc and data

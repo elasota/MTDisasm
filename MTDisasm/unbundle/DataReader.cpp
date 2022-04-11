@@ -109,25 +109,25 @@ namespace mtdisasm
 		uint8_t sign = (signAndExponent >> 15) & 1;
 		int16_t exponent = signAndExponent & 0x7fff;
 
-		// Eliminate implicit 1 and truncate from 63 to 47 bits
-		mantissa &= 0x7fffffffffffffffULL;
-		mantissa >>= 16;
+		// Eliminate implicit 1 and truncate from 63 to 52 bits
+		mantissa &= (((static_cast<uint64_t>(1) << 52) - 1u) << 11);
+		mantissa >>= 11;
 
 		if (mantissa != 0 || exponent != 0)
 		{
 			// Adjust exponent
-			exponent = exponent - 15360;
+			exponent -= 15360;
 			if (exponent > 2046)
 			{
 				// Too big, set to largest finite magnitude
 				exponent = 2046;
-				mantissa = 0xFFFFFFFFFFFFFUL;
+				mantissa = (static_cast<uint64_t>(1) << 52) - 1u;
 			}
 			else if (exponent < 0)
 			{
 				// Subnormal number
-				mantissa |= 0x1000000000000ULL;
-				if (exponent <= -48)
+				mantissa |= (static_cast<uint64_t>(1) << 52);
+				if (exponent < -52)
 				{
 					mantissa = 0;
 					exponent = 0;
@@ -140,7 +140,7 @@ namespace mtdisasm
 			}
 		}
 
-		uint64_t recombined = (static_cast<uint64_t>(sign) << 63) | (static_cast<uint64_t>(exponent) << 52) | (static_cast<uint64_t>(mantissa) << 5);
+		uint64_t recombined = (static_cast<uint64_t>(sign) << 63) | (static_cast<uint64_t>(exponent) << 52) | static_cast<uint64_t>(mantissa);
 		memcpy(&v, &recombined, 8);
 
 		return true;
