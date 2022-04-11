@@ -39,6 +39,17 @@ POINT:
 		int16_t left
 		int16_t top
 
+COLOR:
+	Mac:
+		uint16_t red
+		uint16_t green
+		uint16_t blue
+	Win:
+		uint8_t blue
+		uint8_t green
+		uint8_t red
+		uint8_t unused (0 usually)
+
 SYSTEM_FLOAT
 	Mac: float80 value
 	Win: float64 value
@@ -397,6 +408,12 @@ Structure tree flags:
 	0x8 = No more siblings
 	0x4 = Has children
 
+Modifier flags:
+	0x2 = Last one
+
+
+Structural element modifiers do not include a modifier count.  The last modifier of a structural element will have a 0x2 flag in its modifier flags indicating that it is the last one, but they will also appear before any other structural elements, so it's not strictly necessary.
+
 
 0x2: Project structural def.  Known revisions: 1, 2  (No known differences between formats)
 	uint32_t structure tree flags
@@ -493,7 +510,7 @@ Structure tree flags:
 0xa: Sound structural def.  Known revisions: 3
 	???
 
-0xfffffffe: Unknown, appears to be object deletion debris.  Known revisions: 0
+0xfffffffe: Debris.  Replaces deleted modifiers in the global modifier list.  Known revisions: 0
 	uint32_t marker
 	uint32_t size including tag (0x0e)
 
@@ -689,7 +706,31 @@ TYPICAL_MODIFIER_HEADER:
 
 0x32a: Text Style modifier
 
-0x334: Graphic modifier
+0x334: Graphic modifier   Known revisions: 0x3e9
+	TYPICAL_MODIFIER_HEADER modifier header
+	uint16_t unknown (1 on Win, 0 on Mac)
+	EVENT apply when
+	EVENT remove when
+	byte[2] unknown (0)
+	uint16_t ink mode
+	uint16_t shape
+	Windows:
+		byte[4] unknown
+	Mac:
+		byte[6] unknown
+	COLOR background color
+	COLOR foreground color
+	uint16 border size
+	COLOR border color
+	uint16 shadow size
+	uint16 shadow color
+	Windows:
+		byte[22] unknown
+	Mac:
+		byte[26] unknown
+	uint16_t number of points
+	byte[8] unknown
+	POINT[number of points] polygon points
 
 0x4c4: Color Table modifier
 

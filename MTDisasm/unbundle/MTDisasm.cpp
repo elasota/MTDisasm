@@ -148,6 +148,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "BooleanVariableModifier";
 	case mtdisasm::DataObjectType::kPointVariableModifier:
 		return "PointVariableModifier";
+	case mtdisasm::DataObjectType::kGraphicModifier:
+		return "GraphicModifier";
 	case mtdisasm::DataObjectType::kNotYetImplemented:
 		return "NotYetImplemented";
 	case mtdisasm::DataObjectType::kPlugInModifier:
@@ -269,6 +271,17 @@ void PrintSingleVal(const mtdisasm::DOEvent& pt, bool asHex, FILE* f)
 	PrintSingleVal(pt.m_eventID, asHex, f);
 	fputs(",", f);
 	PrintSingleVal(pt.m_eventInfo, asHex, f);
+	fputs(")", f);
+}
+
+void PrintSingleVal(const mtdisasm::DOColor& clr, bool asHex, FILE* f)
+{
+	fputs("color(", f);
+	PrintSingleVal(clr.m_red, asHex, f);
+	fputs(",", f);
+	PrintSingleVal(clr.m_green, asHex, f);
+	fputs(",", f);
+	PrintSingleVal(clr.m_blue, asHex, f);
 	fputs(")", f);
 }
 
@@ -2447,7 +2460,7 @@ void PrintObjectDisassembly(const mtdisasm::DOBehaviorModifier& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kBehaviorModifier);
 
-	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("Unknown1", obj.m_modifierFlags, f);
 	PrintHex("SizeIncludingTag", obj.m_sizeIncludingTag, f);
 	PrintHex("Unknown2", obj.m_unknown2, f);
 	PrintHex("GUID", obj.m_guid, f);
@@ -2509,7 +2522,7 @@ void PrintObjectDisassembly(const mtdisasm::DOMessengerModifier& obj, FILE* f)
 }
 void PrintObjectDisassembly(const mtdisasm::DOTypicalModifierHeader& obj, FILE* f)
 {
-	PrintHex("ModHeader_Unknown1", obj.m_unknown1, f);
+	PrintHex("ModifierFlags", obj.m_modifierFlags, f);
 	PrintHex("ModHeader_Unknown3", obj.m_unknown3, f);
 	PrintHex("ModHeader_Unknown4", obj.m_unknown4, f);
 	PrintHex("GUID", obj.m_guid, f);
@@ -2613,6 +2626,45 @@ void PrintObjectDisassembly(const mtdisasm::DOPointVariableModifier& obj, FILE* 
 	PrintVal("Value", obj.m_value, f);
 }
 
+
+
+void PrintObjectDisassembly(const mtdisasm::DOGraphicModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kGraphicModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintVal("ApplyWhen", obj.m_applyWhen, f);
+	PrintVal("RemoveWhen", obj.m_removeWhen, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("InkMode", obj.m_inkMode, f);
+	PrintHex("Shape", obj.m_shape, f);
+
+	if (obj.m_haveMacPart)
+	{
+		PrintHex("Unknown4_1", obj.m_platform.m_mac.m_unknown4_1, f);
+		PrintHex("Unknown4_2", obj.m_platform.m_mac.m_unknown4_2, f);
+	}
+	if (obj.m_haveWinPart)
+	{
+		PrintHex("Unknown5_1", obj.m_platform.m_win.m_unknown5_1, f);
+		PrintHex("Unknown5_2", obj.m_platform.m_win.m_unknown5_2, f);
+	}
+	PrintHex("ForeColor", obj.m_foreColor, f);
+	PrintHex("BackColor", obj.m_backColor, f);
+
+	PrintVal("ShadowSize", obj.m_shadowSize, f);
+	PrintHex("ShadowColor", obj.m_shadowColor, f);
+	PrintVal("BorderSize", obj.m_borderSize, f);
+	PrintHex("BorderColor", obj.m_borderColor, f);
+
+	fputs("Poly points:\n", f);
+
+	for (const mtdisasm::DOPoint &pt : obj.m_polyPoints)
+		PrintVal("Pt", pt, f);
+}
+
 void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 {
 	switch (obj.GetType())
@@ -2700,6 +2752,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kPointVariableModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOPointVariableModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kGraphicModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOGraphicModifier&>(obj), f);
 		break;
 
 	default:

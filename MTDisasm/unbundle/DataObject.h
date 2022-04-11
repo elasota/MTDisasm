@@ -82,6 +82,7 @@ namespace mtdisasm
 		kKeyboardMessengerModifier,
 		kBooleanVariableModifier,
 		kPointVariableModifier,
+		kGraphicModifier,
 
 		kColorTableAsset,
 		kAudioAsset,
@@ -125,9 +126,18 @@ namespace mtdisasm
 		uint32_t m_eventInfo;
 	};
 
+	struct DOColor
+	{
+		bool Load(DataReader& reader, const SerializationProperties& sp);
+
+		uint16_t m_red;
+		uint16_t m_green;
+		uint16_t m_blue;
+	};
+
 	struct DOTypicalModifierHeader
 	{
-		uint32_t m_unknown1;
+		uint32_t m_modifierFlags;
 		uint32_t m_sizeIncludingTag;
 		uint32_t m_guid;
 		uint8_t m_unknown2[6];	// 0
@@ -315,6 +325,16 @@ namespace mtdisasm
 			kExpandedInEditor	= 0x00800000,
 			kCacheBitmap		= 0x02000000,
 			kSelectedInEditor	= 0x10000000,
+			kHasChildren		= 0x00000004,
+			kLastChild			= 0x00000008,
+		};
+	}
+
+	namespace ModifierFlags
+	{
+		enum
+		{
+			kNoMoreChildren		= 0x00000002,
 		};
 	}
 
@@ -638,7 +658,7 @@ namespace mtdisasm
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
 
-		uint32_t m_unknown1;
+		uint32_t m_modifierFlags;
 		uint32_t m_sizeIncludingTag;
 		uint8_t m_unknown2[2];
 		uint32_t m_guid;
@@ -837,6 +857,54 @@ namespace mtdisasm
 
 		bool m_hasMacOnlyPart;
 		MacOnlyPart m_macOnlyPart;
+	};
+
+	struct DOGraphicModifier final : public DataObject {
+
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		DOTypicalModifierHeader m_modHeader;
+		uint16_t m_unknown1;
+		DOEvent m_applyWhen;
+		DOEvent m_removeWhen;
+		uint8_t m_unknown2[2];
+		uint16_t m_inkMode;
+		uint16_t m_shape;
+
+		struct MacPart
+		{
+			uint8_t m_unknown4_1[6];
+			uint8_t m_unknown4_2[26];
+		};
+
+		struct WinPart
+		{
+			uint8_t m_unknown5_1[4];
+			uint8_t m_unknown5_2[22];
+		};
+
+		union PlatformPart
+		{
+			MacPart m_mac;
+			WinPart m_win;
+		};
+
+		bool m_haveMacPart;
+		bool m_haveWinPart;
+		PlatformPart m_platform;
+
+		DOColor m_foreColor;
+		DOColor m_backColor;
+		uint16_t m_borderSize;
+		DOColor m_borderColor;
+		uint16_t m_shadowSize;
+		DOColor m_shadowColor;
+
+		uint16_t m_numPolygonPoints;
+		uint8_t m_unknown6[8];
+
+		std::vector<DOPoint> m_polyPoints;
 	};
 
 	struct DOAudioAsset final : public DataObject

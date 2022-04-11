@@ -28,9 +28,33 @@ namespace mtdisasm
 		return reader.ReadU32(m_eventID) && reader.ReadU32(m_eventInfo);
 	}
 
+
+	bool DOColor::Load(DataReader& reader, const SerializationProperties& sp)
+	{
+		uint32_t colorPos = reader.TellGlobal();
+		if (sp.m_systemType == mtdisasm::SystemType::kMac)
+			return reader.ReadU16(m_red) && reader.ReadU16(m_green) && reader.ReadU16(m_blue);
+
+		if (sp.m_systemType == mtdisasm::SystemType::kWindows)
+		{
+			uint32_t absPos = reader.TellGlobal();
+			uint8_t bgra[4];
+			if (!reader.ReadBytes(bgra, 4))
+				return false;
+
+			m_blue = bgra[0] * 0x101;
+			m_green = bgra[1] * 0x101;
+			m_red = bgra[2] * 0x101;
+
+			return true;
+		}
+
+		return false;
+	}
+
 	bool DOTypicalModifierHeader::Load(DataReader& reader)
 	{
-		if (!reader.ReadU32(m_unknown1)
+		if (!reader.ReadU32(m_modifierFlags)
 			|| !reader.ReadU32(m_sizeIncludingTag)
 			|| !reader.ReadU32(m_guid)
 			|| !reader.ReadBytes(m_unknown2, 6)
@@ -168,7 +192,7 @@ namespace mtdisasm
 		case 0x32a:
 			return new DONotYetImplemented(objectType, "Text Style modifier");
 		case 0x334:
-			return new DONotYetImplemented(objectType, "Graphic modifier");
+			return new DOGraphicModifier();
 		case 0x4c4:
 			return new DONotYetImplemented(objectType, "Color Table modifier");
 		case 0x4b0:
@@ -958,7 +982,7 @@ namespace mtdisasm
 		if (revision != 1)
 			return false;
 
-		if (!reader.ReadU32(m_unknown1)
+		if (!reader.ReadU32(m_modifierFlags)
 			|| !reader.ReadU32(m_sizeIncludingTag)
 			|| !reader.ReadBytes(m_unknown2, 2)
 			|| !reader.ReadU32(m_guid)
@@ -1321,6 +1345,71 @@ namespace mtdisasm
 		}
 		else
 			m_hasMacOnlyPart = false;
+
+		return true;
+	}
+
+	DataObjectType DOGraphicModifier::GetType() const
+	{
+		return DataObjectType::kGraphicModifier;
+	}
+
+	bool DOGraphicModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3e9)
+			return false;
+
+		if (!m_modHeader.Load(reader)
+			|| !reader.ReadU16(m_unknown1)
+			|| !m_applyWhen.Load(reader)
+			|| !m_removeWhen.Load(reader)
+			|| !reader.ReadBytes(m_unknown2, 2)
+			|| !reader.ReadU16(m_inkMode)
+			|| !reader.ReadU16(m_shape))
+			return false;
+
+		if (sp.m_systemType == mtdisasm::SystemType::kMac)
+		{
+			m_haveMacPart = true;
+			if (!reader.ReadBytes(m_platform.m_mac.m_unknown4_1, 6)
+				|| !m_backColor.Load(reader, sp)
+				|| !m_foreColor.Load(reader, sp)
+				|| !reader.ReadU16(m_borderSize)
+				|| !m_borderColor.Load(reader, sp)
+				|| !reader.ReadU16(m_shadowSize)
+				|| !m_shadowColor.Load(reader, sp)
+				|| !reader.ReadBytes(m_platform.m_mac.m_unknown4_2, 26))
+				return false;
+		}
+		else
+			m_haveMacPart = false;
+
+		if (sp.m_systemType == mtdisasm::SystemType::kWindows)
+		{
+			m_haveWinPart = true;
+			if (!reader.ReadBytes(m_platform.m_win.m_unknown5_1, 4)
+				|| !m_backColor.Load(reader, sp)
+				|| !m_foreColor.Load(reader, sp)
+				|| !reader.ReadU16(m_borderSize)
+				|| !m_borderColor.Load(reader, sp)
+				|| !reader.ReadU16(m_shadowSize)
+				|| !m_shadowColor.Load(reader, sp)
+				|| !reader.ReadBytes(m_platform.m_win.m_unknown5_2, 22))
+				return false;
+		}
+		else
+			m_haveWinPart = false;
+
+		if (!reader.ReadU16(m_numPolygonPoints)
+			|| !reader.ReadBytes(m_unknown6, 8))
+			return false;
+
+		m_polyPoints.resize(m_numPolygonPoints);
+		for (size_t i = 0; i < m_numPolygonPoints; i++)
+		{
+			if (!m_polyPoints[i].Load(reader, sp))
+				return false;
+		}
 
 		return true;
 	}
