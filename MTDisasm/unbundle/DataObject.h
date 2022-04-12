@@ -85,6 +85,10 @@ namespace mtdisasm
 		kSetModifier,
 		kKeyboardMessengerModifier,
 		kBooleanVariableModifier,
+		kIntegerVariableModifier,
+		kIntegerRangeVariableModifier,
+		kStringVariableModifier,
+		kFloatVariableModifier,
 		kPointVariableModifier,
 		kGraphicModifier,
 		kTextStyleModifier,
@@ -307,7 +311,7 @@ namespace mtdisasm
 			~SuperGroup();
 
 			uint32_t m_nameLength;
-			uint32_t m_unknown1;
+			uint32_t m_id;
 			uint32_t m_unknown2;
 			std::vector<char> m_name;
 
@@ -792,22 +796,56 @@ namespace mtdisasm
 		uint8_t m_unknown5;
 	};
 
+	struct DOIntegerVariableModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		DOTypicalModifierHeader m_modHeader;
+		uint8_t m_unknown1[4];
+		int32_t m_value;
+	};
+
+	struct DOStringVariableModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		DOTypicalModifierHeader m_modHeader;
+		uint32_t m_lengthOfString;
+		uint8_t m_unknown1[4];
+		std::vector<char> m_string;
+	};
+
+	struct DOFloatVariableModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		DOTypicalModifierHeader m_modHeader;
+		uint8_t m_unknown1[4];
+		DOFloat m_value;
+	};
+
+	struct DOIntegerRangeVariableModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		DOTypicalModifierHeader m_modHeader;
+		uint8_t m_unknown1[4];
+		int32_t m_min;
+		int32_t m_max;
+	};
+
 	struct DOPointVariableModifier final : public DataObject
 	{
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
 
-		uint32_t m_unknown1;
-		uint32_t m_sizeIncludingTag;
-		uint32_t m_guid;
-		uint8_t m_unknown2[6];
-		uint32_t m_unknown3;
-		uint8_t m_unknown4[4];
-		uint16_t m_lengthOfName;
+		DOTypicalModifierHeader m_modHeader;
 		uint8_t m_unknown5[4];
 		DOPoint m_value;
-
-		std::vector<char> m_name;
 	};
 
 	struct DOMiniscriptModifier final : public DataObject
@@ -1123,7 +1161,7 @@ namespace mtdisasm
 
 		bool m_haveMacPart;
 		bool m_haveWinPart;
-		DORect m_constraints;
+		DORect m_constraintMargin;
 		uint16_t m_unknown1;
 	};
 

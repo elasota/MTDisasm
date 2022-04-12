@@ -152,6 +152,14 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "KeyboardMessengerModifier";
 	case mtdisasm::DataObjectType::kBooleanVariableModifier:
 		return "BooleanVariableModifier";
+	case mtdisasm::DataObjectType::kIntegerVariableModifier:
+		return "IntegerVariableModifier";
+	case mtdisasm::DataObjectType::kIntegerRangeVariableModifier:
+		return "IntegerRangeVariableModifier";
+	case mtdisasm::DataObjectType::kStringVariableModifier:
+		return "StringVariableModifier";
+	case mtdisasm::DataObjectType::kFloatVariableModifier:
+		return "FloatVariableModifier";
 	case mtdisasm::DataObjectType::kPointVariableModifier:
 		return "PointVariableModifier";
 	case mtdisasm::DataObjectType::kGraphicModifier:
@@ -421,7 +429,7 @@ void PrintObjectDisassembly(const mtdisasm::DOProjectLabelMap& obj, FILE* f)
 		if (sg.m_nameLength > 0)
 			fwrite(&sg.m_name[0], 1, sg.m_nameLength, f);
 
-		fprintf(f, "'  NumChildren=%u  Unknown1=%x  Unknown2=%x\n", sg.m_numChildren, sg.m_unknown1, sg.m_unknown2);
+		fprintf(f, "'  NumChildren=%u  Unknown1=%x  Unknown2=%x\n", sg.m_numChildren, sg.m_id, sg.m_unknown2);
 
 		for (size_t j = 0; j < sg.m_numChildren; j++)
 			PrintLabelTree(sg.m_tree[j], f, 1);
@@ -733,6 +741,13 @@ bool PrintMiniscriptInstructionDisassembly(FILE* f, mtdisasm::DataReader& reader
 				if (!reader.ReadU32(u))
 					return false;
 				fprintf(f, "global %08x", u);
+			}
+			else if (dataType == 0x1d)
+			{
+				uint32_t superGroup, lbl;
+				if (!reader.ReadU32(superGroup) || !reader.ReadU32(lbl))
+					return false;
+				fprintf(f, "label %u %u", superGroup, lbl);
 			}
 			else
 				fprintf(f, "unknown_type %x", static_cast<int>(dataType));
@@ -1352,6 +1367,17 @@ void EmitPushValue(const MiniscriptInstruction& instr, const mtdisasm::DOMiniscr
 					if (reader.ReadU32(u32))
 					{
 						fprintf(f, "global:%08x", static_cast<int>(u32));
+						return;
+					}
+				}
+				return;
+			case 0x1d:
+				{
+					uint32_t superGroup;
+					uint32_t label;
+					if (reader.ReadU32(superGroup) && reader.ReadU32(label))
+					{
+						fprintf(f, "label:(%i:%x)", static_cast<int>(superGroup), static_cast<int>(label));
 						return;
 					}
 				}
@@ -2760,23 +2786,54 @@ void PrintObjectDisassembly(const mtdisasm::DOBooleanVariableModifier& obj, FILE
 	PrintVal("Value", obj.m_value, f);
 }
 
+void PrintObjectDisassembly(const mtdisasm::DOIntegerVariableModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kIntegerVariableModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+
+	PrintVal("Value", obj.m_value, f);
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOIntegerRangeVariableModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kIntegerRangeVariableModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+
+	PrintVal("Min", obj.m_min, f);
+	PrintVal("Max", obj.m_max, f);
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOFloatVariableModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kFloatVariableModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+
+	PrintVal("Value", obj.m_value, f);
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOStringVariableModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kStringVariableModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+
+	fputs("Value: '", f);
+	if (obj.m_string.size() > 0)
+	{
+		fwrite(&obj.m_string[0], 1, obj.m_string.size() - 1, f);
+	}
+	fputs("'\n", f);
+}
+
 void PrintObjectDisassembly(const mtdisasm::DOPointVariableModifier& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kPointVariableModifier);
 
-	PrintHex("Unknown1", obj.m_unknown1, f);
-	PrintHex("SizeIncludingTag", obj.m_sizeIncludingTag, f);
-	PrintHex("GUID", obj.m_guid, f);
-	PrintHex("Unknown2", obj.m_unknown2, f);
-	PrintHex("Unknown3", obj.m_unknown3, f);
-	PrintHex("LengthOfName", obj.m_lengthOfName, f);
-	PrintHex("Unknown4", obj.m_unknown4, f);
+	PrintObjectDisassembly(obj.m_modHeader, f);
 	PrintHex("Unknown5", obj.m_unknown5, f);
-
-	fputs("Name: '", f);
-	if (obj.m_lengthOfName > 0)
-		fwrite(&obj.m_name[0], 1, obj.m_lengthOfName - 1, f);
-	fputs("'\n", f);
 
 	PrintVal("Value", obj.m_value, f);
 }
@@ -2852,13 +2909,21 @@ void PrintObjectDisassembly(const mtdisasm::DODragMotionModifier& obj, FILE* f)
 
 	PrintVal("EnableWhen", obj.m_enableWhen, f);
 	PrintVal("DisableWhen", obj.m_disableWhen, f);
-	PrintVal("Constraints", obj.m_constraints, f);
-	PrintVal("Unknown", obj.m_unknown, f);
+	PrintVal("Constraints", obj.m_constraintMargin, f);
+	PrintVal("Unknown1", obj.m_unknown1, f);
 
 	if (obj.m_haveMacPart)
-		PrintHex("MacPart", obj.m_macPart, f);
+	{
+		PrintHex("MacFlags", obj.m_platform.m_mac.m_flags, f);
+		PrintVal("Unknown3", obj.m_platform.m_mac.m_unknown3, f);
+	}
 	if (obj.m_haveWinPart)
-		PrintHex("WinPart", obj.m_winPart, f);
+	{
+		PrintHex("Unknown2", obj.m_platform.m_win.m_unknown2, f);
+		PrintVal("ConstrainToParent", obj.m_platform.m_win.m_constrainToParent, f);
+		PrintVal("ConstrainHorizontal", obj.m_platform.m_win.m_constrainHorizontal, f);
+		PrintVal("ConstrainVertical", obj.m_platform.m_win.m_constrainVertical, f);
+	}
 }
 
 void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
@@ -2954,6 +3019,18 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kBooleanVariableModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOBooleanVariableModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kIntegerVariableModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOIntegerVariableModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kIntegerRangeVariableModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOIntegerRangeVariableModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kStringVariableModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOStringVariableModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kFloatVariableModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOFloatVariableModifier&>(obj), f);
 		break;
 	case mtdisasm::DataObjectType::kPointVariableModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOPointVariableModifier&>(obj), f);

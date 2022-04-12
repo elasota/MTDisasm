@@ -172,13 +172,13 @@ namespace mtdisasm
 		case 0x2c7:
 			return new DONotYetImplemented(objectType, "Compound Variable modifier");
 		case 0x322:
-			return new DONotYetImplemented(objectType, "Integer Variable modifier");
+			return new DOIntegerVariableModifier();
 		case 0x329:
-			return new DONotYetImplemented(objectType, "String Variable modifier");
+			return new DOStringVariableModifier();
 		case 0x324:
-			return new DONotYetImplemented(objectType, "Integer Range Variable modifier");
+			return new DOIntegerRangeVariableModifier();
 		case 0x328:
-			return new DONotYetImplemented(objectType, "Floating Point Variable modifier");
+			return new DOFloatVariableModifier();
 		case 0x327:
 			return new DONotYetImplemented(objectType, "Vector Variable modifier");
 		case 0x326:
@@ -456,7 +456,7 @@ namespace mtdisasm
 			return false;
 
 		if (!reader.ReadU32(sg.m_nameLength)
-			|| !reader.ReadU32(sg.m_unknown1)
+			|| !reader.ReadU32(sg.m_id)
 			|| !reader.ReadU32(sg.m_unknown2))
 			return false;
 
@@ -1225,6 +1225,86 @@ namespace mtdisasm
 		return true;
 	}
 
+	DataObjectType DOIntegerVariableModifier::GetType() const
+	{
+		return DataObjectType::kIntegerVariableModifier;
+	}
+
+	bool DOIntegerVariableModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3e8)
+			return false;
+
+		if (!m_modHeader.Load(reader)
+			|| !reader.ReadBytes(m_unknown1, 4)
+			|| !reader.ReadS32(m_value))
+			return false;
+
+		return true;
+	}
+
+	DataObjectType DOStringVariableModifier::GetType() const
+	{
+		return DataObjectType::kStringVariableModifier;
+	}
+
+	bool DOStringVariableModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3e8)
+			return false;
+
+		if (!m_modHeader.Load(reader)
+			|| !reader.ReadU32(m_lengthOfString)
+			|| !reader.ReadBytes(m_unknown1, 4))
+			return false;
+
+		if (m_lengthOfString > 0)
+		{
+			m_string.resize(m_lengthOfString);
+			if (!reader.ReadBytes(&m_string[0], m_lengthOfString) || m_string[m_lengthOfString - 1] != 0)
+				return false;
+		}
+
+		return true;
+	}
+
+	DataObjectType DOFloatVariableModifier::GetType() const
+	{
+		return DataObjectType::kFloatVariableModifier;
+	}
+
+	bool DOFloatVariableModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3e8)
+			return false;
+
+		if (!m_modHeader.Load(reader)
+			|| !reader.ReadBytes(m_unknown1, 4)
+			|| !m_value.Load(reader, sp))
+			return false;
+
+		return true;
+	}
+
+	DataObjectType DOIntegerRangeVariableModifier::GetType() const
+	{
+		return DataObjectType::kIntegerRangeVariableModifier;
+	}
+
+	bool DOIntegerRangeVariableModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3e8)
+			return false;
+
+		if (!m_modHeader.Load(reader)
+			|| !reader.ReadBytes(m_unknown1, 4)
+			|| !reader.ReadS32(m_min)
+			|| !reader.ReadS32(m_max))
+			return false;
+
+		return true;
+	};
+
 	DataObjectType DOPointVariableModifier::GetType() const
 	{
 		return DataObjectType::kPointVariableModifier;
@@ -1235,24 +1315,8 @@ namespace mtdisasm
 		if (revision != 0x3e8)
 			return false;
 
-		if (!reader.ReadU32(m_unknown1)
-			|| !reader.ReadU32(m_sizeIncludingTag)
-			|| !reader.ReadU32(m_guid)
-			|| !reader.ReadBytes(m_unknown2, 6)
-			|| !reader.ReadU32(m_unknown3)
-			|| !reader.ReadBytes(m_unknown4, 4)
-			|| !reader.ReadU16(m_lengthOfName))
-			return false;
-
-
-		if (m_lengthOfName > 0)
-		{
-			m_name.resize(m_lengthOfName);
-			if (!reader.ReadBytes(&m_name[0], m_lengthOfName) || m_name[m_lengthOfName - 1] != 0)
-				return false;
-		}
-
-		if (!reader.ReadBytes(m_unknown5, 4)
+		if (!m_modHeader.Load(reader)
+			|| !reader.ReadBytes(m_unknown5, 4)
 			|| !m_value.Load(reader, sp))
 			return false;
 
@@ -1692,7 +1756,7 @@ namespace mtdisasm
 		else
 			m_haveWinPart = false;
 
-		if (!m_constraints.Load(reader, sp)
+		if (!m_constraintMargin.Load(reader, sp)
 			|| !reader.ReadU16(m_unknown1))
 			return false;
 
