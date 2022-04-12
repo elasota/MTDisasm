@@ -160,6 +160,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "StringVariableModifier";
 	case mtdisasm::DataObjectType::kFloatVariableModifier:
 		return "FloatVariableModifier";
+	case mtdisasm::DataObjectType::kVectorVariableModifier:
+		return "VectorVariableModifier";
 	case mtdisasm::DataObjectType::kPointVariableModifier:
 		return "PointVariableModifier";
 	case mtdisasm::DataObjectType::kGraphicModifier:
@@ -168,6 +170,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "TextStyleModifier";
 	case mtdisasm::DataObjectType::kDragMotionModifier:
 		return "DragMotionModifier";
+	case mtdisasm::DataObjectType::kVectorMotionModifier:
+		return "VectorMotionModifier";
 	case mtdisasm::DataObjectType::kNotYetImplemented:
 		return "NotYetImplemented";
 	case mtdisasm::DataObjectType::kPlugInModifier:
@@ -306,6 +310,11 @@ void PrintSingleVal(const mtdisasm::DOColor& clr, bool asHex, FILE* f)
 void PrintSingleVal(const mtdisasm::DOFloat& fl, bool asHex, FILE* f)
 {
 	fprintf(f, "%g", fl.m_value);
+}
+
+void PrintSingleVal(const mtdisasm::DOVector& v, bool asHex, FILE* f)
+{
+	fprintf(f, "(%g rad %g mag)", v.m_angleRadians.m_value, v.m_magnitude.m_value);
 }
 
 template<size_t TSize, class T>
@@ -2814,6 +2823,15 @@ void PrintObjectDisassembly(const mtdisasm::DOFloatVariableModifier& obj, FILE* 
 	PrintVal("Value", obj.m_value, f);
 }
 
+void PrintObjectDisassembly(const mtdisasm::DOVectorVariableModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kVectorVariableModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+
+	PrintVal("Angle", obj.m_value, f);
+}
+
 void PrintObjectDisassembly(const mtdisasm::DOStringVariableModifier& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kStringVariableModifier);
@@ -2926,6 +2944,27 @@ void PrintObjectDisassembly(const mtdisasm::DODragMotionModifier& obj, FILE* f)
 	}
 }
 
+void PrintObjectDisassembly(const mtdisasm::DOVectorMotionModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kVectorMotionModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("EnableWhen", obj.m_enableWhen, f);
+	PrintHex("DisableWhen", obj.m_disableWhen, f);
+	fputs("Var source:\n", f);
+	PrintObjectDisassembly(obj.m_varSource, f);
+
+	if (obj.m_varSourceNameLength > 0)
+	{
+		fputs("Var source name: '", f);
+		fwrite(&obj.m_varSourceName[0], 1, obj.m_varSourceNameLength, f);
+		fputs("'\n", f);
+	}
+}
+
 void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 {
 	switch (obj.GetType())
@@ -3032,6 +3071,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 	case mtdisasm::DataObjectType::kFloatVariableModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOFloatVariableModifier&>(obj), f);
 		break;
+	case mtdisasm::DataObjectType::kVectorVariableModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOVectorVariableModifier&>(obj), f);
+		break;
 	case mtdisasm::DataObjectType::kPointVariableModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOPointVariableModifier&>(obj), f);
 		break;
@@ -3043,6 +3085,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kDragMotionModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DODragMotionModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kVectorMotionModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOVectorMotionModifier&>(obj), f);
 		break;
 
 	default:

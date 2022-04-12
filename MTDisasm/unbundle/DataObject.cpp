@@ -63,6 +63,11 @@ namespace mtdisasm
 		return false;
 	}
 
+	bool DOVector::Load(DataReader& reader, const SerializationProperties& sp)
+	{
+		return m_angleRadians.Load(reader, sp) && m_magnitude.Load(reader, sp);
+	}
+
 	bool DOTypicalModifierHeader::Load(DataReader& reader)
 	{
 		if (!reader.ReadU32(m_modifierFlags)
@@ -180,7 +185,7 @@ namespace mtdisasm
 		case 0x328:
 			return new DOFloatVariableModifier();
 		case 0x327:
-			return new DONotYetImplemented(objectType, "Vector Variable modifier");
+			return new DOVectorVariableModifier();
 		case 0x326:
 			return new DOPointVariableModifier();
 		case 0x136:
@@ -206,7 +211,7 @@ namespace mtdisasm
 		case 0x208:
 			return new DODragMotionModifier();
 		case 0x226:
-			return new DONotYetImplemented(objectType, "Vector Motion modifier");
+			return new DOVectorMotionModifier();
 		case 0x1a4:
 			return new DONotYetImplemented(objectType, "Sound Effect modifier");
 		case 0x32a:
@@ -1286,6 +1291,24 @@ namespace mtdisasm
 		return true;
 	}
 
+	DataObjectType DOVectorVariableModifier::GetType() const
+	{
+		return DataObjectType::kVectorVariableModifier;
+	}
+
+	bool DOVectorVariableModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3e8)
+			return false;
+
+		if (!m_modHeader.Load(reader)
+			|| !reader.ReadBytes(m_unknown1, 4)
+			|| !m_value.Load(reader, sp))
+			return false;
+
+		return true;
+	}
+
 	DataObjectType DOIntegerRangeVariableModifier::GetType() const
 	{
 		return DataObjectType::kIntegerRangeVariableModifier;
@@ -1713,8 +1736,6 @@ namespace mtdisasm
 		return true;
 	}
 
-
-
 	DataObjectType DODragMotionModifier::GetType() const
 	{
 		return DataObjectType::kDragMotionModifier;
@@ -1759,6 +1780,38 @@ namespace mtdisasm
 		if (!m_constraintMargin.Load(reader, sp)
 			|| !reader.ReadU16(m_unknown1))
 			return false;
+
+		return true;
+	}
+
+	DataObjectType DOVectorMotionModifier::GetType() const
+	{
+		return DataObjectType::kVectorMotionModifier;
+	}
+
+	bool DOVectorMotionModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3e9)
+			return false;
+
+		if (!m_modHeader.Load(reader))
+			return false;
+
+		if (!m_enableWhen.Load(reader)
+			|| !m_disableWhen.Load(reader)
+			|| !m_varSource.Load(reader)
+			|| !reader.ReadU16(m_unknown1)
+			|| !reader.ReadU8(m_varSourceNameLength)
+			|| !reader.ReadU8(m_unknown2))
+			return false;
+
+		if (m_varSourceNameLength > 0)
+		{
+			m_varSourceName.resize(m_varSourceNameLength + 1);
+			if (!reader.ReadBytes(&m_varSourceName[0], m_varSourceNameLength))
+				return false;
+			m_varSourceName[m_varSourceNameLength] = 0;
+		}
 
 		return true;
 	}

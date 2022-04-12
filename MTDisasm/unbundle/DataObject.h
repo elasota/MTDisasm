@@ -89,10 +89,12 @@ namespace mtdisasm
 		kIntegerRangeVariableModifier,
 		kStringVariableModifier,
 		kFloatVariableModifier,
+		kVectorVariableModifier,
 		kPointVariableModifier,
 		kGraphicModifier,
 		kTextStyleModifier,
 		kDragMotionModifier,
+		kVectorMotionModifier,
 
 		kColorTableAsset,
 		kAudioAsset,
@@ -150,6 +152,14 @@ namespace mtdisasm
 		bool Load(DataReader& reader, const SerializationProperties& sp);
 
 		double m_value;
+	};
+
+	struct DOVector
+	{
+		bool Load(DataReader& reader, const SerializationProperties& sp);
+
+		DOFloat m_angleRadians;
+		DOFloat m_magnitude;
 	};
 
 	struct DOTypicalModifierHeader
@@ -827,6 +837,16 @@ namespace mtdisasm
 		DOFloat m_value;
 	};
 
+	struct DOVectorVariableModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		DOTypicalModifierHeader m_modHeader;
+		uint8_t m_unknown1[4];
+		DOVector m_value;
+	};
+
 	struct DOIntegerRangeVariableModifier final : public DataObject
 	{
 		DataObjectType GetType() const override;
@@ -1163,6 +1183,23 @@ namespace mtdisasm
 		bool m_haveWinPart;
 		DORect m_constraintMargin;
 		uint16_t m_unknown1;
+	};
+
+	struct DOVectorMotionModifier final : public DataObject {
+
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		DOTypicalModifierHeader m_modHeader;
+
+		DOEvent m_enableWhen;
+		DOEvent m_disableWhen;
+		DOMessageDataLocator m_varSource;
+		uint16_t m_unknown1;
+		uint8_t m_varSourceNameLength;
+		uint8_t m_unknown2;
+
+		std::vector<char> m_varSourceName;
 	};
 
 	struct DOAudioAsset final : public DataObject
