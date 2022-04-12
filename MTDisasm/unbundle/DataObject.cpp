@@ -92,7 +92,7 @@ namespace mtdisasm
 
 	bool DOMessageDataLocator::Load(DataReader& reader)
 	{
-		if (!reader.ReadU16(m_withCode) || !reader.ReadBytes(m_unknown1, 4)
+		if (!reader.ReadU16(m_withCode) || !reader.ReadU32(m_superGroupID)
 			|| !reader.ReadU32(m_guid) || !reader.ReadBytes(m_unknown2, 36))
 			return false;
 
@@ -167,7 +167,7 @@ namespace mtdisasm
 		case 0x2e4:
 			return new DOTimerMessengerModifier();
 		case 0x2f8:
-			return new DONotYetImplemented(objectType, "Boundary Detection Messenger modifier");
+			return new DOBoundaryDetectionMessengerModifier();
 		case 0x2ee:
 			return new DOCollisionDetectionMessengerModifier();
 		case 0x302:
@@ -895,10 +895,7 @@ namespace mtdisasm
 			|| !reader.ReadU16(m_unknown14)
 			|| !reader.ReadU32(m_destination)
 			|| !reader.ReadBytes(m_unknown11, 10)
-			|| !reader.ReadU16(m_with)
-			|| !reader.ReadBytes(m_unknown15, 4)
-			|| !reader.ReadU32(m_withSourceGUID)
-			|| !reader.ReadBytes(m_unknown12, 36)
+			|| !m_with.Load(reader)
 			|| !reader.ReadU32(m_when.m_eventInfo)
 			|| !reader.ReadU8(m_withSourceLength)
 			|| !reader.ReadU8(m_unknown13))
@@ -1033,6 +1030,42 @@ namespace mtdisasm
 		return true;
 	}
 
+	DataObjectType DOBoundaryDetectionMessengerModifier::GetType() const
+	{
+		return DataObjectType::kBoundaryDetectionMessengerModifier;
+	}
+
+	bool DOBoundaryDetectionMessengerModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3ea)
+			return false;
+
+		if (!m_modHeader.Load(reader))
+			return false;
+
+		if (!reader.ReadU16(m_messageFlagsHigh)
+			|| !m_enableWhen.Load(reader)
+			|| !m_disableWhen.Load(reader)
+			|| !m_send.Load(reader)
+			|| !reader.ReadU16(m_unknown2)
+			|| !reader.ReadU32(m_destination)
+			|| !reader.ReadBytes(m_unknown3, 10)
+			|| !m_with.Load(reader)
+			|| !reader.ReadU8(m_withSourceLength)
+			|| !reader.ReadU8(m_unknown4))
+			return false;
+
+		if (m_withSourceLength > 0)
+		{
+			m_withSource.resize(m_withSourceLength + 1);
+			if (!reader.ReadBytes(&m_withSource[0], m_withSourceLength))
+				return false;
+			m_withSource[m_withSourceLength] = 0;
+		}
+
+		return true;
+	}
+
 	DataObjectType DOCollisionDetectionMessengerModifier::GetType() const
 	{
 		return DataObjectType::kCollisionDetectionMessengerModifier;
@@ -1091,10 +1124,7 @@ namespace mtdisasm
 			|| !reader.ReadU16(m_unknown7)
 			|| !reader.ReadU32(m_destination)
 			|| !reader.ReadBytes(m_unknown9, 10)
-			|| !reader.ReadU16(m_with)
-			|| !reader.ReadBytes(m_unknown11, 4)
-			|| !reader.ReadU32(m_withSourceGUID)
-			|| !reader.ReadBytes(m_unknown13, 36)
+			|| !m_with.Load(reader)
 			|| !reader.ReadU8(m_withSourceLength)
 			|| !reader.ReadU8(m_unknown14))
 			return false;

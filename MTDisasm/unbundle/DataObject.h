@@ -81,6 +81,7 @@ namespace mtdisasm
 		kMessengerModifier,
 		kIfMessengerModifier,
 		kTimerMessengerModifier,
+		kBoundaryDetectionMessengerModifier,
 		kCollisionDetectionMessengerModifier,
 		kSetModifier,
 		kKeyboardMessengerModifier,
@@ -180,7 +181,7 @@ namespace mtdisasm
 	struct DOMessageDataLocator
 	{
 		uint16_t m_withCode;
-		uint8_t m_unknown1[4];
+		uint32_t m_superGroupID;
 		uint32_t m_guid;
 		uint8_t m_unknown2[36];
 
@@ -615,10 +616,7 @@ namespace mtdisasm
 		uint16_t m_unknown14;
 		uint32_t m_destination;
 		uint8_t m_unknown11[10];
-		uint16_t m_with;
-		uint8_t m_unknown15[4];
-		uint32_t m_withSourceGUID;
-		uint8_t m_unknown12[36];
+		DOMessageDataLocator m_with;
 		uint8_t m_withSourceLength;
 		uint8_t m_unknown13;
 
@@ -665,6 +663,36 @@ namespace mtdisasm
 		uint8_t m_withSourceLength;
 		uint8_t m_unknown10;
 		DOMiniscriptProgram m_program;
+
+		std::vector<char> m_withSource;
+	};
+
+	struct DOBoundaryDetectionMessengerModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		enum HighFlags
+		{
+			kDetectTopEdge    = 0x1000,
+			kDetectBottomEdge = 0x0800,
+			kDetectLeftEdge   = 0x0400,
+			kDetectRightEdge  = 0x0200,
+			kDetectExiting    = 0x0100,	// Off = once exited
+			kWhileDetected    = 0x0080,	// Off = on first detected
+		};
+
+		DOTypicalModifierHeader m_modHeader;
+		uint16_t m_messageFlagsHigh;
+		DOEvent m_enableWhen;
+		DOEvent m_disableWhen;
+		DOEvent m_send;
+		uint16_t m_unknown2;
+		uint32_t m_destination;
+		uint8_t m_unknown3[10];
+		DOMessageDataLocator m_with;
+		uint8_t m_withSourceLength;
+		uint8_t m_unknown4;
 
 		std::vector<char> m_withSource;
 	};
@@ -763,10 +791,7 @@ namespace mtdisasm
 		uint16_t m_unknown7;
 		uint32_t m_destination;
 		uint8_t m_unknown9[10];
-		uint16_t m_with;
-		uint8_t m_unknown11[4];
-		uint32_t m_withSourceGUID;
-		uint8_t m_unknown13[36];
+		DOMessageDataLocator m_with;
 		uint8_t m_withSourceLength;
 		uint8_t m_unknown14;
 

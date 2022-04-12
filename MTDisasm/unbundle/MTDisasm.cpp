@@ -144,6 +144,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "IfMessengerModifier";
 	case mtdisasm::DataObjectType::kTimerMessengerModifier:
 		return "TimerMessengerModifier";
+	case mtdisasm::DataObjectType::kBoundaryDetectionMessengerModifier:
+		return "BoundaryDetectionMessengerModifier";
 	case mtdisasm::DataObjectType::kCollisionDetectionMessengerModifier:
 		return "CollisionDetectionMessengerModifier";
 	case mtdisasm::DataObjectType::kSetModifier:
@@ -2572,6 +2574,14 @@ void PrintObjectDisassembly(const mtdisasm::DOBehaviorModifier& obj, FILE* f)
 	}
 }
 
+void PrintObjectDisassembly(const mtdisasm::DOMessageDataLocator& obj, FILE* f)
+{
+	PrintHex("    Code", obj.m_withCode, f);
+	PrintHex("    SuperGroupID", obj.m_superGroupID, f);
+	PrintHex("    GUID", obj.m_guid, f);
+	PrintHex("    Unknown2", obj.m_unknown2, f);
+}
+
 void PrintObjectDisassembly(const mtdisasm::DOMessengerModifier& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kMessengerModifier);
@@ -2582,18 +2592,16 @@ void PrintObjectDisassembly(const mtdisasm::DOMessengerModifier& obj, FILE* f)
 	PrintHex("Unknown5", obj.m_unknown5, f);
 	PrintHex("MessageFlags", obj.m_messageFlags, f);
 	PrintHex("Unknown11", obj.m_unknown11, f);
-	PrintHex("Unknown12", obj.m_unknown12, f);
 	PrintHex("Unknown13", obj.m_unknown13, f);
 	PrintHex("Unknown14", obj.m_unknown14, f);
-	PrintHex("Unknown15", obj.m_unknown15, f);
 	PrintVal("Send", obj.m_send, f);
 	PrintVal("When", obj.m_when, f);
 	PrintHex("GUID", obj.m_guid, f);
 	PrintHex("SizeIncludingTag", obj.m_sizeIncludingTag, f);
 	PrintVal("LengthOfName", obj.m_lengthOfName, f);
 	PrintHex("Destination", obj.m_destination, f);
-	PrintHex("With", obj.m_with, f);
-	PrintHex("WithSourceGUID", obj.m_withSourceGUID, f);
+	fputs("With:\n", f);
+	PrintObjectDisassembly(obj.m_with, f);
 
 	if (obj.m_withSource.size() > 1)
 	{
@@ -2654,14 +2662,6 @@ void PrintObjectDisassembly(const mtdisasm::DOIfMessengerModifier& obj, FILE* f)
 	PrintObjectDisassembly(obj.m_program, f, true);
 }
 
-void PrintObjectDisassembly(const mtdisasm::DOMessageDataLocator& obj, FILE* f)
-{
-	PrintHex("    Code", obj.m_withCode, f);
-	PrintHex("    Unknown1", obj.m_unknown1, f);
-	PrintHex("    GUID", obj.m_guid, f);
-	PrintHex("    Unknown2", obj.m_unknown2, f);
-}
-
 void PrintObjectDisassembly(const mtdisasm::DOTimerMessengerModifier& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kTimerMessengerModifier);
@@ -2695,6 +2695,31 @@ void PrintObjectDisassembly(const mtdisasm::DOTimerMessengerModifier& obj, FILE*
 	}
 }
 
+void PrintObjectDisassembly(const mtdisasm::DOBoundaryDetectionMessengerModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kBoundaryDetectionMessengerModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+
+	PrintHex("MessageFlagsHigh", obj.m_messageFlagsHigh, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintHex("Unknown4", obj.m_unknown4, f);
+	PrintHex("Destination", obj.m_destination, f);
+	PrintVal("EnableWhen", obj.m_enableWhen, f);
+	PrintVal("DisableWhen", obj.m_disableWhen, f);
+	PrintVal("Send", obj.m_send, f);
+
+	fputs("With:\n", f);
+	PrintObjectDisassembly(obj.m_with, f);
+
+	if (obj.m_withSource.size() > 1)
+	{
+		fputs("WithSource: '", f);
+		fwrite(&obj.m_withSource[0], 1, obj.m_withSource.size() - 1u, f);
+		fputs("'\n", f);
+	}
+}
 
 void PrintObjectDisassembly(const mtdisasm::DOCollisionDetectionMessengerModifier& obj, FILE* f)
 {
@@ -2768,10 +2793,8 @@ void PrintObjectDisassembly(const mtdisasm::DOKeyboardMessengerModifier& obj, FI
 	PrintHex("Unknown7", obj.m_unknown7, f);
 	PrintHex("Destination", obj.m_destination, f);
 	PrintHex("Unknown9", obj.m_unknown9, f);
-	PrintHex("With", obj.m_with, f);
-	PrintHex("Unknown11", obj.m_unknown11, f);
-	PrintHex("WithSourceGUID", obj.m_withSourceGUID, f);
-	PrintHex("Unknown13", obj.m_unknown13, f);
+	fputs("With:\n", f);
+	PrintObjectDisassembly(obj.m_with, f);
 	PrintHex("Unknown14", obj.m_unknown14, f);
 
 	PrintHex("KeyCode", obj.m_keycode, f);
@@ -3046,6 +3069,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kCollisionDetectionMessengerModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOCollisionDetectionMessengerModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kBoundaryDetectionMessengerModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOBoundaryDetectionMessengerModifier&>(obj), f);
 		break;
 	case mtdisasm::DataObjectType::kSetModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOSetModifier&>(obj), f);
