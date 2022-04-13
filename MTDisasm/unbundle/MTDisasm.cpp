@@ -2934,7 +2934,7 @@ void PrintObjectDisassembly(const mtdisasm::DOCompoundVariableModifier& obj, FIL
 	PrintHex("GUID", obj.m_guid, f);
 	PrintHex("Unknown4", obj.m_unknown4, f);
 	PrintHex("Unknown5", obj.m_unknown5, f);
-	PrintHex("Unknown6", obj.m_unknown6, f);
+	PrintHex("NumChildren", obj.m_numChildren, f);
 	PrintStr("Name", obj.m_name, f);
 	PrintHex("Unknown7", obj.m_unknown7, f);
 	PrintVal("EditorLayoutPosition", obj.m_editorLayoutPosition, f);

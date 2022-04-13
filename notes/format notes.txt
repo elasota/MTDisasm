@@ -338,8 +338,16 @@ char[variable] name (remainder)
 	uint16_t number of global modifiers/aliased objects (includes deleted objects, a.k.a. "debris")
 	byte[4] unknown (0)
 
-0x27: Alias.  Known revisions: 0
-	???
+0x27: Alias.  Known revisions: 2
+	uint32_t modifier flags
+	uint32_t size including tag
+	uint16_t alias index (1-based)
+	uint32_t unknown
+	uint32_t unknown
+	uint16_t length of name
+	POINT editor layout position
+	uint32_t unknown
+	char[length of name] name - null terminated
 
 
 0x3c0: Unknown.  Seen in boot segment after stream header.  Known revisions: 2

@@ -927,7 +927,7 @@ namespace mtdisasm
 		uint32_t m_unknown5;
 		DOPoint m_editorLayoutPosition;
 		uint16_t m_lengthOfName;
-		uint8_t m_unknown6[2];
+		uint16_t m_numChildren;
 		std::vector<char> m_name;
 		uint8_t m_unknown7[4];
 	};

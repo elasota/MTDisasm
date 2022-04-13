@@ -1320,7 +1320,7 @@ namespace mtdisasm
 			|| !reader.ReadU32(m_unknown5)
 			|| !m_editorLayoutPosition.Load(reader, sp)
 			|| !reader.ReadU16(m_lengthOfName)
-			|| !reader.ReadBytes(m_unknown6, 2)
+			|| !reader.ReadU16(m_numChildren)
 			|| !reader.ReadTerminatedStr(m_name, m_lengthOfName)
 			|| !reader.ReadBytes(m_unknown7, 4))
 			return false;
