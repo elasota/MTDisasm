@@ -1254,7 +1254,6 @@ namespace mtdisasm
 
 	struct DOGraphicModifier final : public DataObject
 	{
-
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
 
