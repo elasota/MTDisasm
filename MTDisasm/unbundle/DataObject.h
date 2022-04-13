@@ -52,6 +52,7 @@ namespace mtdisasm
 
 		kCursorMod,
 		kMIDIModf,
+		kMediaCue,
 	};
 
 	enum class DataObjectType
@@ -90,6 +91,7 @@ namespace mtdisasm
 		kIntegerRangeVariableModifier,
 		kStringVariableModifier,
 		kFloatVariableModifier,
+		kCompoundVariableModifier,
 		kVectorVariableModifier,
 		kPointVariableModifier,
 		kGraphicModifier,
@@ -178,12 +180,53 @@ namespace mtdisasm
 		bool Load(DataReader& reader);
 	};
 
-	struct DOMessageDataLocator
+	struct DOMessageDataSpec
 	{
-		uint16_t m_withCode;
-		uint32_t m_superGroupID;
-		uint32_t m_guid;
-		uint8_t m_unknown2[36];
+		enum
+		{
+			kNull = 0x0,
+			kInteger = 0x1,
+			kString = 0x0d,
+			kPoint = 0x10,
+			kIntRange = 0x11,
+			kFloat = 0x15,
+			kBool = 0x1a,
+			kIncomingData = 0x1b,
+			kReference = 0x1c,
+			kLabel = 0x1d,
+		};
+
+		struct Label
+		{
+			uint32_t m_superGroupID;
+			uint32_t m_id;
+		};
+
+		struct VariableRef
+		{
+			uint32_t m_unknown1;
+			uint32_t m_guid;
+		};
+
+		struct IntRange
+		{
+			int32_t m_min;
+			int32_t m_max;
+		};
+
+		union ValueUnion
+		{
+			uint8_t m_unknown[44];
+			Label m_label;
+			VariableRef m_varRef;
+			IntRange m_intRange;
+			uint8_t m_bool;
+			DOFloat m_float;
+			int32_t m_integer;
+		};
+
+		uint16_t m_typeCode;
+		ValueUnion m_value;
 
 		bool Load(DataReader& reader);
 	};
@@ -616,12 +659,13 @@ namespace mtdisasm
 		uint16_t m_unknown14;
 		uint32_t m_destination;
 		uint8_t m_unknown11[10];
-		DOMessageDataLocator m_with;
+		DOMessageDataSpec m_with;
 		uint8_t m_withSourceLength;
-		uint8_t m_unknown13;
+		uint8_t m_withStringLength;
 
 		std::vector<char> m_name;
 		std::vector<char> m_withSource;
+		std::vector<char> m_withString;
 	};
 
 	struct DOSetModifier final : public DataObject
@@ -633,15 +677,19 @@ namespace mtdisasm
 
 		uint8_t m_unknown1[4];
 		DOEvent m_when;
-		DOMessageDataLocator m_sourceLocator;
-		DOMessageDataLocator m_targetLocator;
+		DOMessageDataSpec m_source;
+		DOMessageDataSpec m_target;
 		uint8_t m_unknown3;
 		uint8_t m_sourceNameLength;
 		uint8_t m_targetNameLength;
-		uint8_t m_unknown4[3];
+		uint8_t m_sourceStrLength;
+		uint8_t m_targetStrLength;
+		uint8_t m_unknown4;
 
 		std::vector<char> m_sourceName;
 		std::vector<char> m_targetName;
+		std::vector<char> m_sourceStr;
+		std::vector<char> m_targetStr;
 	};
 
 	struct DOIfMessengerModifier final : public DataObject
@@ -690,7 +738,7 @@ namespace mtdisasm
 		uint16_t m_unknown2;
 		uint32_t m_destination;
 		uint8_t m_unknown3[10];
-		DOMessageDataLocator m_with;
+		DOMessageDataSpec m_with;
 		uint8_t m_withSourceLength;
 		uint8_t m_unknown4;
 
@@ -726,7 +774,7 @@ namespace mtdisasm
 		uint16_t m_unknown2;
 		uint32_t m_destination;
 		uint8_t m_unknown3[10];
-		DOMessageDataLocator m_with;
+		DOMessageDataSpec m_with;
 		uint8_t m_withSourceLength;
 		uint8_t m_unknown4;
 
@@ -746,7 +794,7 @@ namespace mtdisasm
 		uint16_t m_unknown2;
 		uint32_t m_destination;
 		uint8_t m_unknown4[10];
-		DOMessageDataLocator m_with;
+		DOMessageDataSpec m_with;
 		uint8_t m_unknown5;
 		uint8_t m_minutes;
 		uint8_t m_seconds;
@@ -791,7 +839,7 @@ namespace mtdisasm
 		uint16_t m_unknown7;
 		uint32_t m_destination;
 		uint8_t m_unknown9[10];
-		DOMessageDataLocator m_with;
+		DOMessageDataSpec m_with;
 		uint8_t m_withSourceLength;
 		uint8_t m_unknown14;
 
@@ -860,6 +908,24 @@ namespace mtdisasm
 		DOTypicalModifierHeader m_modHeader;
 		uint8_t m_unknown1[4];
 		DOFloat m_value;
+	};
+
+	struct DOCompoundVariableModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		uint32_t m_modifierFlags;
+		uint32_t m_sizeIncludingTag;
+		uint8_t m_unknown1[2];
+		uint32_t m_guid;
+		uint8_t m_unknown4[6];
+		uint32_t m_unknown5;
+		DOPoint m_editorLayoutPosition;
+		uint16_t m_lengthOfName;
+		uint8_t m_unknown6[2];
+		std::vector<char> m_name;
+		uint8_t m_unknown7[4];
 	};
 
 	struct DOVectorVariableModifier final : public DataObject
@@ -937,6 +1003,93 @@ namespace mtdisasm
 		virtual ~PlugInObject();
 		virtual PlugInObjectType GetType() const = 0;
 		virtual bool Load(const DOPlugInModifier& base, DataReader& reader, const SerializationProperties& sp) = 0;
+	};
+
+	struct PlugInTypeTaggedValue
+	{
+		enum Type
+		{
+			kNull = 0x00,
+			kInteger = 0x01,
+			kBoolean = 0x14,
+			kLabel = 0x64,
+			kIncomingData = 0x6e,
+			kVariableRef = 0x73,
+		};
+
+		struct Label
+		{
+			uint32_t m_id;
+			uint32_t m_superGroup;
+		};
+
+		struct VariableRef
+		{
+			uint32_t m_guid;
+			uint32_t m_extraDataSize;
+			std::vector<uint8_t>* m_extraData;
+		};
+
+		union ValueUnion
+		{
+			Label m_lbl;
+			VariableRef m_var;
+			int32_t m_int;
+			uint16_t m_bool;
+		};
+
+		bool Load(DataReader& reader, const SerializationProperties& sp);
+
+		uint16_t m_type;
+		ValueUnion m_value;
+
+		PlugInTypeTaggedValue();
+		~PlugInTypeTaggedValue();
+
+		PlugInTypeTaggedValue(const PlugInTypeTaggedValue& other);
+		PlugInTypeTaggedValue& operator=(const PlugInTypeTaggedValue& other);
+
+	private:
+		void Reset();
+		void CopyFrom(const PlugInTypeTaggedValue& other);
+	};
+
+	struct POMediaCueModifier final : public PlugInObject
+	{
+		PlugInObjectType GetType() const override;
+		bool Load(const DOPlugInModifier& base, DataReader& reader, const SerializationProperties& sp) override;
+
+		enum TriggerTiming
+		{
+			kTriggerTimingStart = 0,
+			kTriggerTimingDuring = 1,
+			kTriggerTimingEnd = 2,
+		};
+
+		enum MessageFlags
+		{
+			kMessageFlagImmediate = 0x1,
+			kMessageFlagCascade   = 0x2,
+			kMessageFlagRelay     = 0x4,
+		};
+
+		uint16_t m_enableWhenTypeTag;
+		DOEvent m_enableWhen;
+		uint16_t m_disableWhenTypeTag;
+		DOEvent m_disableWhen;
+		uint16_t m_sendEventTypeTag;
+		DOEvent m_sendEvent;
+		uint16_t m_unknown1;
+		uint32_t m_nonStandardMessageFlags;
+		uint16_t m_unknown3;
+		uint32_t m_destination;
+		uint32_t m_unknown4;
+
+		PlugInTypeTaggedValue m_with;
+		PlugInTypeTaggedValue m_range;
+
+		uint16_t m_unknown10;
+		uint32_t m_triggerTiming;
 	};
 
 	struct POCursorMod final : public PlugInObject
@@ -1219,12 +1372,13 @@ namespace mtdisasm
 
 		DOEvent m_enableWhen;
 		DOEvent m_disableWhen;
-		DOMessageDataLocator m_varSource;
+		DOMessageDataSpec m_varSource;
 		uint16_t m_unknown1;
 		uint8_t m_varSourceNameLength;
-		uint8_t m_unknown2;
+		uint8_t m_varStringLength;
 
 		std::vector<char> m_varSourceName;
+		std::vector<char> m_varString;
 	};
 
 	struct DOAudioAsset final : public DataObject

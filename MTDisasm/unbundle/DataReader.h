@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace mtdisasm
 {
@@ -33,6 +34,9 @@ namespace mtdisasm
 		bool ReadRawS16(int16_t& v);
 		bool ReadRawF64(double& v);
 		bool ReadRawF32(float& v);
+
+		bool ReadTerminatedStr(std::vector<char>& chars, size_t size);
+		bool ReadNonTerminatedStr(std::vector<char>& chars, size_t size);
 
 		bool ReadBytes(void* dest, size_t sz);
 

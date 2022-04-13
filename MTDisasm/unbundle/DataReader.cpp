@@ -210,6 +210,34 @@ namespace mtdisasm
 		return m_stream.ReadAll(&v, 2);
 	}
 
+
+	bool DataReader::ReadTerminatedStr(std::vector<char>& chars, size_t size)
+	{
+		if (size > 0)
+		{
+			chars.resize(size);
+			if (!ReadBytes(&chars[0], size))
+				return false;
+			if (chars[size - 1] != 0)
+				return false;
+			return true;
+		}
+		chars.clear();
+		return true;
+	}
+
+	bool DataReader::ReadNonTerminatedStr(std::vector<char>& chars, size_t size)
+	{
+		if (size > 0)
+		{
+			chars.resize(size + 1);
+			chars[size] = 0;
+			return ReadBytes(&chars[0], size);
+		}
+		chars.clear();
+		return true;
+	}
+
 	bool DataReader::ReadBytes(void* dest, size_t sz)
 	{
 		return m_stream.ReadAll(dest, sz);

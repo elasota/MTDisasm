@@ -56,6 +56,32 @@ SYSTEM_FLOAT
 
 TYPE_TAGGED_VALUE
 	uint16_t type tag:
+		0x0: null
+		0x1: Integer
+			int32_t value
+		0xd: String - Actual string length and contents stored elsewhere
+		0x10: Point
+			POINT value
+		0x11: Integer range
+			int32_t min
+			int32_t max
+		0x15: Float
+			SYSTEM_FLOAT value
+		0x1a: Bool
+			uint8_t value
+		0x1b: Incoming data
+		0x1c: Variable reference
+			uint32_t unknown
+			uint32_t guid
+		0x1d: Label
+			uint32_t supergroup ID
+			uint32_t label ID
+	padded to 44 bytes
+
+For some reason, there are two type-tagged value schemes.
+
+PLUGIN_TYPE_TAGGED_VALUE
+	uint16_t type tag:
 		0x1: Integer
 			int32_t value
 		0xa: Point
@@ -73,11 +99,18 @@ TYPE_TAGGED_VALUE
 			uint16 value
 		0x17: Event?
 			EVENT value
-
+		0x64: Label
+			uint32 id
+			uint32 supergroup
 		0x66: String
 			uint32 length
 			uint32 length (again??)
 			char[length] string - null terminated
+		0x63: Incoming data
+		0x73: Variable reference
+			uint32 guid
+			uint32 extra data size
+			byte[extra data size] unknown
 		0xff: Object reference
 			uint32 length
 			uint32 length (again??)
@@ -603,8 +636,7 @@ MESSAGE_DATA_LOCATOR:
 	uint16_t unknown (5)
 	uint32_t destination
 	byte[10] unknown (0)
-	uint16_t with
-	byte[44] unknown (garbage)
+	TYPE_TAGGED_VALUE with
 	uint32_t when event info
 	uint16_t with source string length
 	char[source string length] with source - not null terminated
@@ -617,10 +649,8 @@ MESSAGE_DATA_LOCATOR:
 	uint16_t unknown (5)
 	uint32_t destination
 	byte[10] unknown (0)
-	uint16_t with
-	byte[4] unknown
-	uint32 with source GUID
-	byte[46] unknown
+	TYPE_TAGGED_VALUE with
+	byte[10] unknown
 	uint16_t with source string length
 	char[with source string length] with source - not null terminated
 	MINISCRIPT_PROGRAM program
@@ -659,13 +689,11 @@ MESSAGE_DATA_LOCATOR:
 		uint16_t unknown
 		uint32_t destination
 		byte[10] unknown
-		uint16_t with
-		uint8_t unknown11
-		uint32_t withSourceGUID
-		byte[36] unknown13
+		TYPE_TAGGED_VALUE with
 		uint8_t with source string length
-		uint8_t unknown
+		uint8_t with string length
 	char[with source string length] with source - not null terminated
+	char[with string length] with string - not null terminated
 
 0x2e4: Timer Messenger modifier
 	TYPICAL_MODIFIER_HEADER modifier header
@@ -917,6 +945,26 @@ CursorMod: Cursor modifier   Known revisions: 1
 		10038: arrow up 3D
 		
 	byte[4] unknown (0)
+
+MediaCue: Media Cue Messenger modifier   Known revisions: 1
+	PLUGIN_TYPE_TAGGED_VALUE enable when (always event type)
+	PLUGIN_TYPE_TAGGED_VALUE disable when (always event type)
+	PLUGIN_TYPE_TAGGED_VALUE send (always event type)
+	PLUGIN_TYPE_TAGGED_VALUE non-standard message flags (always int type)
+		0x1 = immediate
+		0x2 = cascade
+		0x4 = relay
+	uint16_t unknown
+	uint32_t destination
+	uint32_t unknown
+
+	PLUGIN_TYPE_TAGGED_VALUE with - In Obsidian this can sometimes be boolean payloads
+	PLUGIN_TYPE_TAGGED_VALUE execute at - May be a label, variable, integer, or integer range
+
+	PLUGIN_TYPE_TAGGED_VALUE trigger timing - Always 1
+		
+		
+
 
 ListMod: List modifier   Known revisions: 2 (1.1), 3 (Obsidian)
 	uint16 unknown (0x64)

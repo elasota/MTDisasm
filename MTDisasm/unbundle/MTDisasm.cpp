@@ -162,6 +162,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "StringVariableModifier";
 	case mtdisasm::DataObjectType::kFloatVariableModifier:
 		return "FloatVariableModifier";
+	case mtdisasm::DataObjectType::kCompoundVariableModifier:
+		return "CompoundVariableModifier";
 	case mtdisasm::DataObjectType::kVectorVariableModifier:
 		return "VectorVariableModifier";
 	case mtdisasm::DataObjectType::kPointVariableModifier:
@@ -319,6 +321,40 @@ void PrintSingleVal(const mtdisasm::DOVector& v, bool asHex, FILE* f)
 	fprintf(f, "(%g rad %g mag)", v.m_angleRadians.m_value, v.m_magnitude.m_value);
 }
 
+void PrintSingleVal(const mtdisasm::PlugInTypeTaggedValue& v, bool asHex, FILE* f)
+{
+	switch (v.m_type)
+	{
+	case mtdisasm::PlugInTypeTaggedValue::kLabel:
+		if (asHex)
+			fprintf(f, "label(%08x:%08x)", v.m_value.m_lbl.m_superGroup, v.m_value.m_lbl.m_id);
+		else
+			fprintf(f, "label(%u:%u)", v.m_value.m_lbl.m_superGroup, v.m_value.m_lbl.m_id);
+		break;
+	case mtdisasm::PlugInTypeTaggedValue::kInteger:
+		if (asHex)
+			fprintf(f, "%08x", v.m_value.m_int);
+		else
+			fprintf(f, "%i", v.m_value.m_int);
+		break;
+	case mtdisasm::PlugInTypeTaggedValue::kBoolean:
+		fputs(v.m_value.m_bool ? "true" : "false", f);
+		break;
+	case mtdisasm::PlugInTypeTaggedValue::kNull:
+		fputs("null", f);
+		break;
+	case mtdisasm::PlugInTypeTaggedValue::kIncomingData:
+		fputs("incoming data", f);
+		break;
+	case mtdisasm::PlugInTypeTaggedValue::kVariableRef:
+		fprintf(f, "var(%08x)", v.m_value.m_var.m_guid);
+		break;
+	default:
+		fputs("UNKNOWN_TYPE", f);
+		break;
+	}
+}
+
 template<size_t TSize, class T>
 void PrintSingleVal(const T (&arr)[TSize], bool asHex, FILE* f)
 {
@@ -354,6 +390,15 @@ void PrintStr(const char* name, const char* value, FILE* f)
 	fputs(": ", f);
 	fputs(value, f);
 	fputs("\n", f);
+}
+
+void PrintStr(const char* name, const std::vector<char>& chars, FILE* f)
+{
+	fputs(name, f);
+	fputs(": '", f);
+	if (chars.size() > 1)
+		fwrite(&chars[0], 1, chars.size() - 1, f);
+	fputs("'\n", f);
 }
 
 void PrintObjectDisassembly(const mtdisasm::DOStreamHeader& obj, FILE* f)
@@ -2274,6 +2319,24 @@ void PrintObjectDisassembly(const mtdisasm::POCursorMod& obj, FILE* f)
 	PrintVal("CursorID", obj.m_cursorID, f);
 }
 
+void PrintObjectDisassembly(const mtdisasm::POMediaCueModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::PlugInObjectType::kMediaCue);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("NonStandardMessageFlags", obj.m_nonStandardMessageFlags, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintHex("Unknown4", obj.m_unknown4, f);
+	PrintVal("With", obj.m_with, f);
+	PrintVal("Range", obj.m_range, f);
+	PrintHex("Unknown10", obj.m_unknown10, f);
+	PrintHex("TriggerTiming", obj.m_triggerTiming, f);
+	PrintHex("Destination", obj.m_destination, f);
+	PrintVal("ApplyWhen", obj.m_enableWhen, f);
+	PrintVal("RemoveWhen", obj.m_disableWhen, f);
+	PrintVal("CursorID", obj.m_sendEvent, f);
+}
+
 void PrintObjectDisassembly(const mtdisasm::POMidiModifier& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::PlugInObjectType::kMIDIModf);
@@ -2338,6 +2401,9 @@ void PrintObjectDisassembly(const mtdisasm::DOPlugInModifier& obj, FILE* f)
 		break;
 	case mtdisasm::PlugInObjectType::kMIDIModf:
 		PrintObjectDisassembly(static_cast<const mtdisasm::POMidiModifier&>(*obj.m_plugInData), f);
+		break;
+	case mtdisasm::PlugInObjectType::kMediaCue:
+		PrintObjectDisassembly(static_cast<const mtdisasm::POMediaCueModifier&>(*obj.m_plugInData), f);
 		break;
 	default:
 		break;
@@ -2574,12 +2640,10 @@ void PrintObjectDisassembly(const mtdisasm::DOBehaviorModifier& obj, FILE* f)
 	}
 }
 
-void PrintObjectDisassembly(const mtdisasm::DOMessageDataLocator& obj, FILE* f)
+void PrintObjectDisassembly(const mtdisasm::DOMessageDataSpec& obj, FILE* f)
 {
-	PrintHex("    Code", obj.m_withCode, f);
-	PrintHex("    SuperGroupID", obj.m_superGroupID, f);
-	PrintHex("    GUID", obj.m_guid, f);
-	PrintHex("    Unknown2", obj.m_unknown2, f);
+	PrintHex("    Type", obj.m_typeCode, f);
+	PrintHex("    Value", obj.m_value.m_unknown, f);
 }
 
 void PrintObjectDisassembly(const mtdisasm::DOMessengerModifier& obj, FILE* f)
@@ -2592,7 +2656,6 @@ void PrintObjectDisassembly(const mtdisasm::DOMessengerModifier& obj, FILE* f)
 	PrintHex("Unknown5", obj.m_unknown5, f);
 	PrintHex("MessageFlags", obj.m_messageFlags, f);
 	PrintHex("Unknown11", obj.m_unknown11, f);
-	PrintHex("Unknown13", obj.m_unknown13, f);
 	PrintHex("Unknown14", obj.m_unknown14, f);
 	PrintVal("Send", obj.m_send, f);
 	PrintVal("When", obj.m_when, f);
@@ -2607,6 +2670,13 @@ void PrintObjectDisassembly(const mtdisasm::DOMessengerModifier& obj, FILE* f)
 	{
 		fputs("WithSource: '", f);
 		fwrite(&obj.m_withSource[0], 1, obj.m_withSource.size() - 1u, f);
+		fputs("'\n", f);
+	}
+
+	if (obj.m_withString.size() > 1)
+	{
+		fputs("WithString: '", f);
+		fwrite(&obj.m_withString[0], 1, obj.m_withString.size() - 1u, f);
 		fputs("'\n", f);
 	}
 
@@ -2757,9 +2827,9 @@ void PrintObjectDisassembly(const mtdisasm::DOSetModifier& obj, FILE* f)
 	PrintHex("Unknown1", obj.m_unknown1, f);
 	PrintVal("When", obj.m_when, f);
 	fputs("Source:\n", f);
-	PrintObjectDisassembly(obj.m_sourceLocator, f);
+	PrintObjectDisassembly(obj.m_source, f);
 	fputs("Target:\n", f);
-	PrintObjectDisassembly(obj.m_targetLocator, f);
+	PrintObjectDisassembly(obj.m_target, f);
 	PrintHex("Unknown3", obj.m_unknown3, f);
 	PrintHex("SourceNameLength", obj.m_sourceNameLength, f);
 	PrintHex("TargetNameLength", obj.m_targetNameLength, f);
@@ -2844,6 +2914,22 @@ void PrintObjectDisassembly(const mtdisasm::DOFloatVariableModifier& obj, FILE* 
 	PrintObjectDisassembly(obj.m_modHeader, f);
 
 	PrintVal("Value", obj.m_value, f);
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOCompoundVariableModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kCompoundVariableModifier);
+
+	PrintHex("ModifierFlags", obj.m_modifierFlags, f);
+	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("GUID", obj.m_guid, f);
+	PrintHex("Unknown4", obj.m_unknown4, f);
+	PrintHex("Unknown5", obj.m_unknown5, f);
+	PrintHex("Unknown6", obj.m_unknown6, f);
+	PrintStr("Name", obj.m_name, f);
+	PrintHex("Unknown7", obj.m_unknown7, f);
+	PrintVal("EditorLayoutPosition", obj.m_editorLayoutPosition, f);
 }
 
 void PrintObjectDisassembly(const mtdisasm::DOVectorVariableModifier& obj, FILE* f)
@@ -2974,18 +3060,14 @@ void PrintObjectDisassembly(const mtdisasm::DOVectorMotionModifier& obj, FILE* f
 	PrintObjectDisassembly(obj.m_modHeader, f);
 
 	PrintHex("Unknown1", obj.m_unknown1, f);
-	PrintHex("Unknown2", obj.m_unknown2, f);
 	PrintHex("EnableWhen", obj.m_enableWhen, f);
 	PrintHex("DisableWhen", obj.m_disableWhen, f);
 	fputs("Var source:\n", f);
 	PrintObjectDisassembly(obj.m_varSource, f);
 
-	if (obj.m_varSourceNameLength > 0)
-	{
-		fputs("Var source name: '", f);
-		fwrite(&obj.m_varSourceName[0], 1, obj.m_varSourceNameLength, f);
-		fputs("'\n", f);
-	}
+	PrintHex("VarStringLength", obj.m_varStringLength, f);
+	PrintStr("VarSourceName", obj.m_varSourceName, f);
+	PrintStr("VarString", obj.m_varString, f);
 }
 
 void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
@@ -3096,6 +3178,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kFloatVariableModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOFloatVariableModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kCompoundVariableModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOCompoundVariableModifier&>(obj), f);
 		break;
 	case mtdisasm::DataObjectType::kVectorVariableModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOVectorVariableModifier&>(obj), f);

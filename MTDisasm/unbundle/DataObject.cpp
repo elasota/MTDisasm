@@ -90,10 +90,10 @@ namespace mtdisasm
 		return true;
 	}
 
-	bool DOMessageDataLocator::Load(DataReader& reader)
+	bool DOMessageDataSpec::Load(DataReader& reader)
 	{
-		if (!reader.ReadU16(m_withCode) || !reader.ReadU32(m_superGroupID)
-			|| !reader.ReadU32(m_guid) || !reader.ReadBytes(m_unknown2, 36))
+		if (!reader.ReadU16(m_typeCode)
+			|| !reader.ReadBytes(m_value.m_unknown, 44))
 			return false;
 
 		return true;
@@ -175,7 +175,7 @@ namespace mtdisasm
 		case 0x321:
 			return new DOBooleanVariableModifier();
 		case 0x2c7:
-			return new DONotYetImplemented(objectType, "Compound Variable modifier");
+			return new DOCompoundVariableModifier();
 		case 0x322:
 			return new DOIntegerVariableModifier();
 		case 0x329:
@@ -898,7 +898,7 @@ namespace mtdisasm
 			|| !m_with.Load(reader)
 			|| !reader.ReadU32(m_when.m_eventInfo)
 			|| !reader.ReadU8(m_withSourceLength)
-			|| !reader.ReadU8(m_unknown13))
+			|| !reader.ReadU8(m_withStringLength))
 			return false;
 
 		if (m_withSourceLength > 0)
@@ -907,6 +907,14 @@ namespace mtdisasm
 			if (!reader.ReadBytes(&m_withSource[0], m_withSourceLength))
 				return false;
 			m_withSource[m_withSourceLength] = 0;
+		}
+
+		if (m_withStringLength > 0)
+		{
+			m_withString.resize(m_withStringLength + 1);
+			if (!reader.ReadBytes(&m_withString[0], m_withStringLength))
+				return false;
+			m_withString[m_withStringLength] = 0;
 		}
 
 		return true;
@@ -922,26 +930,17 @@ namespace mtdisasm
 		if (revision != 0x3e8)
 			return false;
 
-		if (!m_modHeader.Load(reader) || !reader.ReadBytes(m_unknown1, 4) || !reader.ReadU32(m_when.m_eventID) || !m_sourceLocator.Load(reader)
-			|| !m_targetLocator.Load(reader) || !reader.ReadU32(m_when.m_eventInfo) || !reader.ReadU8(m_unknown3) || !reader.ReadU8(m_sourceNameLength)
-			|| !reader.ReadU8(m_targetNameLength) || !reader.ReadBytes(m_unknown4, 3))
+		if (!m_modHeader.Load(reader) || !reader.ReadBytes(m_unknown1, 4) || !reader.ReadU32(m_when.m_eventID) || !m_source.Load(reader)
+			|| !m_target.Load(reader) || !reader.ReadU32(m_when.m_eventInfo) || !reader.ReadU8(m_unknown3) || !reader.ReadU8(m_sourceNameLength)
+			|| !reader.ReadU8(m_targetNameLength) || !reader.ReadU8(m_sourceStrLength)
+			|| !reader.ReadU8(m_targetStrLength) || !reader.ReadU8(m_unknown4))
 			return false;
 
-		if (m_sourceNameLength > 0)
-		{
-			m_sourceName.resize(m_sourceNameLength + 1);
-			if (!reader.ReadBytes(&m_sourceName[0], m_sourceNameLength))
-				return false;
-			m_sourceName[m_sourceNameLength] = 0;
-		}
-
-		if (m_targetNameLength > 0)
-		{
-			m_targetName.resize(m_targetNameLength + 1);
-			if (!reader.ReadBytes(&m_targetName[0], m_targetNameLength))
-				return false;
-			m_targetName[m_targetNameLength] = 0;
-		}
+		if (!reader.ReadNonTerminatedStr(m_sourceName, m_sourceNameLength)
+			|| !reader.ReadNonTerminatedStr(m_targetName, m_targetNameLength)
+			|| !reader.ReadNonTerminatedStr(m_sourceStr, m_sourceStrLength)
+			|| !reader.ReadNonTerminatedStr(m_targetStr, m_targetStrLength))
+			return false;
 
 		return true;
 	}
@@ -1303,6 +1302,32 @@ namespace mtdisasm
 		return true;
 	}
 
+	DataObjectType DOCompoundVariableModifier::GetType() const
+	{
+		return DataObjectType::kCompoundVariableModifier;
+	}
+
+	bool DOCompoundVariableModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 1)
+			return false;
+
+		if (!reader.ReadU32(m_modifierFlags)
+			|| !reader.ReadU32(m_sizeIncludingTag)
+			|| !reader.ReadBytes(m_unknown1, 2)
+			|| !reader.ReadU32(m_guid)
+			|| !reader.ReadBytes(m_unknown4, 6)
+			|| !reader.ReadU32(m_unknown5)
+			|| !m_editorLayoutPosition.Load(reader, sp)
+			|| !reader.ReadU16(m_lengthOfName)
+			|| !reader.ReadBytes(m_unknown6, 2)
+			|| !reader.ReadTerminatedStr(m_name, m_lengthOfName)
+			|| !reader.ReadBytes(m_unknown7, 4))
+			return false;
+
+		return true;
+	}
+
 	DataObjectType DOFloatVariableModifier::GetType() const
 	{
 		return DataObjectType::kFloatVariableModifier;
@@ -1456,6 +1481,161 @@ namespace mtdisasm
 			delete m_plugInData;
 	}
 
+
+
+	PlugInTypeTaggedValue::PlugInTypeTaggedValue()
+		: m_type(kNull)
+	{
+	}
+
+	PlugInTypeTaggedValue::~PlugInTypeTaggedValue()
+	{
+		switch (m_type)
+		{
+		case kVariableRef:
+			if (m_value.m_var.m_extraData)
+				delete m_value.m_var.m_extraData;
+			break;
+		}
+	}
+
+	PlugInTypeTaggedValue::PlugInTypeTaggedValue(const PlugInTypeTaggedValue& other)
+		: m_type(kNull)
+	{
+		CopyFrom(other);
+	}
+
+	PlugInTypeTaggedValue& PlugInTypeTaggedValue::operator=(const PlugInTypeTaggedValue& other)
+	{
+		if (this == &other)
+			return *this;
+
+		Reset();
+		CopyFrom(other);
+
+		return *this;
+	}
+
+	void PlugInTypeTaggedValue::Reset()
+	{
+		switch (m_type)
+		{
+		case kVariableRef:
+			if (m_value.m_var.m_extraData)
+				delete m_value.m_var.m_extraData;
+			break;
+		default:
+			break;
+		}
+
+		m_type = kNull;
+	}
+
+	void PlugInTypeTaggedValue::CopyFrom(const PlugInTypeTaggedValue& other)
+	{
+		switch (other.m_type)
+		{
+		case kVariableRef:
+			if (other.m_value.m_var.m_extraData)
+			{
+				m_value.m_var.m_extraData = new std::vector<uint8_t>();
+				*m_value.m_var.m_extraData = *other.m_value.m_var.m_extraData;
+			}
+			else
+				m_value.m_var.m_extraData = nullptr;
+			m_value.m_var.m_guid = other.m_value.m_var.m_guid;
+			m_value.m_var.m_extraDataSize = other.m_value.m_var.m_extraDataSize;
+			break;
+		case kLabel:
+			m_value.m_lbl = other.m_value.m_lbl;
+			break;
+		default:
+			break;
+		}
+
+		m_type = other.m_type;
+	}
+
+	bool PlugInTypeTaggedValue::Load(DataReader& reader, const SerializationProperties& sp)
+	{
+		uint16_t type;
+		if (!reader.ReadU16(type))
+			return false;
+
+		m_type = type;
+
+		switch (type)
+		{
+		case kNull:
+		case kIncomingData:
+			break;
+		case kInteger:
+			if (!reader.ReadS32(m_value.m_int))
+				return false;
+			break;
+		case kBoolean:
+			if (!reader.ReadU16(m_value.m_bool))
+				return false;
+			break;
+		case kVariableRef:
+			m_value.m_var.m_extraData = nullptr;
+
+			if (!reader.ReadU32(m_value.m_var.m_guid) || !reader.ReadU32(m_value.m_var.m_extraDataSize))
+				return false;
+
+			if (m_value.m_var.m_extraDataSize > 0)
+			{
+				std::vector<uint8_t>* vec = new std::vector<uint8_t>();
+				m_value.m_var.m_extraData = vec;
+				vec->resize(m_value.m_var.m_extraDataSize);
+				if (!reader.ReadBytes(&(*vec)[0], m_value.m_var.m_extraDataSize))
+					return false;
+			}
+			else
+				m_value.m_var.m_extraData = nullptr;
+
+			break;
+		case kLabel:
+			if (!reader.ReadU32(m_value.m_lbl.m_id) || !reader.ReadU32(m_value.m_lbl.m_superGroup))
+				return false;
+			break;
+		default:
+			return false;
+		}
+
+		return true;
+	}
+
+	PlugInObjectType POMediaCueModifier::GetType() const
+	{
+		return PlugInObjectType::kMediaCue;
+	}
+
+	bool POMediaCueModifier::Load(const DOPlugInModifier& base, DataReader& reader, const SerializationProperties& sp)
+	{
+		if (base.m_plugInRevision != 1)
+			return false;
+
+		if (!reader.ReadU16(m_enableWhenTypeTag)
+			|| !m_enableWhen.Load(reader)
+			|| !reader.ReadU16(m_disableWhenTypeTag)
+			|| !m_disableWhen.Load(reader)
+			|| !reader.ReadU16(m_sendEventTypeTag)
+			|| !m_sendEvent.Load(reader)
+			|| !reader.ReadU16(m_unknown1)
+			|| !reader.ReadU32(m_nonStandardMessageFlags)
+			|| !reader.ReadU16(m_unknown3)
+			|| !reader.ReadU32(m_destination)
+			|| !reader.ReadU32(m_unknown4)
+			|| !m_with.Load(reader, sp)
+			|| !m_range.Load(reader, sp)
+			|| !reader.ReadU16(m_unknown10)
+			|| !reader.ReadU32(m_triggerTiming))
+			return false;
+
+		return true;
+	}
+
 	PlugInObjectType POCursorMod::GetType() const
 	{
 		return PlugInObjectType::kCursorMod;
@@ -1604,6 +1784,8 @@ namespace mtdisasm
 			m_plugInData = new POCursorMod();
 		else if (!strcmp(m_plugin, "MIDIModf"))
 			m_plugInData = new POMidiModifier();
+		else if (!strcmp(m_plugin, "MediaCue"))
+			m_plugInData = new POMediaCueModifier();
 
 		if (!m_plugInData)
 			m_plugInData = new POUnknown();
@@ -1832,16 +2014,16 @@ namespace mtdisasm
 			|| !m_varSource.Load(reader)
 			|| !reader.ReadU16(m_unknown1)
 			|| !reader.ReadU8(m_varSourceNameLength)
-			|| !reader.ReadU8(m_unknown2))
+			|| !reader.ReadU8(m_varStringLength))
 			return false;
 
-		if (m_varSourceNameLength > 0)
-		{
-			m_varSourceName.resize(m_varSourceNameLength + 1);
-			if (!reader.ReadBytes(&m_varSourceName[0], m_varSourceNameLength))
-				return false;
-			m_varSourceName[m_varSourceNameLength] = 0;
-		}
+		if (!reader.ReadNonTerminatedStr(m_varSourceName, m_varSourceNameLength))
+			return false;
+
+		// mTropolis bug!
+		//if (!reader.ReadNonTerminatedStr(m_varString, m_varStringLength))
+		//	return false;
+		m_varStringLength = 0;
 
 		return true;
 	}
