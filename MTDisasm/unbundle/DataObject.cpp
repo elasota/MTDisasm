@@ -189,7 +189,7 @@ namespace mtdisasm
 		case 0x326:
 			return new DOPointVariableModifier();
 		case 0x136:
-			return new DONotYetImplemented(objectType, "Change Scene modifier");
+			return new DOChangeSceneModifier();
 		case 0x140:
 			return new DONotYetImplemented(objectType, "Return modifier");
 		case 0x29a:
@@ -201,7 +201,7 @@ namespace mtdisasm
 		case 0x26c:
 			return new DOSceneTransitionModifier();
 		case 0x276:
-			return new DONotYetImplemented(objectType, "Element Transition modifier");
+			return new DOElementTransitionModifier();
 		case 0x1fe:
 			return new DONotYetImplemented(objectType, "Simple Motion modifier");
 		case 0x21b:
@@ -225,7 +225,7 @@ namespace mtdisasm
 		case 0x384:
 			return new DONotYetImplemented(objectType, "Image Effect modifier");
 		case 0x27:
-			return new DONotYetImplemented(objectType, "Alias");
+			return new DOAliasModifier();
 		case 0xffffffff:
 			return new DOPlugInModifier();
 		case 0x3ca:
@@ -1948,6 +1948,11 @@ namespace mtdisasm
 		return true;
 	}
 
+	DataObjectType DOSceneTransitionModifier::GetType() const
+	{
+		return DataObjectType::kSceneTransitionModifier;
+	}
+
 	bool DOSceneTransitionModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
 	{
 		if (revision != 0x3e9)
@@ -1969,9 +1974,30 @@ namespace mtdisasm
 		return true;
 	}
 
-	DataObjectType DOSceneTransitionModifier::GetType() const
+	DataObjectType DOElementTransitionModifier::GetType() const
 	{
-		return DataObjectType::kSceneTransitionModifier;
+		return DataObjectType::kElementTransitionModifier;
+	}
+
+	bool DOElementTransitionModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3e9)
+			return false;
+
+		if (!m_modHeader.Load(reader))
+			return false;
+
+		if (!m_enableWhen.Load(reader)
+			|| !m_disableWhen.Load(reader)
+			|| !reader.ReadU16(m_revealType)
+			|| !reader.ReadU16(m_transitionType)
+			|| !reader.ReadU16(m_unknown3)
+			|| !reader.ReadU16(m_unknown4)
+			|| !reader.ReadU16(m_steps)
+			|| !reader.ReadU16(m_rate))
+			return false;
+
+		return true;
 	}
 
 	DataObjectType DODragMotionModifier::GetType() const
@@ -2050,6 +2076,53 @@ namespace mtdisasm
 		//if (!reader.ReadNonTerminatedStr(m_varString, m_varStringLength))
 		//	return false;
 		m_varStringLength = 0;
+
+		return true;
+	}
+
+	DataObjectType DOChangeSceneModifier::GetType() const
+	{
+		return DataObjectType::kChangeSceneModifier;
+	}
+
+	bool DOChangeSceneModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3e9)
+			return false;
+
+		if (!m_modHeader.Load(reader))
+			return false;
+
+		if (!reader.ReadU32(m_sceneChangeFlags)
+			|| !m_executeWhen.Load(reader)
+			|| !reader.ReadU32(m_targetSectionGUID)
+			|| !reader.ReadU32(m_targetSubsectionGUID)
+			|| !reader.ReadU32(m_targetSceneGUID))
+			return false;
+
+		return true;
+	}
+
+	DataObjectType DOAliasModifier::GetType() const
+	{
+		return DataObjectType::kAliasModifier;
+	}
+
+	bool DOAliasModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 2)
+			return false;
+
+		if (!reader.ReadU32(m_modifierFlags)
+			|| !reader.ReadU32(m_sizeIncludingTag)
+			|| !reader.ReadU16(m_aliasIndexPlusOne)
+			|| !reader.ReadU32(m_unknown1)
+			|| !reader.ReadU32(m_unknown2)
+			|| !reader.ReadU16(m_lengthOfName)
+			|| !m_editorLayoutPosition.Load(reader, sp)
+			|| !reader.ReadU32(m_unknown3)
+			|| !reader.ReadTerminatedStr(m_name, m_lengthOfName))
+			return false;
 
 		return true;
 	}

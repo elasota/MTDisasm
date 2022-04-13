@@ -757,7 +757,18 @@ MESSAGE_DATA_LOCATOR:
 
 0x326: Point Variable modifier
 
-0x136: Change Scene modifier
+0x136: Change Scene modifier    Known revisions: 0x3e9
+	uint32_t scene change flags
+		0x80000000: Next scene in subsection
+		0x40000000: Previous scene in subsection
+		0x20000000: Specific scene
+		0x10000000: Add to return list
+		0x08000000: Add to destination list (implies add to return list)
+		0x04000000: Wrap around (Not valid when going to specific scene)
+	EVENT execute when
+	uint32_t target section GUID
+	uint32_t target subsection GUID
+	uint32_t target scene GUID
 
 0x140: Return modifier
 
@@ -789,8 +800,6 @@ MESSAGE_DATA_LOCATOR:
 	uint16_t steps
 	uint32_t duration (6000000 is maximum rate)
 	byte[2] unknown
-	
-	
 
 
 0x276: Element Transition modifier

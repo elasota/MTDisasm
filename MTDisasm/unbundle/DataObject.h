@@ -99,6 +99,9 @@ namespace mtdisasm
 		kDragMotionModifier,
 		kVectorMotionModifier,
 		kSceneTransitionModifier,
+		kElementTransitionModifier,
+		kChangeSceneModifier,
+		kAliasModifier,
 
 		kColorTableAsset,
 		kAudioAsset,
@@ -1249,7 +1252,8 @@ namespace mtdisasm
 		MacOnlyPart m_macOnlyPart;
 	};
 
-	struct DOGraphicModifier final : public DataObject {
+	struct DOGraphicModifier final : public DataObject
+	{
 
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
@@ -1297,7 +1301,8 @@ namespace mtdisasm
 		std::vector<DOPoint> m_polyPoints;
 	};
 
-	struct DOTextStyleModifier final : public DataObject {
+	struct DOTextStyleModifier final : public DataObject
+	{
 
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
@@ -1319,8 +1324,8 @@ namespace mtdisasm
 		std::vector<char> m_fontName;
 	};
 
-	struct DOSceneTransitionModifier final : public DataObject {
-
+	struct DOSceneTransitionModifier final : public DataObject
+	{
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
 
@@ -1355,8 +1360,38 @@ namespace mtdisasm
 		uint8_t m_unknown5[2];
 	};
 
-	struct DODragMotionModifier final : public DataObject {
+	struct DOElementTransitionModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
 
+		enum TransitionType
+		{
+			kTransitionTypeRectangularIris = 0x03e8,
+			kTransitionTypeOvalIris        = 0x03f2,
+			kTransitionTypeZoom            = 0x044c,
+			kTransitionTypeFade            = 0x2328,
+		};
+
+		enum RevealType
+		{
+			kRevealTypeReveal = 0,
+			kRevealTypeConceal = 1,
+		};
+
+		DOTypicalModifierHeader m_modHeader;
+		DOEvent m_enableWhen;
+		DOEvent m_disableWhen;
+		uint16_t m_revealType;
+		uint16_t m_transitionType;
+		uint16_t m_unknown3;
+		uint16_t m_unknown4;
+		uint16_t m_steps;
+		uint16_t m_rate;
+	};
+
+	struct DODragMotionModifier final : public DataObject
+	{
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
 
@@ -1400,8 +1435,8 @@ namespace mtdisasm
 		uint16_t m_unknown1;
 	};
 
-	struct DOVectorMotionModifier final : public DataObject {
-
+	struct DOVectorMotionModifier final : public DataObject
+	{
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
 
@@ -1416,6 +1451,36 @@ namespace mtdisasm
 
 		std::vector<char> m_varSourceName;
 		std::vector<char> m_varString;
+	};
+
+	struct DOChangeSceneModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		DOTypicalModifierHeader m_modHeader;
+		uint32_t m_sceneChangeFlags;
+		DOEvent m_executeWhen;
+		uint32_t m_targetSectionGUID;
+		uint32_t m_targetSubsectionGUID;
+		uint32_t m_targetSceneGUID;
+	};
+
+	struct DOAliasModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		uint32_t m_modifierFlags;
+		uint32_t m_sizeIncludingTag;
+		uint16_t m_aliasIndexPlusOne;
+		uint32_t m_unknown1;
+		uint32_t m_unknown2;
+		uint16_t m_lengthOfName;
+		uint32_t m_unknown3;
+		DOPoint m_editorLayoutPosition;
+
+		std::vector<char> m_name;
 	};
 
 	struct DOAudioAsset final : public DataObject

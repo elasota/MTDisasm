@@ -174,10 +174,16 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "TextStyleModifier";
 	case mtdisasm::DataObjectType::kSceneTransitionModifier:
 		return "SceneTransitionModifier";
+	case mtdisasm::DataObjectType::kElementTransitionModifier:
+		return "ElementTransitionModifier";
 	case mtdisasm::DataObjectType::kDragMotionModifier:
 		return "DragMotionModifier";
 	case mtdisasm::DataObjectType::kVectorMotionModifier:
 		return "VectorMotionModifier";
+	case mtdisasm::DataObjectType::kChangeSceneModifier:
+		return "ChangeSceneModifier";
+	case mtdisasm::DataObjectType::kAliasModifier:
+		return "AliasModifier";
 	case mtdisasm::DataObjectType::kNotYetImplemented:
 		return "NotYetImplemented";
 	case mtdisasm::DataObjectType::kPlugInModifier:
@@ -3045,6 +3051,22 @@ void PrintObjectDisassembly(const mtdisasm::DOSceneTransitionModifier& obj, FILE
 	PrintHex("Steps", obj.m_steps, f);
 }
 
+void PrintObjectDisassembly(const mtdisasm::DOElementTransitionModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kElementTransitionModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+
+	PrintVal("EnableWhen", obj.m_enableWhen, f);
+	PrintVal("DisableWhen", obj.m_disableWhen, f);
+	PrintVal("RevealType", obj.m_revealType, f);
+	PrintHex("TransitionType", obj.m_transitionType, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintHex("Unknown4", obj.m_unknown4, f);
+	PrintVal("Steps", obj.m_steps, f);
+	PrintVal("Rate", obj.m_rate, f);
+}
+
 void PrintObjectDisassembly(const mtdisasm::DODragMotionModifier& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kDragMotionModifier);
@@ -3085,6 +3107,33 @@ void PrintObjectDisassembly(const mtdisasm::DOVectorMotionModifier& obj, FILE* f
 	PrintHex("VarStringLength", obj.m_varStringLength, f);
 	PrintStr("VarSourceName", obj.m_varSourceName, f);
 	PrintStr("VarString", obj.m_varString, f);
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOChangeSceneModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kChangeSceneModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+
+	PrintHex("SceneChangeFlags", obj.m_sceneChangeFlags, f);
+	PrintHex("TargetSectionGUID", obj.m_targetSectionGUID, f);
+	PrintHex("TargetSubsectionGUID", obj.m_targetSubsectionGUID, f);
+	PrintHex("TargetSceneGUID", obj.m_targetSceneGUID, f);
+	PrintHex("EnableWhen", obj.m_executeWhen, f);
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOAliasModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kAliasModifier);
+
+	PrintHex("ModifierFlags", obj.m_modifierFlags, f);
+	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
+	PrintVal("AliasIndexPlusOne", obj.m_aliasIndexPlusOne, f);
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintVal("EditorLayoutPosition", obj.m_editorLayoutPosition, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintStr("Name", obj.m_name, f);
 }
 
 void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
@@ -3217,8 +3266,17 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 	case mtdisasm::DataObjectType::kSceneTransitionModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOSceneTransitionModifier&>(obj), f);
 		break;
+	case mtdisasm::DataObjectType::kElementTransitionModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOElementTransitionModifier&>(obj), f);
+		break;
 	case mtdisasm::DataObjectType::kVectorMotionModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOVectorMotionModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kChangeSceneModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOChangeSceneModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kAliasModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOAliasModifier&>(obj), f);
 		break;
 
 	default:
