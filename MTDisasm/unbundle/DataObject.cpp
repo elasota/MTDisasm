@@ -199,7 +199,7 @@ namespace mtdisasm
 		case 0x4d8:
 			return new DONotYetImplemented(objectType, "Save and Restore modifier");
 		case 0x26c:
-			return new DONotYetImplemented(objectType, "Scene Transition modifier");
+			return new DOSceneTransitionModifier();
 		case 0x276:
 			return new DONotYetImplemented(objectType, "Element Transition modifier");
 		case 0x1fe:
@@ -1946,6 +1946,32 @@ namespace mtdisasm
 		}
 
 		return true;
+	}
+
+	bool DOSceneTransitionModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3e9)
+			return false;
+
+		if (!m_modHeader.Load(reader))
+			return false;
+
+		if (!m_enableWhen.Load(reader)
+			|| !m_disableWhen.Load(reader)
+			|| !reader.ReadU16(m_transitionType)
+			|| !reader.ReadU16(m_direction)
+			|| !reader.ReadU16(m_unknown3)
+			|| !reader.ReadU16(m_steps)
+			|| !reader.ReadU32(m_duration)
+			|| !reader.ReadBytes(m_unknown5, 2))
+			return false;
+
+		return true;
+	}
+
+	DataObjectType DOSceneTransitionModifier::GetType() const
+	{
+		return DataObjectType::kSceneTransitionModifier;
 	}
 
 	DataObjectType DODragMotionModifier::GetType() const

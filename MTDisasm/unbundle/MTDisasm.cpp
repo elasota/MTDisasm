@@ -172,6 +172,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "GraphicModifier";
 	case mtdisasm::DataObjectType::kTextStyleModifier:
 		return "TextStyleModifier";
+	case mtdisasm::DataObjectType::kSceneTransitionModifier:
+		return "SceneTransitionModifier";
 	case mtdisasm::DataObjectType::kDragMotionModifier:
 		return "DragMotionModifier";
 	case mtdisasm::DataObjectType::kVectorMotionModifier:
@@ -3028,6 +3030,21 @@ void PrintObjectDisassembly(const mtdisasm::DOTextStyleModifier& obj, FILE* f)
 	}
 }
 
+void PrintObjectDisassembly(const mtdisasm::DOSceneTransitionModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kSceneTransitionModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+
+	PrintVal("EnableWhen", obj.m_enableWhen, f);
+	PrintVal("DisableWhen", obj.m_disableWhen, f);
+	PrintHex("TransitionType", obj.m_transitionType, f);
+	PrintHex("Direction", obj.m_direction, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintHex("Duration", obj.m_duration, f);
+	PrintHex("Steps", obj.m_steps, f);
+}
+
 void PrintObjectDisassembly(const mtdisasm::DODragMotionModifier& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kDragMotionModifier);
@@ -3196,6 +3213,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kDragMotionModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DODragMotionModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kSceneTransitionModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOSceneTransitionModifier&>(obj), f);
 		break;
 	case mtdisasm::DataObjectType::kVectorMotionModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOVectorMotionModifier&>(obj), f);

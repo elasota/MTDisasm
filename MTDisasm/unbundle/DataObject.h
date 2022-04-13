@@ -98,6 +98,7 @@ namespace mtdisasm
 		kTextStyleModifier,
 		kDragMotionModifier,
 		kVectorMotionModifier,
+		kSceneTransitionModifier,
 
 		kColorTableAsset,
 		kAudioAsset,
@@ -1316,6 +1317,42 @@ namespace mtdisasm
 		uint16_t m_lengthOfFontName;
 
 		std::vector<char> m_fontName;
+	};
+
+	struct DOSceneTransitionModifier final : public DataObject {
+
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		enum TransitionTypes
+		{
+			kTransitionTypePatternDissolve = 0x0406,
+			kTransitionTypeRandomDissolve  = 0x0410,
+			kTransitionTypeFade            = 0x041a,
+			kTransitionTypeSlide           = 0x03e8,
+			kTransitionTypePush            = 0x03f2,
+			kTransitionTypeZoom            = 0x03fc,
+			kTransitionTypeWipe            = 0x0424,
+		};
+
+		enum DirectionType
+		{
+			kDirectionTypeUp    = 0x385,
+			kDirectionTypeDown  = 0x385,
+			kDirectionTypeLeft  = 0x386,
+			kDirectionTypeRight = 0x387,
+		};
+
+		DOTypicalModifierHeader m_modHeader;
+
+		DOEvent m_enableWhen;
+		DOEvent m_disableWhen;
+		uint16_t m_transitionType;
+		uint16_t m_direction;
+		uint16_t m_unknown3;
+		uint16_t m_steps;
+		uint32_t m_duration;
+		uint8_t m_unknown5[2];
 	};
 
 	struct DODragMotionModifier final : public DataObject {

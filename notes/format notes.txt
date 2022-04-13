@@ -779,7 +779,19 @@ MESSAGE_DATA_LOCATOR:
 
 0x4d8: Save and Restore modifier
 
-0x26c: Scene Transition modifier
+0x26c: Scene Transition modifier   Known revisions: 1001
+	TYPICAL_MODIFIER_HEADER modifier header
+	EVENT enable when
+	EVENT disable when
+	uint16_t unknown
+	uint16_t unknown
+	uint16_t unknown
+	uint16_t steps
+	uint32_t duration (6000000 is maximum rate)
+	byte[2] unknown
+	
+	
+
 
 0x276: Element Transition modifier
 
@@ -962,9 +974,11 @@ MediaCue: Media Cue Messenger modifier   Known revisions: 1
 	PLUGIN_TYPE_TAGGED_VALUE execute at - May be a label, variable, integer, or integer range
 
 	PLUGIN_TYPE_TAGGED_VALUE trigger timing - Always 1
-		
-		
 
+ObjRefP: Object reference variable modifier   Known revisions: 2
+	PLUGIN_TYPE_TAGGED_VALUE set to source parent when (always event type)
+	PLUGIN_TYPE_TAGGED_VALUE unknown (int type, 5)
+	PLUGIN_TYPE_TAGGED_VALUE object path (always string type)
 
 ListMod: List modifier   Known revisions: 2 (1.1), 3 (Obsidian)
 	uint16 unknown (0x64)
