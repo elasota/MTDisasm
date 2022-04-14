@@ -70,7 +70,7 @@ namespace mtdisasm
 		kProjectStructuralDef,
 		kSectionStructuralDef,
 		kSubsectionStructuralDef,
-		kSceneStructuralDef,
+		kGraphicStructuralDef,
 		kImageStructuralDef,
 		kMovieStructuralDef,
 		kMToonStructuralDef,
@@ -415,6 +415,11 @@ namespace mtdisasm
 		};
 	}
 
+	enum
+	{
+		kSceneLocatorStreamIDMask = 0xfffffff,
+	};
+
 	namespace ModifierFlags
 	{
 		enum
@@ -505,15 +510,10 @@ namespace mtdisasm
 		std::vector<char> m_name;
 	};
 
-	struct DOSceneStructuralDef final : public DataObject
+	struct DOGraphicStructuralDef final : public DataObject
 	{
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
-
-		enum
-		{
-			kSceneLocatorStreamIDMask = 0xfffffff,
-		};
 
 		uint32_t m_unknown1;
 		uint32_t m_sizeIncludingTag;

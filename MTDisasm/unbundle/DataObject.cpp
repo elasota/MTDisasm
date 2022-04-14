@@ -123,7 +123,7 @@ namespace mtdisasm
 		case 0x007:
 			return new DOImageStructuralDef();
 		case 0x008:
-			return new DOSceneStructuralDef();
+			return new DOGraphicStructuralDef();
 		case 0x0015:
 			return new DONotYetImplemented(objectType, "Text label object");
 		case 0x001f:
@@ -528,6 +528,7 @@ namespace mtdisasm
 		return true;
 	}
 
+
 	DataObjectType DOProjectStructuralDef::GetType() const
 	{
 		return DataObjectType::kProjectStructuralDef;
@@ -702,12 +703,12 @@ namespace mtdisasm
 		return true;
 	}
 
-	DataObjectType DOSceneStructuralDef::GetType() const
+	DataObjectType DOGraphicStructuralDef::GetType() const
 	{
-		return DataObjectType::kSceneStructuralDef;
+		return DataObjectType::kGraphicStructuralDef;
 	}
 
-	bool DOSceneStructuralDef::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	bool DOGraphicStructuralDef::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
 	{
 		if (revision != 1)
 			return false;

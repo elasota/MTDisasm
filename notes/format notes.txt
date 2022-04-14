@@ -457,6 +457,13 @@ Modifier flags:
 
 Structural element modifiers do not include a modifier count.  The last modifier of a structural element will have a 0x2 flag in its modifier flags indicating that it is the last one, but they will also appear before any other structural elements, so it's not strictly necessary.
 
+Scenes are always declared as a structural element.  It doesn't appear to be possible to use a sound as a scene.
+
+Scene structural elements persist indefinitely.
+Changes to a scene's structural element's persistent properties (such as position) will persist indefinitely even if the scene is unloaded!
+
+
+
 
 0x2: Project structural def.  Known revisions: 1, 2  (No known differences between formats)
 	uint32_t structure tree flags
@@ -537,7 +544,7 @@ Structural element modifiers do not include a modifier count.  The last modifier
 	uint32_t unknown
 	byte[4] unknown (0)
 
-0x8: Scene structural def.  Known revisions: 1
+0x8: Graphic structural def.  Known revisions: 1
 	uint32_t structure tree flags
 	uint32_t size including tag
 	uint32_t unknown
@@ -575,8 +582,6 @@ Structural element modifiers do not include a modifier count.  The last modifier
 	byte[2] unknown (0)
 	For each child:
 		child object
-
-
 
 
 0x3c0: Miniscript modifier   Known revisions: 0x3eb
@@ -1014,7 +1019,7 @@ ListMod: List modifier   Known revisions: 2 (1.1), 3 (Obsidian)
 		uint16 persistent (if 0, no more data follows.  if 1, data follows)
 		if persistent:
 			uint32 number of values
-			TYPE_TAGGED_VALUE[number of values]
+			PLUGIN_TYPE_TAGGED_VALUE[number of values]
 
 MIDIModf: MIDI modifier   Known revisions: 1 (1.1)  2 (Obsidian)
 	uint16_t unknown (0x17)

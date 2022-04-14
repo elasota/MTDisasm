@@ -128,8 +128,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "SectionStructuralDef";
 	case mtdisasm::DataObjectType::kSubsectionStructuralDef:
 		return "SubsectionStructuralDef";
-	case mtdisasm::DataObjectType::kSceneStructuralDef:
-		return "SceneStructuralDef";
+	case mtdisasm::DataObjectType::kGraphicStructuralDef:
+		return "GraphicStructuralDef";
 	case mtdisasm::DataObjectType::kImageStructuralDef:
 		return "ImageStructuralDef";
 	case mtdisasm::DataObjectType::kMovieStructuralDef:
@@ -594,9 +594,9 @@ void PrintObjectDisassembly(const mtdisasm::DOSubsectionStructuralDef& obj, FILE
 	fputs("'\n", f);
 }
 
-void PrintObjectDisassembly(const mtdisasm::DOSceneStructuralDef& obj, FILE* f)
+void PrintObjectDisassembly(const mtdisasm::DOGraphicStructuralDef& obj, FILE* f)
 {
-	assert(obj.GetType() == mtdisasm::DataObjectType::kSceneStructuralDef);
+	assert(obj.GetType() == mtdisasm::DataObjectType::kGraphicStructuralDef);
 
 	PrintHex("Unknown1", obj.m_unknown1, f);
 	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
@@ -607,7 +607,7 @@ void PrintObjectDisassembly(const mtdisasm::DOSceneStructuralDef& obj, FILE* f)
 	PrintVal("Rect1", obj.m_rect1, f);
 	PrintVal("Rect2", obj.m_rect2, f);
 	PrintHex("StreamLocator", obj.m_streamLocator, f);
-	fprintf(f, "    Stream ID: %i\n", static_cast<int>(obj.m_streamLocator & mtdisasm::DOSceneStructuralDef::kSceneLocatorStreamIDMask));
+	fprintf(f, "    Stream ID: %i\n", static_cast<int>(obj.m_streamLocator & mtdisasm::kSceneLocatorStreamIDMask));
 
 	PrintHex("Unknown11", obj.m_unknown11, f);
 	fputs("Name: '", f);
@@ -630,7 +630,7 @@ void PrintObjectDisassembly(const mtdisasm::DOImageStructuralDef& obj, FILE* f)
 	PrintVal("Rect2", obj.m_rect2, f);
 	PrintVal("ImageAssetID", obj.m_imageAssetID, f);
 	PrintVal("StreamLocator", obj.m_streamLocator, f);
-	fprintf(f, "    Stream ID: %i\n", static_cast<int>(obj.m_streamLocator & mtdisasm::DOSceneStructuralDef::kSceneLocatorStreamIDMask));
+	fprintf(f, "    Stream ID: %i\n", static_cast<int>(obj.m_streamLocator & mtdisasm::kSceneLocatorStreamIDMask));
 	PrintHex("Unknown7", obj.m_unknown7, f);
 	fputs("Name: '", f);
 	if (obj.m_lengthOfName > 0)
@@ -659,7 +659,7 @@ void PrintObjectDisassembly(const mtdisasm::DOMovieStructuralDef& obj, FILE* f)
 	PrintHex("Unknown10", obj.m_unknown10, f);
 	PrintHex("Unknown11", obj.m_unknown11, f);
 	PrintHex("StreamLocator", obj.m_streamLocator, f);
-	fprintf(f, "    Stream ID: %i\n", static_cast<int>(obj.m_streamLocator & mtdisasm::DOSceneStructuralDef::kSceneLocatorStreamIDMask));
+	fprintf(f, "    Stream ID: %i\n", static_cast<int>(obj.m_streamLocator & mtdisasm::kSceneLocatorStreamIDMask));
 	PrintHex("Unknown13", obj.m_unknown13, f);
 	fputs("Name: '", f);
 	if (obj.m_lengthOfName > 0)
@@ -3182,8 +3182,8 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 	case mtdisasm::DataObjectType::kSubsectionStructuralDef:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOSubsectionStructuralDef&>(obj), f);
 		break;
-	case mtdisasm::DataObjectType::kSceneStructuralDef:
-		PrintObjectDisassembly(static_cast<const mtdisasm::DOSceneStructuralDef&>(obj), f);
+	case mtdisasm::DataObjectType::kGraphicStructuralDef:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOGraphicStructuralDef&>(obj), f);
 		break;
 	case mtdisasm::DataObjectType::kImageStructuralDef:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOImageStructuralDef&>(obj), f);
