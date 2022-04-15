@@ -673,11 +673,11 @@ void PrintObjectDisassembly(const mtdisasm::DOMToonStructuralDef& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kMToonStructuralDef);
 
-	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("StructuralFlags", obj.m_structuralFlags, f);
 	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
 	PrintHex("GUID", obj.m_guid, f);
 	PrintVal("LengthOfName", obj.m_lengthOfName, f);
-	PrintHex("StructuralFlags", obj.m_structuralFlags, f);
+	PrintHex("ElementFlags", obj.m_elementFlags, f);
 	PrintHex("Layer", obj.m_layer, f);
 	PrintHex("AnimationFlags", obj.m_animationFlags, f);
 	PrintHex("Unknown4", obj.m_unknown4, f);

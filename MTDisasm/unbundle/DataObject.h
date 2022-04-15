@@ -1515,7 +1515,7 @@ namespace mtdisasm
 		{
 			uint8_t m_unknown9[3];
 			uint8_t m_unknown10[3];
-			uint8_t m_unknown11[15];
+			uint8_t m_unknown11[18];
 			uint8_t m_unknown12_1[2];
 		};
 
