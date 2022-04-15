@@ -213,7 +213,7 @@ namespace mtdisasm
 		case 0x226:
 			return new DOVectorMotionModifier();
 		case 0x1a4:
-			return new DONotYetImplemented(objectType, "Sound Effect modifier");
+			return new DOSoundEffectModifier();
 		case 0x32a:
 			return new DOTextStyleModifier();
 		case 0x334:
@@ -713,12 +713,12 @@ namespace mtdisasm
 		if (revision != 1)
 			return false;
 
-		if (!reader.ReadU32(m_unknown1)
+		if (!reader.ReadU32(m_structuralFlags)
 			|| !reader.ReadU32(m_sizeIncludingTag)
 			|| !reader.ReadU32(m_guid)
 			|| !reader.ReadU16(m_lengthOfName)
 			|| !reader.ReadU32(m_flags)
-			|| !reader.ReadBytes(m_unknown4, 2)
+			|| !reader.ReadU16(m_layer)
 			|| !reader.ReadU16(m_sectionID)
 			|| !m_rect1.Load(reader, sp)
 			|| !m_rect2.Load(reader, sp)
@@ -749,12 +749,12 @@ namespace mtdisasm
 		if (revision != 2)
 			return false;
 
-		if (!reader.ReadU32(m_unknown1)
+		if (!reader.ReadU32(m_structuralFlags)
 			|| !reader.ReadU32(m_sizeIncludingTag)
 			|| !reader.ReadU32(m_guid)
 			|| !reader.ReadU16(m_lengthOfName)
 			|| !reader.ReadU32(m_flags)
-			|| !reader.ReadBytes(m_unknown4, 2)
+			|| !reader.ReadU16(m_layer)
 			|| !reader.ReadU16(m_sectionID)
 			|| !m_rect1.Load(reader, sp)
 			|| !m_rect2.Load(reader, sp)
@@ -831,12 +831,12 @@ namespace mtdisasm
 		if (revision != 2 && revision != 3)
 			return false;
 
-		if (!reader.ReadU32(m_unknown1)
+		if (!reader.ReadU32(m_structuralFlags)
 			|| !reader.ReadU32(m_sizeIncludingTag)
 			|| !reader.ReadU32(m_guid)
 			|| !reader.ReadU16(m_lengthOfName)
-			|| !reader.ReadU32(m_structuralFlags)
-			|| !reader.ReadBytes(m_unknown3, 2)
+			|| !reader.ReadU32(m_elementFlags)
+			|| !reader.ReadU16(m_layer)
 			|| !reader.ReadU32(m_animationFlags)
 			|| !reader.ReadBytes(m_unknown4, 4)
 			|| !reader.ReadU16(m_sectionID)
@@ -2121,8 +2121,33 @@ namespace mtdisasm
 			|| !reader.ReadU32(m_unknown2)
 			|| !reader.ReadU16(m_lengthOfName)
 			|| !m_editorLayoutPosition.Load(reader, sp)
-			|| !reader.ReadU32(m_unknown3)
+			|| !reader.ReadU32(m_guid)
 			|| !reader.ReadTerminatedStr(m_name, m_lengthOfName))
+			return false;
+
+		return true;
+	}
+
+	DataObjectType DOSoundEffectModifier::GetType() const
+	{
+		return DataObjectType::kSoundEffectModifier;
+	}
+
+	bool DOSoundEffectModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3e8)
+			return false;
+
+		if (!m_modHeader.Load(reader))
+			return false;
+
+		if (!reader.ReadBytes(m_unknown1, 4)
+			|| !m_executeWhen.Load(reader)
+			|| !m_terminateWhen.Load(reader)
+			|| !reader.ReadU32(m_unknown2)
+			|| !reader.ReadBytes(m_unknown3, 4)
+			|| !reader.ReadU32(m_assetID)
+			|| !reader.ReadBytes(m_unknown5, 4))
 			return false;
 
 		return true;

@@ -184,6 +184,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "ChangeSceneModifier";
 	case mtdisasm::DataObjectType::kAliasModifier:
 		return "AliasModifier";
+	case mtdisasm::DataObjectType::kSoundEffectModifier:
+		return "SoundEffectModifier";
 	case mtdisasm::DataObjectType::kNotYetImplemented:
 		return "NotYetImplemented";
 	case mtdisasm::DataObjectType::kPlugInModifier:
@@ -598,11 +600,11 @@ void PrintObjectDisassembly(const mtdisasm::DOGraphicStructuralDef& obj, FILE* f
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kGraphicStructuralDef);
 
-	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("StructuralFlags", obj.m_structuralFlags, f);
 	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
 	PrintHex("GUID", obj.m_guid, f);
 	PrintHex("Flags", obj.m_flags, f);
-	PrintHex("Unknown4", obj.m_unknown4, f);
+	PrintHex("Layer", obj.m_layer, f);
 	PrintVal("SectionID", obj.m_sectionID, f);
 	PrintVal("Rect1", obj.m_rect1, f);
 	PrintVal("Rect2", obj.m_rect2, f);
@@ -620,11 +622,11 @@ void PrintObjectDisassembly(const mtdisasm::DOImageStructuralDef& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kImageStructuralDef);
 
-	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("StructuralFlags", obj.m_structuralFlags, f);
 	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
 	PrintHex("GUID", obj.m_guid, f);
 	PrintHex("Flags", obj.m_flags, f);
-	PrintHex("Unknown4", obj.m_unknown4, f);
+	PrintHex("Layer", obj.m_layer, f);
 	PrintVal("SectionID", obj.m_sectionID, f);
 	PrintVal("Rect1", obj.m_rect1, f);
 	PrintVal("Rect2", obj.m_rect2, f);
@@ -676,7 +678,7 @@ void PrintObjectDisassembly(const mtdisasm::DOMToonStructuralDef& obj, FILE* f)
 	PrintHex("GUID", obj.m_guid, f);
 	PrintVal("LengthOfName", obj.m_lengthOfName, f);
 	PrintHex("StructuralFlags", obj.m_structuralFlags, f);
-	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintHex("Layer", obj.m_layer, f);
 	PrintHex("AnimationFlags", obj.m_animationFlags, f);
 	PrintHex("Unknown4", obj.m_unknown4, f);
 	PrintVal("SectionID", obj.m_sectionID, f);
@@ -3132,8 +3134,22 @@ void PrintObjectDisassembly(const mtdisasm::DOAliasModifier& obj, FILE* f)
 	PrintHex("Unknown1", obj.m_unknown1, f);
 	PrintHex("Unknown2", obj.m_unknown2, f);
 	PrintVal("EditorLayoutPosition", obj.m_editorLayoutPosition, f);
-	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintHex("GUID", obj.m_guid, f);
 	PrintStr("Name", obj.m_name, f);
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOSoundEffectModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kSoundEffectModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+	PrintVal("EnableWhen", obj.m_executeWhen, f);
+	PrintVal("DisableWhen", obj.m_terminateWhen, f);
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintHex("AssetID", obj.m_assetID, f);
+	PrintHex("Unknown5", obj.m_unknown5, f);
 }
 
 void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
@@ -3277,6 +3293,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kAliasModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOAliasModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kSoundEffectModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOSoundEffectModifier&>(obj), f);
 		break;
 
 	default:

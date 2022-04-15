@@ -102,6 +102,7 @@ namespace mtdisasm
 		kElementTransitionModifier,
 		kChangeSceneModifier,
 		kAliasModifier,
+		kSoundEffectModifier,
 
 		kColorTableAsset,
 		kAudioAsset,
@@ -515,12 +516,12 @@ namespace mtdisasm
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
 
-		uint32_t m_unknown1;
+		uint32_t m_structuralFlags;
 		uint32_t m_sizeIncludingTag;
 		uint32_t m_guid;
 		uint16_t m_lengthOfName;
 		uint32_t m_flags;
-		uint8_t m_unknown4[2];
+		uint16_t m_layer;
 		uint16_t m_sectionID;
 		DORect m_rect1;
 		DORect m_rect2;
@@ -535,12 +536,12 @@ namespace mtdisasm
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
 
-		uint32_t m_unknown1;
+		uint32_t m_structuralFlags;
 		uint32_t m_sizeIncludingTag;
 		uint32_t m_guid;
 		uint16_t m_lengthOfName;
 		uint32_t m_flags;
-		uint8_t m_unknown4[2];
+		uint16_t m_layer;
 		uint16_t m_sectionID;
 		DORect m_rect1;
 		DORect m_rect2;
@@ -584,12 +585,12 @@ namespace mtdisasm
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
 
-		uint32_t m_unknown1;
+		uint32_t m_structuralFlags;
 		uint32_t m_sizeIncludingTag;
 		uint32_t m_guid;
 		uint16_t m_lengthOfName;
-		uint32_t m_structuralFlags;
-		uint8_t m_unknown3[2];
+		uint32_t m_elementFlags;
+		uint16_t m_layer;
 		uint32_t m_animationFlags;
 		uint8_t m_unknown4[4];
 		uint16_t m_sectionID;
@@ -1476,10 +1477,25 @@ namespace mtdisasm
 		uint32_t m_unknown1;
 		uint32_t m_unknown2;
 		uint16_t m_lengthOfName;
-		uint32_t m_unknown3;
+		uint32_t m_guid;
 		DOPoint m_editorLayoutPosition;
 
 		std::vector<char> m_name;
+	};
+
+	struct DOSoundEffectModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		DOTypicalModifierHeader m_modHeader;
+		uint8_t m_unknown1[4];
+		DOEvent m_executeWhen;
+		DOEvent m_terminateWhen;
+		uint32_t m_unknown2;
+		uint8_t m_unknown3[4];
+		uint32_t m_assetID;
+		uint8_t m_unknown5[4];
 	};
 
 	struct DOAudioAsset final : public DataObject
