@@ -742,7 +742,7 @@ bool PrintMiniscriptInstructionDisassembly(FILE* f, mtdisasm::DataReader& reader
 			else if (globID == 10)
 				fputs("project", f);
 			else if (globID == 11)
-				fputs("sharedScene", f);
+				fputs("activeScene", f);
 			else
 				PrintSingleVal(globID, true, f);
 		}
@@ -1479,7 +1479,7 @@ void EmitPushGlobal(const MiniscriptInstruction& instr, const mtdisasm::DOMinisc
 	case 8: name = "sharedScene"; break;
 	case 9: name = "section"; break;
 	case 10: name = "project"; break;
-	case 11: name = "sharedScene"; break;
+	case 11: name = "activeScene"; break;
 	default:
 		fprintf(f, "unknown_env_%08x", static_cast<int>(globID));
 		return;
