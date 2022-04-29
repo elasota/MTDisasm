@@ -316,21 +316,22 @@ MINISCRIPT PROGRAM:
 -------------------------------------------------------------------------------------------
 KNOWN DATA OBJECT TAGS AND FORMATS
 -------------------------------------------------------------------------------------------
-0x15: Text label object.  Known revisions: 0
+0x15: Text label object.  Known revisions: 0 (Win) 2 (Mac)
 uint32_t unknown (0)
-uint32_t unknown (0x10000 range but varies)
-uint16_t unknown - 16 - Font size?
-uint32_t unknown (0x02001000)
-uint16_t unknown (1)
-uint16_t unknown (0)
+uint32_t size including tag
+uint32_t unknown (guid?)
+uint16_t length of name
+uint32_t unknown (structural flags?)
+uint16_t layer
+uint16_t section ID
 WIN: uint16_t unknown (0x1700)
 RECT rect
 RECT rect
---- Data note: 0x54 on Win, 0x52 on Mac
-uint32_t unknown (appears to be globally unique ID)
+uint32_t unknown (asset ID?)
 WIN: byte[8] unknown (zero fill)
 MAC: byte[30] unknown
-char[variable] name (remainder)
+char[length of name] name (null terminated)
+
 
 0x17: Global object parameters?
 	uint32_t marker
@@ -519,8 +520,8 @@ Changes to a scene's structural element's persistent properties (such as positio
 	uint32_t structural flags
 	byte[2] unknown
 	uint32_t animation flags (0x28000000)
-		0x2000000 = Maintain rate
-		0x8000000 = Loop
+		0x02000000 = Maintain rate
+		0x08000000 = Loop
 	byte[4] unknown (zeros)
 	uint16_t section ID
 	RECT rect1
@@ -547,7 +548,7 @@ Changes to a scene's structural element's persistent properties (such as positio
 0x8: Graphic structural def.  Known revisions: 1
 	uint32_t structure tree flags
 	uint32_t size including tag
-	uint32_t unknown
+	uint32_t guid
 	uint16_t length of name
 	uint32_t structural flags
 	byte[2] unknown
@@ -556,9 +557,24 @@ Changes to a scene's structural element's persistent properties (such as positio
 	DORect rect2
 	uint32_t stream locator  (1-based stream index, sometimes observed with 0x10000000 flag set, not sure of the meaning)
 	byte[4] unknown
+	
 
 0xa: Sound structural def.  Known revisions: 3
-	???
+	uint32_t structure tree flags
+	uint32_t size including tag
+	uint32_t guid
+	uint16_t length of name
+	uint32_t element flags
+	uint32_t sound flags
+		0x80000000 = loop (NOTE: Not the same as movie/mToon loop flag)
+	uint16_t unknown
+	byte[2] unknown (0)
+	uint16_t right volume
+	uint16_t left volume
+	int16_t balance (-100 to 100)
+	uint32_t asset ID
+	byte[8] unknown (0)
+	char[length of name] name
 
 0xfffffffe: Debris.  Replaces deleted modifiers in the global modifier list.  Known revisions: 0
 	uint32_t marker
@@ -1138,7 +1154,7 @@ MIDIModf: MIDI modifier   Known revisions: 1 (1.1)  2 (Obsidian)
 	uint32_t size
 
 0xf: mToon asset  Known revisions: 1
-	marker
+	uint32_t marker
 	byte[8] unknown (0)
 	uint32_t asset ID
 	Mac:
@@ -1149,6 +1165,61 @@ MIDIModf: MIDI modifier   Known revisions: 1 (1.1)  2 (Obsidian)
 	uint32_t data file position
 	uint32_t size of mToon frame data
 	mToon data (see "mtoon notes.txt")
+
+MAC_FORMATTING_SPAN:
+	byte[2] unknown
+	uint16_t spanStart
+	byte[4] unknown
+	uint16_t font ID
+	uint8_t flags
+		0x01: Bold
+		0x02: Italic
+		0x04: Underline
+		0x08: Outline
+		0x10: Shadow
+		0x20: Condensed
+		0x40: Expanded
+	byte padding
+	uint16_t size
+	byte[6] unknown
+
+
+
+
+0x1f: Text asset   Known revisions: 3
+	uint32_t marker
+	uint32_t size including tag
+	uint32_t unknown
+	uint32_t asset ID
+	uint32_t unknown
+	Mac:
+		byte[44] unknown
+	Win:
+		byte[10] unknown (0)
+	RECT bitmap rect - starts at 840 on mac
+	FIXED hdpi
+	FIXED vdpi
+	uint16_t unknown (1)
+	byte[2] big endian pitch
+	uint32_t unknown (1)
+	uint32_t bitmap size
+	byte[20] unknown
+	uint32_t string length
+	byte[8] unknown
+	uint16_t alignment
+		0x0000: Left
+		0x0001: Center
+		0xffff: Right
+	uint16_t bitmap flag
+	if not bitmap:
+		char[string length] string - not null terminated
+		Mac:
+			uint16 number of formatting spans
+			MAC_FORMATTING_SPAN[number of formatting spans] formatting spans
+	if bitmap:
+		byte[bitmap size] bitmap
+
+
 
 0xffff: Stream terminator.   Known revisions: 0
 	byte[4] unknown (0)

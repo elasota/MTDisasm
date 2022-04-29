@@ -125,11 +125,11 @@ namespace mtdisasm
 		case 0x008:
 			return new DOGraphicStructuralDef();
 		case 0x0015:
-			return new DONotYetImplemented(objectType, "Text label object");
-		case 0x001f:
-			return new DONotYetImplemented(objectType, "Unknown '0x1f' type asset");
+			return new DOTextStructuralDef();
 		case 0xa:
-			return new DONotYetImplemented(objectType, "Sound structural def");
+			return new DOSoundStructuralDef();
+		case 0x001f:
+			return new DOTextAsset();
 		case 0x00d:
 			return new DOAssetCatalog();
 		case 0x017:
@@ -735,6 +735,86 @@ namespace mtdisasm
 			if (m_name[m_lengthOfName - 1] != 0)
 				return false;
 		}
+
+		return true;
+	}
+
+	DataObjectType DOTextStructuralDef::GetType() const
+	{
+		return DataObjectType::kTextStructuralDef;
+	}
+
+	bool DOTextStructuralDef::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0 && revision != 2)
+			return false;
+
+		if (!reader.ReadU32(m_structuralFlags)
+			|| !reader.ReadU32(m_sizeIncludingTag)
+			|| !reader.ReadU32(m_guid)
+			|| !reader.ReadU16(m_lengthOfName)
+			|| !reader.ReadU32(m_elementFlags)
+			|| !reader.ReadU16(m_layer)
+			|| !reader.ReadU16(m_sectionID))
+			return false;
+
+		m_haveMacPart = false;
+		m_haveWinPart = false;
+		if (sp.m_systemType == SystemType::kWindows)
+		{
+			m_haveWinPart = true;
+			if (!reader.ReadBytes(m_platform.m_win.m_unknown3, 2))
+				return false;
+		}
+
+		if (!m_rect1.Load(reader, sp)
+			|| !m_rect2.Load(reader, sp)
+			|| !reader.ReadU32(m_assetID))
+			return false;
+
+		if (sp.m_systemType == SystemType::kWindows)
+		{
+			if (!reader.ReadBytes(m_platform.m_win.m_unknown4, 8))
+				return false;
+		}
+		else if (sp.m_systemType == SystemType::kMac)
+		{
+			m_haveMacPart = true;
+			if (!reader.ReadBytes(m_platform.m_mac.m_unknown2, 30))
+				return false;
+		}
+
+		if (!reader.ReadTerminatedStr(m_name, m_lengthOfName))
+			return false;
+
+		return true;
+	}
+
+	DataObjectType DOSoundStructuralDef::GetType() const
+	{
+		return DataObjectType::kSoundStructuralDef;
+	}
+
+	bool DOSoundStructuralDef::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 3)
+			return false;
+
+		if (!reader.ReadU32(m_structuralFlags)
+			|| !reader.ReadU32(m_sizeIncludingTag)
+			|| !reader.ReadU32(m_guid)
+			|| !reader.ReadU16(m_lengthOfName)
+			|| !reader.ReadU32(m_elementFlags)
+			|| !reader.ReadU32(m_soundFlags)
+			|| !reader.ReadU16(m_unknown2)
+			|| !reader.ReadBytes(m_unknown3, 2)
+			|| !reader.ReadU16(m_rightVolume)
+			|| !reader.ReadU16(m_leftVolume)
+			|| !reader.ReadS16(m_balance)
+			|| !reader.ReadU32(m_assetID)
+			|| !reader.ReadBytes(m_unknown5, 8)
+			|| !reader.ReadTerminatedStr(m_name, m_lengthOfName))
+				return false;
 
 		return true;
 	}
@@ -2364,7 +2444,6 @@ namespace mtdisasm
 		return true;
 	}
 
-
 	DataObjectType DOMToonAsset::GetType() const
 	{
 		return DataObjectType::kMToonAsset;
@@ -2504,6 +2583,89 @@ namespace mtdisasm
 					}
 				}
 			}
+		}
+
+		return true;
+	}
+
+	DataObjectType DOTextAsset::GetType() const
+	{
+		return DataObjectType::kTextAsset;
+	}
+
+	bool DOTextAsset::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 3)
+			return false;
+
+		if (!reader.ReadU32(m_marker)
+			|| !reader.ReadU32(m_sizeIncludingTag)
+			|| !reader.ReadU32(m_unknown1)
+			|| !reader.ReadU32(m_assetID)
+			|| !reader.ReadU32(m_unknown2))
+			return false;
+
+		m_haveMacPart = false;
+		m_haveWinPart = false;
+		if (sp.m_systemType == SystemType::kMac)
+		{
+			m_haveMacPart = true;
+			if (!reader.ReadBytes(m_platform.m_mac.m_unknown3, 44))
+				return false;
+		}
+		else if (sp.m_systemType == SystemType::kWindows)
+		{
+			m_haveWinPart = true;
+			if (!reader.ReadBytes(m_platform.m_win.m_unknown4, 10))
+				return false;
+		}
+
+		if (!m_bitmapRect.Load(reader, sp)
+			|| !reader.ReadU32(m_hdpi)
+			|| !reader.ReadU32(m_vdpi)
+			|| !reader.ReadU16(m_unknown5)
+			|| !reader.ReadBytes(m_pitchBigEndian, 2)
+			|| !reader.ReadU32(m_unknown6)
+			|| !reader.ReadU32(m_bitmapSize)
+			|| !reader.ReadBytes(m_unknown7, 20)
+			|| !reader.ReadU32(m_textSize)
+			|| !reader.ReadBytes(m_unknown8, 8)
+			|| !reader.ReadU16(m_alignment)
+			|| !reader.ReadU16(m_isBitmap))
+			return false;
+
+		if ((m_isBitmap & 1) == 0)
+		{
+			if (!reader.ReadNonTerminatedStr(m_text, m_textSize))
+				return false;
+
+			if (sp.m_systemType == SystemType::kMac)
+			{
+				uint16_t numFormattingSpans;
+				if (!reader.ReadU16(numFormattingSpans))
+					return false;
+
+				m_macFormattingSpans.resize(numFormattingSpans);
+				for (size_t i = 0; i < numFormattingSpans; i++)
+				{
+					MacFormattingSpan& span = m_macFormattingSpans[i];
+					if (!reader.ReadBytes(span.m_unknown9, 2)
+						|| !reader.ReadU16(span.m_spanStart)
+						|| !reader.ReadBytes(span.m_unknown10, 4)
+						|| !reader.ReadU16(span.m_fontID)
+						|| !reader.ReadU8(span.m_fontFlags)
+						|| !reader.ReadBytes(span.m_unknown11, 1)
+						|| !reader.ReadU16(span.m_size)
+						|| !reader.ReadBytes(span.m_unknown12, 6))
+						return false;
+				}
+			}
+		}
+		else
+		{
+			m_bitmapData.resize(m_bitmapSize);
+			if (m_bitmapSize > 0 && !reader.ReadBytes(&m_bitmapData[0], m_bitmapSize))
+				return false;
 		}
 
 		return true;

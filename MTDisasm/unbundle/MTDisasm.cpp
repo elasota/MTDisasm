@@ -122,6 +122,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "MovieAsset";
 	case mtdisasm::DataObjectType::kMToonAsset:
 		return "MToonAsset";
+	case mtdisasm::DataObjectType::kTextAsset:
+		return "TextAsset";
 	case mtdisasm::DataObjectType::kProjectStructuralDef:
 		return "ProjectStructuralDef";
 	case mtdisasm::DataObjectType::kSectionStructuralDef:
@@ -130,6 +132,10 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "SubsectionStructuralDef";
 	case mtdisasm::DataObjectType::kGraphicStructuralDef:
 		return "GraphicStructuralDef";
+	case mtdisasm::DataObjectType::kTextStructuralDef:
+		return "TextStructuralDef";
+	case mtdisasm::DataObjectType::kSoundStructuralDef:
+		return "SoundStructuralDef";
 	case mtdisasm::DataObjectType::kImageStructuralDef:
 		return "ImageStructuralDef";
 	case mtdisasm::DataObjectType::kMovieStructuralDef:
@@ -221,8 +227,8 @@ void NameAssetType(char* assetName, uint32_t assetType)
 	case mtdisasm::AssetTypeIDs::kMIDI:
 		memcpy(assetName, "MIDI    ", 8);
 		break;
-	case mtdisasm::AssetTypeIDs::kUnknown1f:
-		memcpy(assetName, "Unknwn1f", 8);
+	case mtdisasm::AssetTypeIDs::kText:
+		memcpy(assetName, "Text    ", 8);
 		break;
 	default:
 		for (int i = 0; i < 8; i++)
@@ -616,6 +622,53 @@ void PrintObjectDisassembly(const mtdisasm::DOGraphicStructuralDef& obj, FILE* f
 	if (obj.m_lengthOfName > 0)
 		fwrite(&obj.m_name[0], 1, obj.m_lengthOfName - 1, f);
 	fputs("'\n", f);
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOTextStructuralDef& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kTextStructuralDef);
+
+	PrintHex("StructuralFlags", obj.m_structuralFlags, f);
+	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
+	PrintHex("GUID", obj.m_guid, f);
+	PrintHex("LengthOfName", obj.m_lengthOfName, f);
+	PrintHex("Flags", obj.m_elementFlags, f);
+	PrintVal("Layer", obj.m_layer, f);
+	PrintVal("SectionID", obj.m_sectionID, f);
+	PrintVal("Rect1", obj.m_rect1, f);
+	PrintVal("Rect2", obj.m_rect2, f);
+	PrintVal("AssetID", obj.m_assetID, f);
+	PrintStr("Name", obj.m_name, f);
+
+	if (obj.m_haveMacPart)
+	{
+		PrintHex("Unknown2", obj.m_platform.m_mac.m_unknown2, f);
+	}
+	else if (obj.m_haveWinPart)
+	{
+		PrintHex("Unknown3", obj.m_platform.m_win.m_unknown3, f);
+		PrintHex("Unknown4", obj.m_platform.m_win.m_unknown4, f);
+	}
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOSoundStructuralDef& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kSoundStructuralDef);
+
+	PrintHex("StructuralFlags", obj.m_structuralFlags, f);
+	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
+	PrintHex("GUID", obj.m_guid, f);
+	PrintHex("LengthOfName", obj.m_lengthOfName, f);
+	PrintHex("ElementFlags", obj.m_elementFlags, f);
+	PrintHex("SoundFlags", obj.m_soundFlags, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintVal("Balance", obj.m_balance, f);
+	PrintVal("AssetID", obj.m_assetID, f);
+	PrintVal("RightVolume", obj.m_rightVolume, f);
+	PrintVal("LeftVolume", obj.m_leftVolume, f);
+	PrintHex("Unknown5", obj.m_unknown5, f);
+	PrintStr("Name", obj.m_name, f);
 }
 
 void PrintObjectDisassembly(const mtdisasm::DOImageStructuralDef& obj, FILE* f)
@@ -2281,7 +2334,7 @@ void PrintObjectDisassembly(const mtdisasm::DOMiniscriptModifier& obj, FILE* f)
 	PrintHex("Unknown3", obj.m_unknown3, f);
 	PrintHex("Unknown4", obj.m_unknown4, f);
 	PrintHex("LengthOfName", obj.m_lengthOfName, f);
-	PrintHex("EnableWhen", obj.m_enableWhen, f);
+	PrintVal("EnableWhen", obj.m_enableWhen, f);
 	PrintHex("Unknown6", obj.m_unknown6, f);
 	PrintHex("Unknown7", obj.m_unknown7, f);
 	fputs("Name: '", f);
@@ -2529,7 +2582,6 @@ void PrintObjectDisassembly(const mtdisasm::DOMovieAsset& obj, FILE* f)
 	}
 }
 
-
 void PrintObjectDisassembly(const mtdisasm::DOMToonAsset& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kMToonAsset);
@@ -2612,6 +2664,51 @@ void PrintObjectDisassembly(const mtdisasm::DOMToonAsset& obj, FILE* f)
 			fputs("'\n", f);
 			PrintHex("Unknown14", frameRange.m_unknown14, f);
 		}
+	}
+}
+
+
+void PrintObjectDisassembly(const mtdisasm::DOTextAsset& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kTextAsset);
+
+	PrintHex("Marker", obj.m_marker, f);
+	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintVal("AssetID", obj.m_assetID, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintVal("BitmapRect", obj.m_bitmapRect, f);
+	PrintHex("HDPI", obj.m_hdpi, f);
+	PrintHex("VDPI", obj.m_vdpi, f);
+	PrintHex("Unknown5", obj.m_unknown5, f);
+	PrintHex("PitchBigEndian", obj.m_pitchBigEndian, f);
+	PrintHex("Unknown6", obj.m_unknown6, f);
+	PrintVal("BitmapSize", obj.m_bitmapSize, f);
+	PrintHex("Unknown7", obj.m_unknown7, f);
+	PrintVal("TextSize", obj.m_textSize, f);
+	PrintHex("Unknown8", obj.m_unknown8, f);
+	PrintHex("Alignment", obj.m_alignment, f);
+	PrintVal("IsBitmap", obj.m_isBitmap, f);
+
+	if (obj.m_haveMacPart)
+		PrintHex("Unknown3", obj.m_platform.m_mac.m_unknown3, f);
+	if (obj.m_haveWinPart)
+		PrintHex("Unknown4", obj.m_platform.m_win.m_unknown4, f);
+
+	if ((obj.m_isBitmap & 1) == 0)
+		PrintStr("Text", obj.m_text, f);
+
+	for (int i = 0; i < obj.m_macFormattingSpans.size(); i++)
+	{
+		fprintf(f, "Formatting span %i:\n", i);
+		const mtdisasm::DOTextAsset::MacFormattingSpan& fmtSpan = obj.m_macFormattingSpans[i];
+		PrintHex("Unknown9", fmtSpan.m_unknown9, f);
+		PrintVal("SpanStart", fmtSpan.m_spanStart, f);
+		PrintHex("Unknown10", fmtSpan.m_unknown10, f);
+		PrintVal("FontID", fmtSpan.m_fontID, f);
+		PrintHex("Unknown11", fmtSpan.m_unknown11, f);
+		PrintVal("Size", fmtSpan.m_size, f);
+		PrintHex("Unknown12", fmtSpan.m_unknown12, f);
 	}
 }
 
@@ -3101,8 +3198,8 @@ void PrintObjectDisassembly(const mtdisasm::DOVectorMotionModifier& obj, FILE* f
 	PrintObjectDisassembly(obj.m_modHeader, f);
 
 	PrintHex("Unknown1", obj.m_unknown1, f);
-	PrintHex("EnableWhen", obj.m_enableWhen, f);
-	PrintHex("DisableWhen", obj.m_disableWhen, f);
+	PrintVal("EnableWhen", obj.m_enableWhen, f);
+	PrintVal("DisableWhen", obj.m_disableWhen, f);
 	fputs("Var source:\n", f);
 	PrintObjectDisassembly(obj.m_varSource, f);
 
@@ -3121,7 +3218,7 @@ void PrintObjectDisassembly(const mtdisasm::DOChangeSceneModifier& obj, FILE* f)
 	PrintHex("TargetSectionGUID", obj.m_targetSectionGUID, f);
 	PrintHex("TargetSubsectionGUID", obj.m_targetSubsectionGUID, f);
 	PrintHex("TargetSceneGUID", obj.m_targetSceneGUID, f);
-	PrintHex("EnableWhen", obj.m_executeWhen, f);
+	PrintVal("EnableWhen", obj.m_executeWhen, f);
 }
 
 void PrintObjectDisassembly(const mtdisasm::DOAliasModifier& obj, FILE* f)
@@ -3192,6 +3289,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 	case mtdisasm::DataObjectType::kMToonAsset:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOMToonAsset&>(obj), f);
 		break;
+	case mtdisasm::DataObjectType::kTextAsset:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOTextAsset&>(obj), f);
+		break;
 	case mtdisasm::DataObjectType::kSectionStructuralDef:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOSectionStructuralDef&>(obj), f);
 		break;
@@ -3200,6 +3300,12 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kGraphicStructuralDef:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOGraphicStructuralDef&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kTextStructuralDef:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOTextStructuralDef&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kSoundStructuralDef:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOSoundStructuralDef&>(obj), f);
 		break;
 	case mtdisasm::DataObjectType::kImageStructuralDef:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOImageStructuralDef&>(obj), f);

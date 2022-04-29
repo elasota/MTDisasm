@@ -15,7 +15,7 @@ namespace mtdisasm
 			kColorTable = 0x02,
 			kImage = 0x0e,
 			kMToon = 0x10,
-			kUnknown1f = 0x1f,	// Appears to be an image?  But always nameless.
+			kText = 0x1f,
 			kWaveformSound = 0x54,
 			kMovie = 0x55,
 			kMIDI = 0x5c,
@@ -71,6 +71,8 @@ namespace mtdisasm
 		kSectionStructuralDef,
 		kSubsectionStructuralDef,
 		kGraphicStructuralDef,
+		kTextStructuralDef,
+		kSoundStructuralDef,
 		kImageStructuralDef,
 		kMovieStructuralDef,
 		kMToonStructuralDef,
@@ -109,6 +111,7 @@ namespace mtdisasm
 		kImageAsset,
 		kMovieAsset,
 		kMToonAsset,
+		kTextAsset,
 
 		kAssetDataSection,
 		kNotYetImplemented,
@@ -397,7 +400,6 @@ namespace mtdisasm
 			kMaintainRate		= 0x02000000,	// mToon
 			kPlayEveryFrame		= 0x02000000,	// QuickTime
 			kLoop				= 0x08000000,
-
 		};
 	}
 
@@ -527,6 +529,69 @@ namespace mtdisasm
 		DORect m_rect2;
 		uint32_t m_streamLocator;	// 1-based index, sometimes observed with 0x10000000 flag set, not sure of the meaning
 		uint8_t m_unknown11[4];
+
+		std::vector<char> m_name;
+	};
+
+	struct DOTextStructuralDef final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		uint32_t m_structuralFlags;
+		uint32_t m_sizeIncludingTag;
+		uint32_t m_guid;
+		uint16_t m_lengthOfName;
+		uint32_t m_elementFlags;
+		uint16_t m_layer;
+		uint16_t m_sectionID;
+		DORect m_rect1;
+		DORect m_rect2;
+		uint32_t m_assetID;
+
+		struct MacPart
+		{
+			uint8_t m_unknown2[30];
+		};
+
+		struct WinPart
+		{
+			uint8_t m_unknown3[2];
+			uint8_t m_unknown4[8];
+		};
+
+		union PlatformPart
+		{
+			MacPart m_mac;
+			WinPart m_win;
+		};
+
+
+		bool m_haveMacPart;
+		bool m_haveWinPart;
+		PlatformPart m_platform;
+
+		std::vector<char> m_name;
+	};
+
+	struct DOSoundStructuralDef final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		uint32_t m_structuralFlags;
+		uint32_t m_sizeIncludingTag;
+		uint32_t m_guid;
+		uint16_t m_lengthOfName;
+		uint32_t m_elementFlags;
+		uint32_t m_soundFlags;
+		uint16_t m_unknown2;
+		uint8_t m_unknown3[2];
+		uint16_t m_rightVolume;
+		uint16_t m_leftVolume;
+		int16_t m_balance;
+		uint32_t m_assetID;
+		uint8_t m_unknown5[8];
 
 		std::vector<char> m_name;
 	};
@@ -1746,6 +1811,68 @@ namespace mtdisasm
 			uint32_t m_numFrameRanges;
 			std::vector<FrameRangeDef> m_frameRanges;
 		} m_frameRangesPart;
+	};
+
+	struct DOTextAsset final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		struct MacFormattingSpan
+		{
+			uint8_t m_unknown9[2];
+			uint16_t m_spanStart;
+			uint8_t m_unknown10[4];
+			uint16_t m_fontID;
+			uint8_t m_fontFlags;
+			uint8_t m_unknown11[1];
+			uint16_t m_size;
+			uint8_t m_unknown12[6];
+		};
+
+		struct MacPart
+		{
+			uint8_t m_unknown3[44];
+		};
+
+		struct WinPart
+		{
+			uint8_t m_unknown4[10];
+		};
+
+		union PlatformPart
+		{
+			MacPart m_mac;
+			WinPart m_win;
+		};
+
+		uint32_t m_marker;
+		uint32_t m_sizeIncludingTag;
+		uint32_t m_unknown1;
+		uint32_t m_assetID;
+		uint32_t m_unknown2;
+		DORect m_bitmapRect;
+		uint32_t m_hdpi;
+		uint32_t m_vdpi;
+		uint16_t m_unknown5;
+		uint8_t m_pitchBigEndian[2];
+		uint32_t m_unknown6;
+
+		uint32_t m_bitmapSize;
+		uint8_t m_unknown7[20];
+		uint32_t m_textSize;
+		uint8_t m_unknown8[8];
+		uint16_t m_alignment;
+		uint16_t m_isBitmap;
+
+		bool m_haveMacPart;
+		bool m_haveWinPart;
+		PlatformPart m_platform;
+
+		std::vector<char> m_text;
+		std::vector<uint8_t> m_bitmapData;
+
+		std::vector<MacFormattingSpan> m_macFormattingSpans;
 	};
 
 	struct DOAssetDataSection final : public DataObject
