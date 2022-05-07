@@ -567,6 +567,7 @@ Changes to a scene's structural element's persistent properties (such as positio
 	uint32_t element flags
 	uint32_t sound flags
 		0x80000000 = loop (NOTE: Not the same as movie/mToon loop flag)
+		0x40000000 = paused
 	uint16_t unknown
 	byte[2] unknown (0)
 	uint16_t right volume
@@ -823,8 +824,8 @@ MESSAGE_DATA_LOCATOR:
 	TYPICAL_MODIFIER_HEADER modifier header
 	EVENT enable when
 	EVENT disable when
-	uint16_t unknown
-	uint16_t unknown
+	uint16_t transition type
+	uint16_t direction
 	uint16_t unknown
 	uint16_t steps
 	uint32_t duration (6000000 is maximum rate)
@@ -1067,6 +1068,23 @@ MIDIModf: MIDI modifier   Known revisions: 1 (1.1)  2 (Obsidian)
 		uint16_t unknown (0x0f)
 		SYSTEM_FLOAT fade out
 
+
+STransCt: Scene transition modifier?   Known revisions: 0
+	PLUGIN_TYPE_TAGGED_VALUE enable when (always event type)
+	PLUGIN_TYPE_TAGGED_VALUE disable when (always event type)
+	PLUGIN_TYPE_TAGGED_VALUE send (always event type)
+	PLUGIN_TYPE_TAGGED_VALUE non-standard message flags (always int type)
+		0x1 = immediate
+		0x2 = cascade
+		0x4 = relay
+	uint16_t unknown
+	uint32_t destination
+	uint32_t unknown
+
+	PLUGIN_TYPE_TAGGED_VALUE with - In Obsidian this can sometimes be boolean payloads
+	PLUGIN_TYPE_TAGGED_VALUE execute at - May be a label, variable, integer, or integer range
+
+	PLUGIN_TYPE_TAGGED_VALUE trigger timing - Always 1
 	
 0x10: QuickTime movie data  Known revisions: 0
 	uint32_t marker (0x80 bit clear on Windows = external.   0x800 bit set on Mac = external.)

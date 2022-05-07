@@ -197,7 +197,7 @@ namespace mtdisasm
 		case 0x2df:
 			return new DOSetModifier();
 		case 0x4d8:
-			return new DONotYetImplemented(objectType, "Save and Restore modifier");
+			return new DOSaveAndRestoreModifier();
 		case 0x26c:
 			return new DOSceneTransitionModifier();
 		case 0x276:
@@ -1021,6 +1021,37 @@ namespace mtdisasm
 			|| !reader.ReadNonTerminatedStr(m_targetName, m_targetNameLength)
 			|| !reader.ReadNonTerminatedStr(m_sourceStr, m_sourceStrLength)
 			|| !reader.ReadNonTerminatedStr(m_targetStr, m_targetStrLength))
+			return false;
+
+		return true;
+	}
+
+	DataObjectType DOSaveAndRestoreModifier::GetType() const
+	{
+		return DataObjectType::kSaveAndRestoreModifier;
+	}
+
+	bool DOSaveAndRestoreModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3e9)
+			return false;
+
+		if (!m_modHeader.Load(reader))
+			return false;
+
+		if (!reader.ReadBytes(m_unknown1, 4)
+			|| !m_saveWhen.Load(reader)
+			|| !m_restoreWhen.Load(reader)
+			|| !m_dataSpec.Load(reader)
+			|| !reader.ReadBytes(m_unknown5, 8)
+			|| !reader.ReadU8(m_lengthOfFilePath)
+			|| !reader.ReadU8(m_lengthOfFileName)
+			|| !reader.ReadU8(m_lengthOfVariableName)
+			|| !reader.ReadU8(m_lengthOfVariableString)
+			|| !reader.ReadNonTerminatedStr(m_varName, m_lengthOfVariableName)
+			|| !reader.ReadNonTerminatedStr(m_varString, m_lengthOfVariableString)
+			|| !reader.ReadNonTerminatedStr(m_filePath, m_lengthOfFilePath)
+			|| !reader.ReadNonTerminatedStr(m_fileName, m_lengthOfFileName))
 			return false;
 
 		return true;

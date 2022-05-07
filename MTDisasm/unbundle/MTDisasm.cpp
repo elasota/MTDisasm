@@ -156,6 +156,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "CollisionDetectionMessengerModifier";
 	case mtdisasm::DataObjectType::kSetModifier:
 		return "SetModifier";
+	case mtdisasm::DataObjectType::kSaveAndRestoreModifier:
+		return "SaveAndRestoreModifier";
 	case mtdisasm::DataObjectType::kKeyboardMessengerModifier:
 		return "KeyboardMessengerModifier";
 	case mtdisasm::DataObjectType::kBooleanVariableModifier:
@@ -479,7 +481,7 @@ void PrintLabelTree(const mtdisasm::DOProjectLabelMap::LabelTree& obj, FILE* f, 
 	fprintf(f, "Item '");
 	if (obj.m_nameLength > 0)
 		fwrite(&obj.m_name[0], 1, obj.m_nameLength, f);
-	fprintf(f, "'  IsGroup=%u  ID=%x  Unknown2=%x  Flags=%x\n", obj.m_isGroup, obj.m_id, obj.m_unknown1, obj.m_flags);
+	fprintf(f, "'  IsGroup=%u  ID=%i  Unknown2=%x  Flags=%x\n", obj.m_isGroup, obj.m_id, obj.m_unknown1, obj.m_flags);
 
 	for (size_t i = 0; i < obj.m_numChildren; i++)
 		PrintLabelTree(obj.m_children[i], f, indentLevel + 1);
@@ -2957,6 +2959,27 @@ void PrintObjectDisassembly(const mtdisasm::DOSetModifier& obj, FILE* f)
 	}
 }
 
+void PrintObjectDisassembly(const mtdisasm::DOSaveAndRestoreModifier& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kSaveAndRestoreModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintVal("SaveWhen", obj.m_saveWhen, f);
+	PrintVal("RestoreWhen", obj.m_restoreWhen, f);
+	PrintObjectDisassembly(obj.m_dataSpec, f);
+	PrintHex("Unknown5", obj.m_unknown5, f);
+	PrintVal("LengthOfFilePath", obj.m_lengthOfFilePath, f);
+	PrintVal("LengthOfFileName", obj.m_lengthOfFileName, f);
+	PrintVal("LengthOfVariableName", obj.m_lengthOfVariableName, f);
+	PrintVal("LengthOfVariableString", obj.m_lengthOfVariableString, f);
+	PrintStr("VariableName", obj.m_varName, f);
+	PrintStr("VariableString", obj.m_varString, f);
+	PrintStr("FilePath", obj.m_filePath, f);
+	PrintStr("FileName", obj.m_fileName, f);
+}
+
 void PrintObjectDisassembly(const mtdisasm::DOKeyboardMessengerModifier& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kKeyboardMessengerModifier);
@@ -3146,8 +3169,8 @@ void PrintObjectDisassembly(const mtdisasm::DOSceneTransitionModifier& obj, FILE
 	PrintHex("TransitionType", obj.m_transitionType, f);
 	PrintHex("Direction", obj.m_direction, f);
 	PrintHex("Unknown3", obj.m_unknown3, f);
-	PrintHex("Duration", obj.m_duration, f);
-	PrintHex("Steps", obj.m_steps, f);
+	PrintVal("Duration", obj.m_duration, f);
+	PrintVal("Steps", obj.m_steps, f);
 }
 
 void PrintObjectDisassembly(const mtdisasm::DOElementTransitionModifier& obj, FILE* f)
@@ -3345,6 +3368,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kSetModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOSetModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kSaveAndRestoreModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOSaveAndRestoreModifier&>(obj), f);
 		break;
 	case mtdisasm::DataObjectType::kKeyboardMessengerModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOKeyboardMessengerModifier&>(obj), f);

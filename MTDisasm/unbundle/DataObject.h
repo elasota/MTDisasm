@@ -87,6 +87,7 @@ namespace mtdisasm
 		kBoundaryDetectionMessengerModifier,
 		kCollisionDetectionMessengerModifier,
 		kSetModifier,
+		kSaveAndRestoreModifier,
 		kKeyboardMessengerModifier,
 		kBooleanVariableModifier,
 		kIntegerVariableModifier,
@@ -760,6 +761,31 @@ namespace mtdisasm
 		std::vector<char> m_targetName;
 		std::vector<char> m_sourceStr;
 		std::vector<char> m_targetStr;
+	};
+
+	struct DOSaveAndRestoreModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		DOTypicalModifierHeader m_modHeader;
+
+		uint8_t m_unknown1[4];	// 00 00 00 00
+		DOEvent m_saveWhen;
+		DOEvent m_restoreWhen;
+		DOMessageDataSpec m_dataSpec;
+
+		uint8_t m_unknown5[8];
+
+		uint8_t m_lengthOfFilePath;
+		uint8_t m_lengthOfFileName;
+		uint8_t m_lengthOfVariableName;
+		uint8_t m_lengthOfVariableString;
+
+		std::vector<char> m_varName;
+		std::vector<char> m_varString;
+		std::vector<char> m_filePath;
+		std::vector<char> m_fileName;
 	};
 
 	struct DOIfMessengerModifier final : public DataObject
