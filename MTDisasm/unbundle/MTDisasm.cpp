@@ -184,6 +184,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "SceneTransitionModifier";
 	case mtdisasm::DataObjectType::kElementTransitionModifier:
 		return "ElementTransitionModifier";
+	case mtdisasm::DataObjectType::kPathMotionModifierV2:
+		return "PathMotionModifierV2";
 	case mtdisasm::DataObjectType::kDragMotionModifier:
 		return "DragMotionModifier";
 	case mtdisasm::DataObjectType::kVectorMotionModifier:
@@ -740,7 +742,7 @@ void PrintObjectDisassembly(const mtdisasm::DOMToonStructuralDef& obj, FILE* f)
 	PrintVal("Rect1", obj.m_rect1, f);
 	PrintVal("Rect2", obj.m_rect2, f);
 	PrintHex("Unknown5", obj.m_unknown5, f);
-	PrintVal("RateTimes10000", obj.m_rateTimes10000, f);
+	PrintVal("RateTimes100000", obj.m_rateTimes100000, f);
 	PrintHex("StreamLocator", obj.m_streamLocator, f);
 	PrintHex("Unknown6", obj.m_unknown6, f);
 
@@ -779,7 +781,7 @@ bool PrintMiniscriptInstructionDisassembly(FILE* f, mtdisasm::DataReader& reader
 			if (globID == 1)
 				fputs("default", f);
 			else if (globID == 2)
-				fputs("subsection", f);
+				fputs("modifier", f);
 			else if (globID == 3)
 				fputs("source", f);
 			else if (globID == 4)
@@ -1525,7 +1527,7 @@ void EmitPushGlobal(const MiniscriptInstruction& instr, const mtdisasm::DOMinisc
 	switch (globID)
 	{
 	case 1: name = "element"; break;
-	case 2: name = "subsection"; break;
+	case 2: name = "modifier"; break;
 	case 3: name = "source"; break;
 	case 4: name = "incoming"; break;
 	case 5: name = "mouse"; break;
@@ -3189,6 +3191,43 @@ void PrintObjectDisassembly(const mtdisasm::DOElementTransitionModifier& obj, FI
 	PrintVal("Rate", obj.m_rate, f);
 }
 
+void PrintObjectDisassembly(const mtdisasm::DOPathMotionModifierV2& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kPathMotionModifierV2);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintVal("ExecuteWhen", obj.m_executeWhen, f);
+	PrintVal("TerminateWhen", obj.m_terminateWhen, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintVal("NumPoints", obj.m_numPoints, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintVal("FrameDurationTimes10Million", obj.m_frameDurationTimes10Million, f);
+	PrintHex("Unknown5", obj.m_unknown5, f);
+	PrintHex("Unknown6", obj.m_unknown6, f);
+
+	for (size_t i = 0; i < obj.m_numPoints; i++)
+	{
+		const mtdisasm::DOPathMotionModifierV2::PointDef& point = obj.m_pointDefs[i];
+
+		fprintf(f, "Point %i:\n", static_cast<int>(i));
+		PrintVal("    Point", point.m_point, f);
+		PrintVal("    Frame", point.m_frame, f);
+		PrintHex("    FrameFlags", point.m_frameFlags, f);
+		PrintHex("    MessageFlags", point.m_messageFlags, f);
+		PrintVal("    Send", point.m_send, f);
+		PrintHex("    Unknown11", point.m_unknown11, f);
+		PrintHex("    Destination", point.m_destination, f);
+		PrintHex("    Unknown13", point.m_unknown13, f);
+		PrintObjectDisassembly(point.m_with, f);
+		PrintVal("    WithSourceLength", point.m_withSourceLength, f);
+		PrintVal("    WithStringLength", point.m_withStringLength, f);
+		PrintStr("    WithSource", point.m_withSource, f);
+		PrintStr("    WithString", point.m_withString, f);
+	}
+
+}
+
 void PrintObjectDisassembly(const mtdisasm::DODragMotionModifier& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kDragMotionModifier);
@@ -3407,6 +3446,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kTextStyleModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOTextStyleModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kPathMotionModifierV2:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOPathMotionModifierV2&>(obj), f);
 		break;
 	case mtdisasm::DataObjectType::kDragMotionModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DODragMotionModifier&>(obj), f);

@@ -99,6 +99,7 @@ namespace mtdisasm
 		kPointVariableModifier,
 		kGraphicModifier,
 		kTextStyleModifier,
+		kPathMotionModifierV2,
 		kDragMotionModifier,
 		kVectorMotionModifier,
 		kSceneTransitionModifier,
@@ -663,7 +664,7 @@ namespace mtdisasm
 		DORect m_rect1;
 		DORect m_rect2;
 		uint32_t m_unknown5;
-		uint32_t m_rateTimes10000;
+		uint32_t m_rateTimes100000;
 		uint32_t m_streamLocator;
 		uint32_t m_unknown6;
 
@@ -1479,6 +1480,46 @@ namespace mtdisasm
 		uint16_t m_unknown4;
 		uint16_t m_steps;
 		uint16_t m_rate;
+	};
+
+	struct DOPathMotionModifierV2 final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
+
+		struct PointDef
+		{
+			DOPoint m_point;
+			uint32_t m_frame;
+			uint32_t m_frameFlags;
+			uint32_t m_messageFlags;
+			DOEvent m_send;
+			uint16_t m_unknown11;
+			uint32_t m_destination;
+			uint8_t m_unknown13[10];
+			DOMessageDataSpec m_with;
+			uint8_t m_withSourceLength;
+			uint8_t m_withStringLength;
+
+			std::vector<char> m_withSource;
+			std::vector<char> m_withString;
+
+			bool Load(DataReader& reader, const SerializationProperties& sp);
+		};
+
+		DOTypicalModifierHeader m_modHeader;
+		uint32_t m_unknown1;
+		DOEvent m_executeWhen;
+		DOEvent m_terminateWhen;
+		uint8_t m_unknown2[2];
+		uint16_t m_numPoints;
+		uint8_t m_unknown3[4];
+		uint32_t m_frameDurationTimes10Million;
+		uint8_t m_unknown5[4];
+		uint32_t m_unknown6;
+
+		std::vector<PointDef> m_pointDefs;
+
 	};
 
 	struct DODragMotionModifier final : public DataObject

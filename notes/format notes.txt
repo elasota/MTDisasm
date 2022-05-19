@@ -292,7 +292,7 @@ MINISCRIPT PROGRAM:
 		0x192: push global
 			uint32_t global ID
 				1 = element
-				2 = subsection
+				2 = modifier
 				3 = source
 				4 = incoming
 				5 = mouse
@@ -304,6 +304,7 @@ MINISCRIPT PROGRAM:
 				11 = sharedScene
 			flags:
 				1 = reference
+			NOTE: "subsection" is emitted as "modifier.subsection" and "this" is emitted as "element.this" for some reason.
 		0x193: push string constant
 			uint16_t length
 			char[length + 1] str (null terminated)
@@ -836,9 +837,38 @@ MESSAGE_DATA_LOCATOR:
 
 0x1fe: Simple Motion modifier
 
-0x21c: Path Motion modifier - Obsolete version
+0x21c: Path Motion modifier V1
 
-0x21b: Path Motion modifier
+0x21b: Path Motion modifier V2    Known revisions: 0x3e9
+	TYPICAL_MODIFIER_HEADER modifier header
+	uint32_t flags
+		0x00100000: Reverse
+		0x10000000: Loop
+		0x02000000: Alternate
+		0x08000000: Start at beginning
+	EVENT execute when
+	EVENT terminate when
+	byte[2] unknown (0)
+	uint16_t number of points?
+	byte[4] unknown (0)
+	uint32_t frame duration (in 1/10000000 sec)
+	byte[4] unknown (0)
+	uint32_t unknown
+	POINTS[number of points]:
+		POINT position
+		uint32 frame
+		uint32 animation flags
+			0x00000001: Play frames sequentially (ignore frame field)
+		uint32 message flags
+		EVENT send event
+		uint16 unknown
+		uint32 destination
+		byte[10] unknown (garbage)
+		TYPE_TAGGED_VALUE with
+		uint8_t with source string length
+		uint8_t with string length
+		char[with source string length] with source (not null terminated)
+		char[with string length] with string (not null terminated)
 
 0x208: Drag Motion modifier
 
@@ -1214,7 +1244,7 @@ MAC_FORMATTING_SPAN:
 		byte[44] unknown
 	Win:
 		byte[10] unknown (0)
-	RECT bitmap rect - starts at 840 on mac
+	RECT bitmap rect
 	FIXED hdpi
 	FIXED vdpi
 	uint16_t unknown (1)

@@ -205,9 +205,9 @@ namespace mtdisasm
 		case 0x1fe:
 			return new DONotYetImplemented(objectType, "Simple Motion modifier");
 		case 0x21b:
-			return new DONotYetImplemented(objectType, "Path Motion modifier");
+			return new DOPathMotionModifierV2();
 		case 0x21c:
-			return new DONotYetImplemented(objectType, "Path Motion modifier - obsolete version");
+			return new DONotYetImplemented(objectType, "Path Motion modifier V1");
 		case 0x208:
 			return new DODragMotionModifier();
 		case 0x226:
@@ -923,7 +923,7 @@ namespace mtdisasm
 			|| !m_rect1.Load(reader, sp)
 			|| !m_rect2.Load(reader, sp)
 			|| !reader.ReadU32(m_unknown5)
-			|| !reader.ReadU32(m_rateTimes10000)
+			|| !reader.ReadU32(m_rateTimes100000)
 			|| !reader.ReadU32(m_streamLocator)
 			|| !reader.ReadU32(m_unknown6))
 			return false;
@@ -2107,6 +2107,60 @@ namespace mtdisasm
 			|| !reader.ReadU16(m_unknown4)
 			|| !reader.ReadU16(m_steps)
 			|| !reader.ReadU16(m_rate))
+			return false;
+
+		return true;
+	}
+
+	DataObjectType DOPathMotionModifierV2::GetType() const
+	{
+		return DataObjectType::kPathMotionModifierV2;
+	}
+
+	bool DOPathMotionModifierV2::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (revision != 0x3e9)
+			return false;
+
+		if (!m_modHeader.Load(reader)
+			|| !reader.ReadU32(m_unknown1)
+			|| !m_executeWhen.Load(reader)
+			|| !m_terminateWhen.Load(reader)
+			|| !reader.ReadBytes(m_unknown2, 2)
+			|| !reader.ReadU16(m_numPoints)
+			|| !reader.ReadBytes(m_unknown3, 4)
+			|| !reader.ReadU32(m_frameDurationTimes10Million)
+			|| !reader.ReadBytes(m_unknown5, 4)
+			|| !reader.ReadU32(m_unknown6))
+			return false;
+
+		m_pointDefs.resize(m_numPoints);
+
+
+		for (size_t i = 0; i < m_numPoints; i++)
+		{
+			if (!m_pointDefs[i].Load(reader, sp))
+				return false;
+		}
+
+		return true;
+	}
+
+	bool DOPathMotionModifierV2::PointDef::Load(DataReader& reader, const SerializationProperties& sp)
+	{
+		if (!m_point.Load(reader, sp)
+			|| !reader.ReadU32(m_frame)
+			|| !reader.ReadU32(m_frameFlags)
+			|| !reader.ReadU32(m_messageFlags)
+			|| !m_send.Load(reader)
+			|| !reader.ReadU16(m_unknown11)
+			|| !reader.ReadU32(m_destination)
+			|| !reader.ReadBytes(m_unknown13, 10)
+			|| !m_with.Load(reader)
+			|| !reader.ReadU8(m_withSourceLength)
+			|| !reader.ReadU8(m_withStringLength)
+			|| !reader.ReadNonTerminatedStr(m_withSource, m_withSourceLength)
+			|| !reader.ReadNonTerminatedStr(m_withString, m_withStringLength))
 			return false;
 
 		return true;
