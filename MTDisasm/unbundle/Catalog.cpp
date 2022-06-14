@@ -34,7 +34,8 @@ namespace mtdisasm
 		}
 
 		// 0x800 = Make movies external flag
-		const uint32_t allowFlagsMask = 0xfffff7ff;
+		// 0x400 needs to also be masked for MTI
+		const uint32_t allowFlagsMask = 0xfffff3ff;
 		if (m_catHeader.m_platform == 1)
 		{
 			m_systemDesc = SystemDesc::kWindows;
