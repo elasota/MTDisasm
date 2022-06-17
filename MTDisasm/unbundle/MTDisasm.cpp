@@ -3799,7 +3799,7 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 
 	if (!isMToonRLE && !isUncompressed)
 	{
-		char codecID[5] = { (asset.m_codecID >> 24) & 0xff, (asset.m_codecID >> 16) & 0xff, (asset.m_codecID >> 8) & 0xff, asset.m_codecID & 0xff, 0 };
+		char codecID[5] = { static_cast<char>((asset.m_codecID >> 24) & 0xff), static_cast<char>((asset.m_codecID >> 16) & 0xff), static_cast<char>((asset.m_codecID >> 8) & 0xff), static_cast<char>(asset.m_codecID & 0xff), 0 };
 		fprintf(stderr, "Not yet supported mToon compression type '%s' in asset %i\n", codecID, static_cast<int>(asset.m_assetID));
 		return;
 	}
