@@ -39,7 +39,7 @@ namespace mtdisasm
 
 namespace mtdisasm
 {
-	uint32_t endian::SwapU32(uint64_t v)
+	uint64_t endian::SwapU64(uint64_t v)
 	{
 		return __builtin_bswap64(v);
 	}
