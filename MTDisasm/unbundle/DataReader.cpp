@@ -210,6 +210,15 @@ namespace mtdisasm
 		return m_stream.ReadAll(&v, 2);
 	}
 
+	bool DataReader::ReadLimitedTerminatedStr(std::vector<char> &chars, size_t size, size_t maxSize)
+	{
+		if (size == maxSize)
+			return ReadNonTerminatedStr(chars, size);
+		else if (size < maxSize)
+			return ReadTerminatedStr(chars, size);
+		else
+			return false;
+	}
 
 	bool DataReader::ReadTerminatedStr(std::vector<char>& chars, size_t size)
 	{

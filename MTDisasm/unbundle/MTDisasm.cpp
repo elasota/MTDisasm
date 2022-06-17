@@ -539,9 +539,17 @@ void PrintObjectDisassembly(const mtdisasm::DOAssetCatalog& obj, FILE* f)
 		const mtdisasm::DOAssetCatalog::AssetInfo& asset = obj.m_assets[i];
 
 		char assetTypeName[9];
-		NameAssetType(assetTypeName, asset.m_assetType);
+		uint32_t flags2 = 0;
+		if (obj.m_haveRev4Fields)
+		{
+			NameAssetType(assetTypeName, asset.m_rev4Fields.m_assetType);
+			flags2 = asset.m_rev4Fields.m_flags2;
+		}
+		else
+			memcpy(assetTypeName, "Unknown ", 8);
+
 		assetTypeName[8] = 0;
-		fprintf(f, "Asset % 4u: Flags1=%08x  AlwaysZero=%04x  Unknown1=%08x  FilePosition=%08x  AssetType=%s  Flags2=%08x", static_cast<unsigned int>(i + 1), asset.m_flags1, asset.m_alwaysZero, asset.m_unknown1, asset.m_filePosition, assetTypeName, asset.m_flags2);
+		fprintf(f, "Asset % 4u: Flags1=%08x  AlwaysZero=%04x  Unknown1=%08x  FilePosition=%08x  AssetType=%s  Flags2=%08x", static_cast<unsigned int>(i + 1), asset.m_flags1, asset.m_alwaysZero, asset.m_unknown1, asset.m_filePosition, assetTypeName, flags2);
 		if (asset.m_nameLength > 0)
 		{
 			fputs("  ", f);
@@ -2380,10 +2388,14 @@ void PrintObjectDisassembly(const mtdisasm::POCursorMod& obj, FILE* f)
 	PrintHex("Unknown1", obj.m_unknown1, f);
 	PrintHex("Unknown2", obj.m_unknown2, f);
 	PrintHex("Unknown3", obj.m_unknown3, f);
-	PrintHex("Unknown4", obj.m_unknown4, f);
 	PrintVal("ApplyWhen", obj.m_applyWhen, f);
 	PrintVal("RemoveWhen", obj.m_removeWhen, f);
-	PrintVal("CursorID", obj.m_cursorID, f);
+
+	if (obj.m_haveRev1Fields)
+	{
+		PrintHex("Unknown4", obj.m_rev1Fields.m_unknown4, f);
+		PrintVal("CursorID", obj.m_rev1Fields.m_cursorID, f);
+	}
 }
 
 void PrintObjectDisassembly(const mtdisasm::POMediaCueModifier& obj, FILE* f)
@@ -3293,7 +3305,8 @@ void PrintObjectDisassembly(const mtdisasm::DOAliasModifier& obj, FILE* f)
 	PrintHex("Unknown1", obj.m_unknown1, f);
 	PrintHex("Unknown2", obj.m_unknown2, f);
 	PrintVal("EditorLayoutPosition", obj.m_editorLayoutPosition, f);
-	PrintHex("GUID", obj.m_guid, f);
+	if (obj.m_haveGUID)
+		PrintHex("GUID", obj.m_guid, f);
 	PrintStr("Name", obj.m_name, f);
 }
 

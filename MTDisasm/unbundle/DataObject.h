@@ -297,10 +297,19 @@ namespace mtdisasm
 			uint16_t m_alwaysZero;
 			uint32_t m_unknown1;		// Possibly scene ID
 			uint32_t m_filePosition;	// Contains a static value in Obsidian
-			uint32_t m_assetType;
-			uint32_t m_flags2;
+
+			struct Rev4Fields
+			{
+				uint32_t m_assetType;
+				uint32_t m_flags2;
+			};
+
+			Rev4Fields m_rev4Fields;
+
 			std::vector<char> m_name;
 		};
+
+		bool m_haveRev4Fields;
 
 		uint32_t m_marker;
 		uint32_t m_totalNameSizePlus22;
@@ -1200,8 +1209,14 @@ namespace mtdisasm
 		DOEvent m_removeWhen;
 		uint16_t m_unknown3;
 
-		uint32_t m_cursorID;
-		uint8_t m_unknown4[4];
+		struct Rev1Fields
+		{
+			uint32_t m_cursorID;
+			uint8_t m_unknown4[4];
+		};
+
+		bool m_haveRev1Fields;
+		Rev1Fields m_rev1Fields;
 	};
 
 	struct POSTransCt final : public PlugInObject
@@ -1613,6 +1628,8 @@ namespace mtdisasm
 		DOPoint m_editorLayoutPosition;
 
 		std::vector<char> m_name;
+
+		bool m_haveGUID;
 	};
 
 	struct DOSoundEffectModifier final : public DataObject

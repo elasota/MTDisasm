@@ -35,6 +35,7 @@ namespace mtdisasm
 		bool ReadRawF64(double& v);
 		bool ReadRawF32(float& v);
 
+		bool ReadLimitedTerminatedStr(std::vector<char> &chars, size_t size, size_t maxSize);
 		bool ReadTerminatedStr(std::vector<char>& chars, size_t size);
 		bool ReadNonTerminatedStr(std::vector<char>& chars, size_t size);
 

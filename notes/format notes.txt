@@ -348,7 +348,8 @@ char[length of name] name (null terminated)
 	uint32_t unknown
 	uint16_t length of name
 	POINT editor layout position
-	uint32_t unknown  ONLY INCLUDED IN REVISION 2
+	if revision >= 2:
+		uint32_t guid
 	char[length of name] name - null terminated
 
 
