@@ -2123,7 +2123,7 @@ namespace mtdisasm
 			return false;
 
 		if (!m_modHeader.Load(reader)
-			|| !reader.ReadU32(m_unknown1)
+			|| !reader.ReadU32(m_flags)
 			|| !m_executeWhen.Load(reader)
 			|| !m_terminateWhen.Load(reader)
 			|| !reader.ReadBytes(m_unknown2, 2)

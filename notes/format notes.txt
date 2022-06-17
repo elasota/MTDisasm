@@ -1042,7 +1042,7 @@ MediaCue: Media Cue Messenger modifier   Known revisions: 1
 	PLUGIN_TYPE_TAGGED_VALUE with - In Obsidian this can sometimes be boolean payloads
 	PLUGIN_TYPE_TAGGED_VALUE execute at - May be a label, variable, integer, or integer range
 
-	PLUGIN_TYPE_TAGGED_VALUE trigger timing - Always 1
+	PLUGIN_TYPE_TAGGED_VALUE trigger timing
 
 ObjRefP: Object reference variable modifier   Known revisions: 2
 	PLUGIN_TYPE_TAGGED_VALUE set to source parent when (always event type)

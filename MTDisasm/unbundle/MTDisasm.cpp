@@ -3196,7 +3196,7 @@ void PrintObjectDisassembly(const mtdisasm::DOPathMotionModifierV2& obj, FILE* f
 	assert(obj.GetType() == mtdisasm::DataObjectType::kPathMotionModifierV2);
 
 	PrintObjectDisassembly(obj.m_modHeader, f);
-	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("Flags", obj.m_flags, f);
 	PrintVal("ExecuteWhen", obj.m_executeWhen, f);
 	PrintVal("TerminateWhen", obj.m_terminateWhen, f);
 	PrintHex("Unknown2", obj.m_unknown2, f);
@@ -3786,7 +3786,8 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 
 	if (!isMToonRLE && !isUncompressed)
 	{
-		fprintf(stderr, "Not yet supported mToon compression type\n");
+		char codecID[5] = { (asset.m_codecID >> 24) & 0xff, (asset.m_codecID >> 16) & 0xff, (asset.m_codecID >> 8) & 0xff, asset.m_codecID & 0xff, 0 };
+		fprintf(stderr, "Not yet supported mToon compression type '%s' in asset %i\n", codecID, static_cast<int>(asset.m_assetID));
 		return;
 	}
 
@@ -3934,8 +3935,14 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 				std::vector<uint16_t> compressedData;
 				compressedData.resize(rleSize / 2);
 
-				for (size_t j = 0; j < rleSize / 2; j++)
-					compressedData[j] = (compressedDataBytes[j * 2 + 1] << 8) + compressedDataBytes[j * 2];
+				if (sp.m_systemType == mtdisasm::SystemType::kWindows) {
+					for (size_t j = 0; j < rleSize / 2; j++)
+						compressedData[j] = (compressedDataBytes[j * 2 + 1] << 8) + compressedDataBytes[j * 2];
+				}
+				if (sp.m_systemType == mtdisasm::SystemType::kMac) {
+					for (size_t j = 0; j < rleSize / 2; j++)
+						compressedData[j] = (compressedDataBytes[j * 2 + 0] << 8) + compressedDataBytes[j * 2 + 1];
+				}
 
 				compressedDataBytes.clear();
 

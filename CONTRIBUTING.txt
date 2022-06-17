@@ -1,0 +1,34 @@
+Code style guidelines:
+
+If you identify an object type and don't know what it is, then the name should
+be "UnknownXXX" where XXX is the hexadecimal object type ID.
+
+If a field or set of fields are optional, then there must be a flag or enum
+indicating the field availability.  If a cluster of fields turns out to be
+optional for the same reason (i.e. platform, revision), then they should be
+moved to a struct.
+
+Basically, the loader is responsible for determining what fields are available,
+and if that availability is determined by platform or revision, then the loader
+needs to report the field availability.  The printer (MTDisasm.cpp) should not
+need to understand how revisions/platforms determine field availability.
+
+Fields representing the same thing should not be duplicated if they appear in
+multiple format variations, even if they aren't clustered the same way.
+Ideally, fields should appear in data order, but clustering them based on
+availability is higher-priority.  For example, some formats have different
+fields for Mac and Win interspersed throughout the data object.  Those
+platform-specific fields should be in Mac and Win structs, within a platform
+union, and the non-platform-specific fields should be outside of them.
+
+
+Do not renumber unknown fields.  If a field turns out to be multiple fields
+(as commonly happens with unknown blocks getting split), and both fields have
+unknown meaning, then the field should be split into multiple sub-numbered
+fields.
+
+e.g. if a field is named "Unknown2" and "FieldA" in the middle of it is
+determined, then it should be split into "Unknown2_1" and "Unknown2_2"
+
+Do not renumber split fields, even if they are reduced back to a single unknown
+value.

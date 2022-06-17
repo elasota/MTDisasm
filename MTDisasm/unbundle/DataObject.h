@@ -1508,7 +1508,7 @@ namespace mtdisasm
 		};
 
 		DOTypicalModifierHeader m_modHeader;
-		uint32_t m_unknown1;
+		uint32_t m_flags;
 		DOEvent m_executeWhen;
 		DOEvent m_terminateWhen;
 		uint8_t m_unknown2[2];
