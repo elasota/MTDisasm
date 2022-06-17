@@ -232,6 +232,14 @@ namespace mtdisasm
 			return new DOMacOnlyCursorModifier();
 		case 0xffff:
 			return new DOAssetDataSection();
+		case 0x4ce:
+			return new DONotYetImplemented(objectType, "Audio fade modifier");
+		case 0x33e:
+			return new DONotYetImplemented(objectType, "???");
+		case 0x24:
+			return new DONotYetImplemented(objectType, "???");
+		case 0x25:
+			return new DONotYetImplemented(objectType, "???");
 		default:
 			return nullptr;
 		};
@@ -294,13 +302,15 @@ namespace mtdisasm
 
 	bool DOAssetCatalog::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
 	{
-		if (revision != 4)
-			return false;
-
-		if (!reader.ReadU32(m_marker) ||
-			!reader.ReadU32(m_totalNameSizePlus22) ||
-			!reader.ReadBytes(m_unknown1, 4) ||
-			!reader.ReadU32(m_numAssets))
+		if (revision == 4 || revision == 2)
+		{
+			if (!reader.ReadU32(m_marker) ||
+				!reader.ReadU32(m_totalNameSizePlus22) ||
+				!reader.ReadBytes(m_unknown1, 4) ||
+				!reader.ReadU32(m_numAssets))
+				return false;
+		}
+		else
 			return false;
 
 		m_assets.resize(m_numAssets);
@@ -308,14 +318,27 @@ namespace mtdisasm
 		for (size_t i = 0; i < m_numAssets; i++)
 		{
 			AssetInfo& asset = m_assets[i];
-			if (!reader.ReadU32(asset.m_flags1)
-				|| !reader.ReadU16(asset.m_nameLength)
-				|| !reader.ReadU16(asset.m_alwaysZero)
-				|| !reader.ReadU32(asset.m_unknown1)
-				|| !reader.ReadU32(asset.m_filePosition)
-				|| !reader.ReadU32(asset.m_assetType)
-				|| !reader.ReadU32(asset.m_flags2))
-				return false;
+
+			if (revision == 4)
+			{
+				if (!reader.ReadU32(asset.m_flags1)
+					|| !reader.ReadU16(asset.m_nameLength)
+					|| !reader.ReadU16(asset.m_alwaysZero)
+					|| !reader.ReadU32(asset.m_unknown1)
+					|| !reader.ReadU32(asset.m_filePosition)
+					|| !reader.ReadU32(asset.m_assetType)
+					|| !reader.ReadU32(asset.m_flags2))
+					return false;
+			}
+			else
+			{
+				if (!reader.ReadU32(asset.m_flags1)
+					|| !reader.ReadU16(asset.m_nameLength)
+					|| !reader.ReadU16(asset.m_alwaysZero)
+					|| !reader.ReadU32(asset.m_unknown1)
+					|| !reader.ReadU32(asset.m_filePosition))
+					return false;
+			}
 
 			if (asset.m_nameLength > 0)
 			{
@@ -1536,8 +1559,8 @@ namespace mtdisasm
 
 		if (m_lengthOfName > 0)
 		{
-			m_name.resize(m_lengthOfName);
-			if (!reader.ReadBytes(&m_name[0], m_lengthOfName) || m_name[m_lengthOfName - 1] != 0)
+			m_name.resize(m_lengthOfName + 1, 0); // 64 chars is max len, may drop null terminator
+			if (!reader.ReadBytes(&m_name[0], m_lengthOfName) || m_name[m_lengthOfName == 0x40 ? m_lengthOfName : (m_lengthOfName - 1)] != 0)
 				return false;
 		}
 
@@ -1755,13 +1778,27 @@ namespace mtdisasm
 
 	bool POCursorMod::Load(const DOPlugInModifier& base, DataReader& reader, const SerializationProperties& sp)
 	{
-		if (!reader.ReadU16(m_unknown1)
-			|| !m_applyWhen.Load(reader)
-			|| !reader.ReadU16(m_unknown2)
-			|| !m_removeWhen.Load(reader)
-			|| !reader.ReadU16(m_unknown3)
-			|| !reader.ReadU32(m_cursorID)
-			|| !reader.ReadBytes(m_unknown4, 4))
+		if (base.m_plugInRevision == 1)
+		{
+			if (!reader.ReadU16(m_unknown1)
+				|| !m_applyWhen.Load(reader)
+				|| !reader.ReadU16(m_unknown2)
+				|| !m_removeWhen.Load(reader)
+				|| !reader.ReadU16(m_unknown3)
+				|| !reader.ReadU32(m_cursorID)
+				|| !reader.ReadBytes(m_unknown4, 4))
+				return false;
+		}
+		else if (base.m_plugInRevision == 0)
+		{
+			if (!reader.ReadU16(m_unknown1)
+				|| !m_applyWhen.Load(reader)
+				|| !reader.ReadU16(m_unknown2)
+				|| !m_removeWhen.Load(reader)
+				)
+				return false;
+		}
+		else
 			return false;
 
 		return true;
@@ -2276,18 +2313,32 @@ namespace mtdisasm
 
 	bool DOAliasModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
 	{
-		if (revision != 2)
-			return false;
-
-		if (!reader.ReadU32(m_modifierFlags)
-			|| !reader.ReadU32(m_sizeIncludingTag)
-			|| !reader.ReadU16(m_aliasIndexPlusOne)
-			|| !reader.ReadU32(m_unknown1)
-			|| !reader.ReadU32(m_unknown2)
-			|| !reader.ReadU16(m_lengthOfName)
-			|| !m_editorLayoutPosition.Load(reader, sp)
-			|| !reader.ReadU32(m_guid)
-			|| !reader.ReadTerminatedStr(m_name, m_lengthOfName))
+		if (revision == 2)
+		{
+			if (!reader.ReadU32(m_modifierFlags)
+				|| !reader.ReadU32(m_sizeIncludingTag)
+				|| !reader.ReadU16(m_aliasIndexPlusOne)
+				|| !reader.ReadU32(m_unknown1)
+				|| !reader.ReadU32(m_unknown2)
+				|| !reader.ReadU16(m_lengthOfName)
+				|| !m_editorLayoutPosition.Load(reader, sp)
+				|| !reader.ReadU32(m_guid)
+				|| !reader.ReadTerminatedStr(m_name, m_lengthOfName))
+				return false;
+		}
+		else if (revision == 0 || revision == 1)
+		{
+			if (!reader.ReadU32(m_modifierFlags)
+				|| !reader.ReadU32(m_sizeIncludingTag)
+				|| !reader.ReadU16(m_aliasIndexPlusOne)
+				|| !reader.ReadU32(m_unknown1)
+				|| !reader.ReadU32(m_unknown2)
+				|| !reader.ReadU16(m_lengthOfName)
+				|| !m_editorLayoutPosition.Load(reader, sp)
+				|| !reader.ReadTerminatedStr(m_name, m_lengthOfName))
+				return false;
+		}
+		else
 			return false;
 
 		return true;
@@ -2380,7 +2431,12 @@ namespace mtdisasm
 			return false;
 
 		if (m_numCuePoints * 14 != m_cuePointDataSize)
-			return false;
+		{
+			if (m_cuePointDataSize == 14 && m_numCuePoints == 0)
+				m_numCuePoints = 1; // MTI has something here with a non-zero cuepoint size (0xEB filled) but 0 cuepoints
+			else
+				return false;
+		}
 
 		m_cuePoints.resize(m_numCuePoints);
 		for (size_t i = 0; i < m_numCuePoints; i++)

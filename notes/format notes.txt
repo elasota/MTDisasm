@@ -340,7 +340,7 @@ char[length of name] name (null terminated)
 	uint16_t number of global modifiers/aliased objects (includes deleted objects, a.k.a. "debris")
 	byte[4] unknown (0)
 
-0x27: Alias.  Known revisions: 2
+0x27: Alias.  Known revisions: 0, 1, 2
 	uint32_t modifier flags
 	uint32_t size including tag
 	uint16_t alias index (1-based)
@@ -348,7 +348,7 @@ char[length of name] name (null terminated)
 	uint32_t unknown
 	uint16_t length of name
 	POINT editor layout position
-	uint32_t unknown
+	uint32_t unknown  ONLY INCLUDED IN REVISION 2
 	char[length of name] name - null terminated
 
 
@@ -372,7 +372,22 @@ uint32_t size including tag
 ???
 
 
-0xd: Boot stream asset table.  Known revisions: 4
+0xd: Boot stream asset table.  Known revisions: 2, 4
+
+Revision 2:
+uint32_t marker (observed with 0x100 flag in Obsidian Win)
+uint32_t unknown - Appears to be 22 + length of concatenated name strings.
+uint32_t unknown
+uint32_t number of assets
+ASSET[number of assets]:
+	uint32_t flags1 (always 0 with MTI Win)
+	uint16_t length of name
+	uint16_t unknown2 - Always 0
+	uint32_t unknown3 - Appears to be containing scene ID.
+	uint32_t unknown4 - Appears to be the file position of the DataObject. This will contain a stale value if the asset isn't actually included.
+	char[length of name] name (null terminated)
+
+Revision 4:
 uint32_t marker (observed with 0x100 flag in Obsidian Win)
 uint32_t unknown - Appears to be 22 + length of concatenated name strings.
 uint32_t unknown
@@ -578,6 +593,11 @@ Changes to a scene's structural element's persistent properties (such as positio
 	byte[8] unknown (0)
 	char[length of name] name
 
+0x24: Unknown. Known revisions: 0
+Seems associated with MTI post-games AVI clips from the movie. 
+
+0x25: Unknown. Known revisions: 2
+
 0xfffffffe: Debris.  Replaces deleted modifiers in the global modifier list.  Known revisions: 0
 	uint32_t marker
 	uint32_t size including tag (0x0e)
@@ -609,8 +629,8 @@ Changes to a scene's structural element's persistent properties (such as positio
 	byte[6] unknown (0)
 	uint32_t unknown (0x08770000)
 	byte[4] unknown (ff ff ff ff)
-	uint16_t length of name
-	char[length of name] name (null terminated)
+	uint16_t length of name (<= 64)
+	char[length of name] name (null terminated) up to length of 64 characters. no null if len == 64
 	EVENT "enable when"
 	byte[11] unknown (0)
 	uint8_t unknown (0 or 1)
@@ -930,11 +950,16 @@ MESSAGE_DATA_LOCATOR:
 	byte[8] unknown
 	POINT[number of points] polygon points
 
-0x4c4: Color Table modifier
+0x33e: Unknown   Known revisions: 1000
+
+0x4c4: Color Table modifier   Known revisions: 1001
+
+0x4ce: Unknown   Known revisions: 1000
+In assets has 'Audio fade' as a name
 
 0x4b0: Gradient modifier
 
-0x384: Image Effect modifier
+0x384: Image Effect modifier   Known revisions: 1000
 
 0x3ca: Old Mac-only cursor modifier   Known revisions: 0x03e9
 	uint32_t unknown
@@ -983,11 +1008,12 @@ MESSAGE_DATA_LOCATOR:
 	char[name length] name - null terminated
 	Modifier data
 
-CursorMod: Cursor modifier   Known revisions: 1
+CursorMod: Cursor modifier   Known revisions: 0, 1
 	uint16_t unknown (0x17)
 	EVENT apply when
 	uint16_t unknown (0x17)
 	EVENT remove when
+Following only included in revision 1:
 	uint16_t unknown
 	uint32_t cursor: (loaded from extension resources)
 		10003: hand grab B&W
@@ -1170,7 +1196,7 @@ STransCt: Scene transition modifier?   Known revisions: 0
 	byte[4] unknown (0)
 	uint32_t unknown - file position
 	uint32_t unknown - size
-	CUEPOINT[number of cue points] cue points
+	CUEPOINT[number of cue points] cue points    In MTI there appears to be one cuepoint worth of junk (0xEB filled bytes) if numCuePoints == 0 AND size == 14
 
 	CUEPOINT:
 		byte[2] unknown (0)
