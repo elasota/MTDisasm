@@ -235,6 +235,21 @@ namespace mtdisasm
 		return true;
 	}
 
+	bool DataReader::ReadMaybeTerminatedStr(std::vector<char> &chars, size_t size)
+	{
+		if (size > 0)
+		{
+			chars.resize(size);
+			if (!ReadBytes(&chars[0], size))
+				return false;
+			if (chars[size - 1] == 0)
+				chars.resize(size - 1);
+			return true;
+		}
+		chars.clear();
+		return true;
+	}
+
 	bool DataReader::ReadNonTerminatedStr(std::vector<char>& chars, size_t size)
 	{
 		if (size > 0)

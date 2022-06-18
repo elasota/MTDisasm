@@ -38,6 +38,7 @@ namespace mtdisasm
 		bool ReadLimitedTerminatedStr(std::vector<char> &chars, size_t size, size_t maxSize);
 		bool ReadTerminatedStr(std::vector<char>& chars, size_t size);
 		bool ReadNonTerminatedStr(std::vector<char>& chars, size_t size);
+		bool ReadMaybeTerminatedStr(std::vector<char> &chars, size_t size);
 
 		bool ReadBytes(void* dest, size_t sz);
 

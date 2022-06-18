@@ -1552,7 +1552,7 @@ namespace mtdisasm
 			|| !reader.ReadU32(m_unknown4)
 			|| !reader.ReadBytes(m_unknown5, 4)
 			|| !reader.ReadU16(m_lengthOfName)
-			|| !reader.ReadLimitedTerminatedStr(m_name, m_lengthOfName, 64))
+			|| !reader.ReadMaybeTerminatedStr(m_name, m_lengthOfName))
 			return false;
 
 		if (!m_enableWhen.Load(reader)
@@ -2312,6 +2312,7 @@ namespace mtdisasm
 			|| !reader.ReadU32(m_unknown2)
 			|| !reader.ReadU16(m_lengthOfName)
 			|| !m_editorLayoutPosition.Load(reader, sp))
+			return false;
 
 		if (revision == 2)
 		{
@@ -2414,7 +2415,7 @@ namespace mtdisasm
 			|| !reader.ReadU32(m_size))
 			return false;
 
-		size_t numStoredCuePoints = m_cuePointDataSize;
+		size_t numStoredCuePoints = m_numCuePoints;
 		if (m_numCuePoints * 14 != m_cuePointDataSize)
 		{
 			if (m_cuePointDataSize == 14 && m_numCuePoints == 0)
