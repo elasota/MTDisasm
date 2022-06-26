@@ -237,7 +237,7 @@ namespace mtdisasm
 		case 0x33e:
 			return new DONotYetImplemented(objectType, "Unknown33e");
 		case 0x24:
-			return new DONotYetImplemented(objectType, "Unknown24");
+			return new DOPlayExtVideo();
 		case 0x25:
 			return new DONotYetImplemented(objectType, "Unknown25");
 		default:
@@ -2794,6 +2794,22 @@ namespace mtdisasm
 			if (m_bitmapSize > 0 && !reader.ReadBytes(&m_bitmapData[0], m_bitmapSize))
 				return false;
 		}
+
+		return true;
+	}
+
+	DataObjectType DOPlayExtVideo::GetType() const
+	{
+		return DataObjectType::kExtVideo;
+	}
+
+	bool DOPlayExtVideo::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	{
+		if (!reader.ReadBytes(m_unknown1, 5*4)
+			|| !reader.ReadU16(m_lengthOfName)
+			|| !reader.ReadBytes(m_unknown2, 15*4)
+			|| !reader.ReadTerminatedStr(m_extFilename, m_lengthOfName))
+			return false;
 
 		return true;
 	}
