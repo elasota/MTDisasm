@@ -204,6 +204,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "AssetDataSection";
 	case mtdisasm::DataObjectType::kMiniscriptModifier:
 		return "MiniscriptModifier";
+	case mtdisasm::DataObjectType::kExtVideo:
+		return "ExtVideo";
 	default:
 		return "BUG_NotNamed";
 	}
@@ -3324,6 +3326,16 @@ void PrintObjectDisassembly(const mtdisasm::DOSoundEffectModifier& obj, FILE* f)
 	PrintHex("Unknown5", obj.m_unknown5, f);
 }
 
+void PrintObjectDisassembly(const mtdisasm::DOPlayExtVideo& obj, FILE* f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kExtVideo);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintVal("LengthOfName", obj.m_lengthOfName, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintStr("ExtFilename", obj.m_extFilename, f);
+}
+
 void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 {
 	switch (obj.GetType())
@@ -3483,6 +3495,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		break;
 	case mtdisasm::DataObjectType::kSoundEffectModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOSoundEffectModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kExtVideo:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOPlayExtVideo&>(obj), f);
 		break;
 
 	default:
