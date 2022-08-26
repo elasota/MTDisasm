@@ -153,6 +153,14 @@ namespace mtdisasm
 		uint32_t m_eventInfo;
 	};
 
+	struct DOLabel
+	{
+		bool Load(DataReader &reader);
+
+		uint32_t m_superGroupID;
+		uint32_t m_id;
+	};
+
 	struct DOColor
 	{
 		bool Load(DataReader& reader, const SerializationProperties& sp);
@@ -1208,16 +1216,23 @@ namespace mtdisasm
 		uint16_t m_unknown1;
 		DOEvent m_applyWhen;
 		uint16_t m_unknown2;
-		DOEvent m_removeWhen;
-		uint16_t m_unknown3;
+
+		struct Rev0Fields
+		{
+			DOLabel m_unknown5;
+		};
 
 		struct Rev1Fields
 		{
+			DOEvent m_removeWhen;
+			uint16_t m_unknown3;
 			uint32_t m_cursorID;
 			uint8_t m_unknown4[4];
 		};
 
+		bool m_haveRev0Fields;
 		bool m_haveRev1Fields;
+		Rev0Fields m_rev0Fields;
 		Rev1Fields m_rev1Fields;
 	};
 

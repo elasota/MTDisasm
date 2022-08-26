@@ -595,6 +595,18 @@ Changes to a scene's structural element's persistent properties (such as positio
 	char[length of name] name
 
 0x24: Unknown. Known revisions: 0
+	uint32_t marker
+	uint32_t unknown
+		high byte is length of filename
+	byte[4] unknown (00 00 02 00)
+	uint16_t asset ID
+	byte[6] unknown (0)
+	uint16_t length of filename
+	byte[36] unknown
+	byte[4] file position of this data object - big endian
+	byte[20] unknown
+	byte[length of filename] - filename (null terminated)
+
 Seems associated with MTI post-games AVI clips from the movie. 
 
 0x25: Unknown. Known revisions: 2

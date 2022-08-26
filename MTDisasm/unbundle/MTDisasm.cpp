@@ -322,6 +322,15 @@ void PrintSingleVal(const mtdisasm::DOEvent& pt, bool asHex, FILE* f)
 	fputs(")", f);
 }
 
+void PrintSingleVal(const mtdisasm::DOLabel &lbl, bool asHex, FILE *f)
+{
+	fputs("label(", f);
+	PrintSingleVal(lbl.m_superGroupID, asHex, f);
+	fputs(",", f);
+	PrintSingleVal(lbl.m_id, asHex, f);
+	fputs(")", f);
+}
+
 void PrintSingleVal(const mtdisasm::DOColor& clr, bool asHex, FILE* f)
 {
 	fputs("color(", f);
@@ -2389,13 +2398,18 @@ void PrintObjectDisassembly(const mtdisasm::POCursorMod& obj, FILE* f)
 
 	PrintHex("Unknown1", obj.m_unknown1, f);
 	PrintHex("Unknown2", obj.m_unknown2, f);
-	PrintHex("Unknown3", obj.m_unknown3, f);
 	PrintVal("ApplyWhen", obj.m_applyWhen, f);
-	PrintVal("RemoveWhen", obj.m_removeWhen, f);
+
+	if (obj.m_haveRev0Fields)
+	{
+		PrintHex("Unknown5", obj.m_rev0Fields.m_unknown5, f);
+	}
 
 	if (obj.m_haveRev1Fields)
 	{
+		PrintHex("Unknown3", obj.m_rev1Fields.m_unknown3, f);
 		PrintHex("Unknown4", obj.m_rev1Fields.m_unknown4, f);
+		PrintVal("RemoveWhen", obj.m_rev1Fields.m_removeWhen, f);
 		PrintVal("CursorID", obj.m_rev1Fields.m_cursorID, f);
 	}
 }

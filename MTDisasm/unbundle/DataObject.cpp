@@ -28,6 +28,11 @@ namespace mtdisasm
 		return reader.ReadU32(m_eventID) && reader.ReadU32(m_eventInfo);
 	}
 
+	bool DOLabel::Load(DataReader &reader)
+	{
+		return reader.ReadU32(m_superGroupID) && reader.ReadU32(m_id);
+	}
+
 
 	bool DOColor::Load(DataReader& reader, const SerializationProperties& sp)
 	{
@@ -1774,14 +1779,25 @@ namespace mtdisasm
 
 		if (!reader.ReadU16(m_unknown1)
 			|| !m_applyWhen.Load(reader)
-			|| !reader.ReadU16(m_unknown2)
-			|| !m_removeWhen.Load(reader)
-			|| !reader.ReadU16(m_unknown3))
+			|| !reader.ReadU16(m_unknown2))
 			return false;
+
+		if (base.m_plugInRevision == 0)
+		{
+			if (!m_rev0Fields.m_unknown5.Load(reader))
+				return false;
+
+			m_haveRev0Fields = true;
+		}
+		else
+			m_haveRev0Fields = false;
+
 
 		if (base.m_plugInRevision == 1)
 		{
-			if (!reader.ReadU32(m_rev1Fields.m_cursorID)
+			if (!m_rev1Fields.m_removeWhen.Load(reader)
+				|| !reader.ReadU16(m_rev1Fields.m_unknown3)
+				|| !reader.ReadU32(m_rev1Fields.m_cursorID)
 				|| !reader.ReadBytes(m_rev1Fields.m_unknown4, 4))
 				return false;
 
