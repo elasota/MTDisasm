@@ -2394,6 +2394,7 @@ namespace mtdisasm
 		if (sp.m_systemType == SystemType::kMac)
 		{
 			m_haveMacPart = true;
+			m_isBigEndian = true;
 
 			if (!reader.ReadBytes(m_macPart.m_unknown4, 4)
 				|| !reader.ReadU16(m_sampleRate1)
@@ -2409,6 +2410,7 @@ namespace mtdisasm
 		else if (sp.m_systemType == SystemType::kWindows)
 		{
 			m_haveWinPart = true;
+			m_isBigEndian = false;
 
 			if (!reader.ReadU16(m_sampleRate1)
 				|| !reader.ReadU8(m_bitsPerSample)
@@ -2679,6 +2681,8 @@ namespace mtdisasm
 				}
 				else
 					return false;
+
+				frame.m_absPos = m_frameDataPosition + frame.m_dataOffset;
 
 				if (!reader.ReadU32(frame.m_decompressedSize))
 					return false;

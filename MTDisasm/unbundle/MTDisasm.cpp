@@ -2651,6 +2651,7 @@ void PrintObjectDisassembly(const mtdisasm::DOMToonAsset& obj, FILE* f)
 		PrintHex("    Unknown12", frame.m_unknown12, f);
 		PrintVal("    Rect1", frame.m_rect1, f);
 		PrintHex("    DataOffset", frame.m_dataOffset, f);
+		PrintHex("    AbsPos", frame.m_absPos, f);
 		PrintHex("    Unknown13", frame.m_unknown13, f);
 		PrintVal("    CompressedSize", frame.m_compressedSize, f);
 		PrintHex("    Unknown14", frame.m_unknown14, f);
@@ -3805,6 +3806,75 @@ void ExtractImageAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 	stbi_write_png(outPath.c_str(), width, height, 3, &decoded[0], outBytesPerRow);
 }
 
+void ExtractAudioAsset(std::unordered_set<uint32_t> &assetIDs, const mtdisasm::DOAudioAsset &asset, mtdisasm::IOStream &stream, const mtdisasm::SerializationProperties &sp, const std::string &basePath)
+{
+	if (assetIDs.find(asset.m_assetID) != assetIDs.end())
+		return;
+
+	assetIDs.insert(asset.m_assetID);
+
+	std::string outPath = basePath + "/asset_" + std::to_string(asset.m_assetID) + ".wav";
+
+	uint8_t encoding = asset.m_encoding1;
+	if (encoding != 0)
+	{
+		fprintf(stderr, "Sound asset %u uses unsupported encoding %i", asset.m_assetID, static_cast<int>(encoding));
+		return;
+	}
+
+	if (asset.m_bitsPerSample != 8 && asset.m_bitsPerSample != 16)
+	{
+		fprintf(stderr, "Sound asset %u has unsupported bits per sample %i", asset.m_assetID, static_cast<int>(asset.m_bitsPerSample));
+		return;
+	}
+
+	uint32_t sizePlus36 = asset.m_size + 36;
+	uint16_t blockSize = asset.m_bitsPerSample * asset.m_channels / 8;
+	uint32_t bytesPerSecond = blockSize * asset.m_sampleRate1;
+
+	uint16_t wavFormatCode = 1;	// PCM
+	uint16_t sampleRate = asset.m_sampleRate1;
+
+	uint8_t wavHeader[] =
+	{
+		'R', 'I', 'F', 'F',
+		((sizePlus36 >> 0) & 0xff), ((sizePlus36 >> 8) & 0xff), ((sizePlus36 >> 16) & 0xff), ((sizePlus36 >> 24) & 0xff),
+		'W', 'A', 'V', 'E', 'f', 'm', 't', ' ',
+		16, 0, 0, 0,	// fmt chunk size
+		((wavFormatCode >> 0) & 0xff), ((wavFormatCode >> 8) & 0xff),
+		asset.m_channels, 0,
+		((sampleRate >> 0) & 0xff), ((sampleRate >> 8) & 0xff), 0, 0,
+		((bytesPerSecond >> 0) & 0xff), ((bytesPerSecond >> 8) & 0xff), ((bytesPerSecond >> 16) & 0xff), ((bytesPerSecond >> 24) & 0xff),
+		((blockSize >> 0) & 0xff), ((blockSize >> 8) & 0xff),
+		((asset.m_bitsPerSample >> 0) & 0xff), ((asset.m_bitsPerSample >> 8) & 0xff),
+		'd', 'a', 't', 'a',
+		((asset.m_size >> 0) & 0xff), ((asset.m_size >> 8) & 0xff), ((asset.m_size >> 16) & 0xff), ((asset.m_size >> 24) & 0xff),
+	};
+
+	std::vector<uint8_t> soundData;
+	soundData.resize(asset.m_size);
+
+	if (asset.m_bitsPerSample == 16 && asset.m_isBigEndian)
+	{
+		for (size_t i = 0; i < soundData.size(); i += 2)
+			std::swap(soundData[i], soundData[i + 1]);
+	}
+
+	if (asset.m_size > 0)
+	{
+		stream.SeekSet(asset.m_filePosition);
+		stream.ReadAll(&soundData[0], asset.m_size);
+
+		FILE *f = fopen(outPath.c_str(), "wb");
+		if (f)
+		{
+			fwrite(wavHeader, 1, sizeof(wavHeader), f);
+			fwrite(&soundData[0], 1, soundData.size(), f);
+			fclose(f);
+		}
+	}
+}
+
 void DecodeRGB15(uint16_t v, RGBColor& color)
 {
 	int b = v & 0x1f;
@@ -3874,7 +3944,7 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 
 				if (rleSize < 20)
 				{
-					fprintf(stderr, "RLE data size is too small\n");
+					fprintf(stderr, "RLE data size for asset %u frame %zu is too small (was %zu but needs to be >20)\n", asset.m_assetID, i, rleSize);
 					break;
 				}
 
@@ -3908,16 +3978,26 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 						if (rleCode == 0)
 						{
 							uint8_t numTransparent = compressedData[rleDataOffset++];
-							for (size_t tr = 0; tr < numTransparent; tr++)
-							{
-								if (col == rleCols)
-									break;	// Last row transparent run sometimes overruns the end of the buffer...
 
-								imageData[colDataStart + col * 4 + 0] = 0;
-								imageData[colDataStart + col * 4 + 1] = 0;
-								imageData[colDataStart + col * 4 + 2] = 0;
-								imageData[colDataStart + col * 4 + 3] = 0;
-								col++;
+							if (numTransparent & 0x80)
+							{
+								// Appears to be vertical displacement...?
+								row += (numTransparent & 0x7f) - 1;
+								break;
+							}
+							else
+							{
+								for (size_t tr = 0; tr < numTransparent; tr++)
+								{
+									if (col == rleCols)
+										break;	// Last row transparent run sometimes overruns the end of the buffer...
+
+									imageData[colDataStart + col * 4 + 0] = 0;
+									imageData[colDataStart + col * 4 + 1] = 0;
+									imageData[colDataStart + col * 4 + 2] = 0;
+									imageData[colDataStart + col * 4 + 3] = 0;
+									col++;
+								}
 							}
 						}
 						else if (rleCode & 0x80)
@@ -4197,6 +4277,8 @@ void ExtractAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::DataOb
 		}
 		break;
 	case mtdisasm::DataObjectType::kAudioAsset:
+		ExtractAudioAsset(assetIDs, static_cast<const mtdisasm::DOAudioAsset &>(dataObject), stream, sp, basePath);
+		break;
 	default:
 		break;
 	}

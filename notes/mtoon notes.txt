@@ -73,7 +73,7 @@ FRAME_RANGE:
 
 mToon RLE version 1 8-bit compression:
 Sequence of RLE codes.  Runs can not run past the end of a row:
-0: Transparent (temporal), next byte is number of transparent consecutive pixels
+0: Transparent (temporal), next byte is number of transparent consecutive pixels if the high bit is clear, or rows to skip in the low 7 bits if the high bit is set
 0x80-0xff: Literal, low 7 bits are number of bytes that follow.
 0x01-0x7f: RLE, low 7 bits are number of repeats.  Single byte follows.
 

@@ -1712,6 +1712,8 @@ namespace mtdisasm
 
 		std::vector<CuePoint> m_cuePoints;
 
+		bool m_isBigEndian;
+
 		bool m_haveMacPart;
 		MacPart m_macPart;
 
@@ -1850,6 +1852,8 @@ namespace mtdisasm
 			uint32_t m_unknown16;
 			uint16_t m_decompressedBytesPerRow;
 			uint32_t m_decompressedSize;
+
+			uint32_t m_absPos;
 		};
 
 		struct FrameRangeDef
