@@ -198,7 +198,7 @@ namespace mtdisasm
 		case 0x140:
 			return new DONotYetImplemented(objectType, "Return modifier");
 		case 0x29a:
-			return new DONotYetImplemented(objectType, "Shared Scene modifier");
+			return new DOSharedSceneModifier();
 		case 0x2df:
 			return new DOSetModifier();
 		case 0x4d8:
@@ -208,11 +208,11 @@ namespace mtdisasm
 		case 0x276:
 			return new DOElementTransitionModifier();
 		case 0x1fe:
-			return new DONotYetImplemented(objectType, "Simple Motion modifier");
+			return new DOSimpleMotionModifier();
 		case 0x21b:
 			return new DOPathMotionModifierV2();
 		case 0x21c:
-			return new DONotYetImplemented(objectType, "Path Motion modifier V1");
+			return new DOPathMotionModifierV1();
 		case 0x208:
 			return new DODragMotionModifier();
 		case 0x226:
@@ -228,7 +228,9 @@ namespace mtdisasm
 		case 0x4b0:
 			return new DONotYetImplemented(objectType, "Gradient modifier");
 		case 0x384:
-			return new DONotYetImplemented(objectType, "Image Effect modifier");
+			return new DOImageEffectModifier();
+		case 0x4ce:
+			return new DOSoundFadeModifier();
 		case 0x27:
 			return new DOAliasModifier();
 		case 0xffffffff:
@@ -237,8 +239,6 @@ namespace mtdisasm
 			return new DOMacOnlyCursorModifier();
 		case 0xffff:
 			return new DOAssetDataSection();
-		case 0x4ce:
-			return new DONotYetImplemented(objectType, "Audio fade modifier");
 		case 0x33e:
 			return new DONotYetImplemented(objectType, "Unknown33e");
 		case 0x24:
@@ -1026,6 +1026,23 @@ namespace mtdisasm
 		return true;
 	}
 
+	DataObjectType DOSharedSceneModifier::GetType() const
+	{
+		return DataObjectType::kSharedSceneModifier;
+	}
+
+	bool DOSharedSceneModifier::Load(DataReader &reader, uint16_t revision, const SerializationProperties &sp)
+	{
+		if (revision != 0x3e8)
+			return false;
+
+		if (!m_modHeader.Load(reader) || !reader.ReadBytes(m_unknown1, 4) || !m_executeWhen.Load(reader)
+			|| !reader.ReadU32(m_sectionGUID) || !reader.ReadU32(m_subsectionGUID) || !reader.ReadU32(m_sceneGUID))
+			return false;
+
+		return true;
+	}
+
 	DataObjectType DOSetModifier::GetType() const
 	{
 		return DataObjectType::kSetModifier;
@@ -1058,7 +1075,7 @@ namespace mtdisasm
 
 	bool DOSaveAndRestoreModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
 	{
-		if (revision != 0x3e9)
+		if (revision != 1000 && revision != 1001)
 			return false;
 
 		if (!m_modHeader.Load(reader))
@@ -1067,13 +1084,38 @@ namespace mtdisasm
 		if (!reader.ReadBytes(m_unknown1, 4)
 			|| !m_saveWhen.Load(reader)
 			|| !m_restoreWhen.Load(reader)
-			|| !m_dataSpec.Load(reader)
-			|| !reader.ReadBytes(m_unknown5, 8)
-			|| !reader.ReadU8(m_lengthOfFilePath)
-			|| !reader.ReadU8(m_lengthOfFileName)
-			|| !reader.ReadU8(m_lengthOfVariableName)
-			|| !reader.ReadU8(m_lengthOfVariableString)
-			|| !reader.ReadNonTerminatedStr(m_varName, m_lengthOfVariableName)
+			|| !m_dataSpec.Load(reader))
+			return false;
+
+		if (revision == 1000)
+		{
+			if (!reader.ReadU16(m_unknown6)
+				|| !reader.ReadBytes(m_unknown5_1, 4)
+				|| !reader.ReadU8(m_lengthOfFileName)
+				|| !reader.ReadU8(m_lengthOfVariableName)
+				|| !reader.ReadU8(m_lengthOfVariableString)
+				|| !reader.ReadU8(m_unknown7))
+				return false;
+
+			m_lengthOfFilePath = 0;
+			memset(m_unknown5_2, 0, 4);
+		}
+
+		if (revision == 1001)
+		{
+			if (!reader.ReadBytes(m_unknown5_1, 4)
+				|| !reader.ReadBytes(m_unknown5_2, 4)
+				|| !reader.ReadU8(m_lengthOfFilePath)
+				|| !reader.ReadU8(m_lengthOfFileName)
+				|| !reader.ReadU8(m_lengthOfVariableName)
+				|| !reader.ReadU8(m_lengthOfVariableString))
+				return false;
+
+			m_unknown6 = 0;
+			m_unknown7 = 0;
+		}
+
+		if (!reader.ReadNonTerminatedStr(m_varName, m_lengthOfVariableName)
 			|| !reader.ReadNonTerminatedStr(m_varString, m_lengthOfVariableString)
 			|| !reader.ReadNonTerminatedStr(m_filePath, m_lengthOfFilePath)
 			|| !reader.ReadNonTerminatedStr(m_fileName, m_lengthOfFileName))
@@ -1089,7 +1131,7 @@ namespace mtdisasm
 
 	bool DOIfMessengerModifier::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
 	{
-		if (revision != 0x3ea)
+		if (revision != 1002)
 			return false;
 
 		if (!m_modHeader.Load(reader))
@@ -1104,7 +1146,8 @@ namespace mtdisasm
 			|| !reader.ReadU16(m_with)
 			|| !reader.ReadBytes(m_unknown8, 4)
 			|| !reader.ReadU32(m_withSourceGUID)
-			|| !reader.ReadBytes(m_unknown9, 46)
+			|| !reader.ReadBytes(m_unknown9, 44)
+			|| !reader.ReadU16(m_sourceCodeSize)
 			|| !reader.ReadU8(m_withSourceLength)
 			|| !reader.ReadU8(m_unknown10))
 			return false;
@@ -1115,6 +1158,12 @@ namespace mtdisasm
 			if (!reader.ReadBytes(&m_withSource[0], m_withSourceLength))
 				return false;
 			m_withSource[m_withSourceLength] = 0;
+		}
+
+		if (m_sourceCodeSize > 0)
+		{
+			if (!reader.ReadTerminatedStr(m_sourceCode, m_sourceCodeSize))
+				return false;
 		}
 
 		if (!m_program.Load(reader, sp))
@@ -1960,6 +2009,8 @@ namespace mtdisasm
 		if (revision != 0x3e9)
 			return false;
 
+		uint32_t startPos = reader.Tell();
+
 		if (!reader.ReadU32(m_unknown1)
 			|| !reader.ReadU32(m_sizeIncludingTag)
 			|| !reader.ReadU32(m_unknown2)
@@ -1981,10 +2032,10 @@ namespace mtdisasm
 				return false;
 		}
 
-		if (sp.m_systemType == SystemType::kMac)
+		uint32_t distFromStart = reader.Tell() - startPos + 6;
+		if (sp.m_systemType == SystemType::kMac || m_sizeIncludingTag > distFromStart)
 		{
 			m_hasMacOnlyPart = true;
-
 
 			if (!m_macOnlyPart.m_applyWhen.Load(reader)
 				|| !reader.ReadU32(m_macOnlyPart.m_unknown1)
@@ -2154,6 +2205,29 @@ namespace mtdisasm
 		return true;
 	}
 
+	DataObjectType DOSimpleMotionModifier::GetType() const
+	{
+		return DataObjectType::kSimpleMotionModifier;
+	}
+
+	bool DOSimpleMotionModifier::Load(DataReader &reader, uint16_t revision, const SerializationProperties &sp)
+	{
+		if (revision != 0x3e9)
+			return false;
+
+		if (!m_modHeader.Load(reader)
+			|| !m_executeWhen.Load(reader)
+			|| !m_terminateWhen.Load(reader)
+			|| !reader.ReadU16(m_motionType)
+			|| !reader.ReadU16(m_directionFlags)
+			|| !reader.ReadU16(m_steps)
+			|| !reader.ReadU32(m_delayMSecTimes4800)
+			|| !reader.ReadBytes(m_unknown5, 4))
+			return false;
+
+		return true;
+	}
+
 	DataObjectType DOPathMotionModifierV2::GetType() const
 	{
 		return DataObjectType::kPathMotionModifierV2;
@@ -2203,6 +2277,50 @@ namespace mtdisasm
 			|| !reader.ReadU8(m_withStringLength)
 			|| !reader.ReadNonTerminatedStr(m_withSource, m_withSourceLength)
 			|| !reader.ReadNonTerminatedStr(m_withString, m_withStringLength))
+			return false;
+
+		return true;
+	}
+
+	DataObjectType DOPathMotionModifierV1::GetType() const
+	{
+		return DataObjectType::kPathMotionModifierV1;
+	}
+
+	bool DOPathMotionModifierV1::Load(DataReader &reader, uint16_t revision, const SerializationProperties &sp)
+	{
+		if (revision != 0x3e9)
+			return false;
+
+		if (!m_modHeader.Load(reader)
+			|| !reader.ReadU32(m_flags)
+			|| !m_executeWhen.Load(reader)
+			|| !m_terminateWhen.Load(reader)
+			|| !reader.ReadBytes(m_unknown2, 2)
+			|| !reader.ReadU16(m_numPoints)
+			|| !reader.ReadBytes(m_unknown3, 4)
+			|| !reader.ReadU32(m_frameDurationTimes10Million)
+			|| !reader.ReadBytes(m_unknown5, 4)
+			|| !reader.ReadU32(m_unknown6))
+			return false;
+
+		m_pointDefs.resize(m_numPoints);
+
+
+		for (size_t i = 0; i < m_numPoints; i++)
+		{
+			if (!m_pointDefs[i].Load(reader, sp))
+				return false;
+		}
+
+		return true;
+	}
+
+	bool DOPathMotionModifierV1::PointDef::Load(DataReader &reader, const SerializationProperties &sp)
+	{
+		if (!m_point.Load(reader, sp)
+			|| !reader.ReadU32(m_frame)
+			|| !reader.ReadU32(m_frameFlags))
 			return false;
 
 		return true;
@@ -2306,6 +2424,51 @@ namespace mtdisasm
 			|| !reader.ReadU32(m_targetSectionGUID)
 			|| !reader.ReadU32(m_targetSubsectionGUID)
 			|| !reader.ReadU32(m_targetSceneGUID))
+			return false;
+
+		return true;
+	}
+
+	DataObjectType DOImageEffectModifier::GetType() const
+	{
+		return DataObjectType::kImageEffectModifier;
+	}
+
+	bool DOImageEffectModifier::Load(DataReader &reader, uint16_t revision, const SerializationProperties &sp)
+	{
+		if (revision != 1000)
+			return false;
+
+		if (!m_modHeader.Load(reader))
+			return false;
+
+		if (!reader.ReadU32(m_flags)
+			|| !reader.ReadU16(m_type)
+			|| !m_applyWhen.Load(reader)
+			|| !m_removeWhen.Load(reader)
+			|| !reader.ReadU16(m_bevelWidth)
+			|| !reader.ReadU16(m_toneAmount)
+			|| !reader.ReadBytes(m_unknown2, 2))
+			return false;
+
+		return true;
+	}
+
+	DataObjectType DOSoundFadeModifier::GetType() const
+	{
+		return DataObjectType::kSoundFadeModifier;
+	}
+
+	bool DOSoundFadeModifier::Load(DataReader &reader, uint16_t revision, const SerializationProperties &sp)
+	{
+		if (revision != 1000)
+			return false;
+
+		if (!m_modHeader.Load(reader))
+			return false;
+
+		if (!reader.ReadBytes(m_unknown1, 4) || !m_enableWhen.Load(reader) || !m_disableWhen.Load(reader)
+			|| !reader.ReadU16(m_fadeToVolume) || !reader.ReadBytes(m_codedDuration, 4) || !reader.ReadBytes(m_unknown2, 18))
 			return false;
 
 		return true;

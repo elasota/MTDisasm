@@ -86,6 +86,7 @@ namespace mtdisasm
 		kTimerMessengerModifier,
 		kBoundaryDetectionMessengerModifier,
 		kCollisionDetectionMessengerModifier,
+		kSharedSceneModifier,
 		kSetModifier,
 		kSaveAndRestoreModifier,
 		kKeyboardMessengerModifier,
@@ -99,12 +100,16 @@ namespace mtdisasm
 		kPointVariableModifier,
 		kGraphicModifier,
 		kTextStyleModifier,
+		kPathMotionModifierV1,
 		kPathMotionModifierV2,
 		kDragMotionModifier,
 		kVectorMotionModifier,
 		kSceneTransitionModifier,
 		kElementTransitionModifier,
+		kSimpleMotionModifier,
 		kChangeSceneModifier,
+		kImageEffectModifier,
+		kSoundFadeModifier,
 		kAliasModifier,
 		kSoundEffectModifier,
 
@@ -759,6 +764,20 @@ namespace mtdisasm
 		std::vector<char> m_withString;
 	};
 
+	struct DOSharedSceneModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader &reader, uint16_t revision, const SerializationProperties &sp) override;
+
+		DOTypicalModifierHeader m_modHeader;
+
+		uint8_t m_unknown1[4];
+		DOEvent m_executeWhen;
+		uint32_t m_sectionGUID;
+		uint32_t m_subsectionGUID;
+		uint32_t m_sceneGUID;
+	};
+
 	struct DOSetModifier final : public DataObject
 	{
 		DataObjectType GetType() const override;
@@ -795,7 +814,10 @@ namespace mtdisasm
 		DOEvent m_restoreWhen;
 		DOMessageDataSpec m_dataSpec;
 
-		uint8_t m_unknown5[8];
+		uint8_t m_unknown5_1[4];
+		uint8_t m_unknown5_2[4];
+		uint16_t m_unknown6;
+		uint8_t m_unknown7;
 
 		uint8_t m_lengthOfFilePath;
 		uint8_t m_lengthOfFileName;
@@ -823,12 +845,14 @@ namespace mtdisasm
 		uint16_t m_with;
 		uint8_t m_unknown8[4];
 		uint32_t m_withSourceGUID;
-		uint8_t m_unknown9[46];
+		uint8_t m_unknown9[44];
+		uint16_t m_sourceCodeSize;
 		uint8_t m_withSourceLength;
 		uint8_t m_unknown10;
 		DOMiniscriptProgram m_program;
 
 		std::vector<char> m_withSource;
+		std::vector<char> m_sourceCode;
 	};
 
 	struct DOBoundaryDetectionMessengerModifier final : public DataObject
@@ -1514,6 +1538,22 @@ namespace mtdisasm
 		uint16_t m_rate;
 	};
 
+	struct DOSimpleMotionModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader &reader, uint16_t revision, const SerializationProperties &sp) override;
+
+		DOTypicalModifierHeader m_modHeader;
+
+		DOEvent m_executeWhen;
+		DOEvent m_terminateWhen;
+		uint16_t m_motionType;
+		uint16_t m_directionFlags;
+		uint16_t m_steps;
+		uint32_t m_delayMSecTimes4800;
+		uint8_t m_unknown5[4];
+	};
+
 	struct DOPathMotionModifierV2 final : public DataObject
 	{
 		DataObjectType GetType() const override;
@@ -1551,7 +1591,34 @@ namespace mtdisasm
 		uint32_t m_unknown6;
 
 		std::vector<PointDef> m_pointDefs;
+	};
 
+	struct DOPathMotionModifierV1 final : public DataObject
+	{
+		struct PointDef
+		{
+			DOPoint m_point;
+			uint32_t m_frame;
+			uint32_t m_frameFlags;
+
+			bool Load(DataReader &reader, const SerializationProperties &sp);
+		};
+
+		DataObjectType GetType() const override;
+		bool Load(DataReader &reader, uint16_t revision, const SerializationProperties &sp) override;
+
+		DOTypicalModifierHeader m_modHeader;
+		uint32_t m_flags;
+		DOEvent m_executeWhen;
+		DOEvent m_terminateWhen;
+		uint8_t m_unknown2[2];
+		uint16_t m_numPoints;
+		uint8_t m_unknown3[4];
+		uint32_t m_frameDurationTimes10Million;
+		uint8_t m_unknown5[4];
+		uint32_t m_unknown6;
+
+		std::vector<PointDef> m_pointDefs;
 	};
 
 	struct DODragMotionModifier final : public DataObject
@@ -1628,6 +1695,35 @@ namespace mtdisasm
 		uint32_t m_targetSectionGUID;
 		uint32_t m_targetSubsectionGUID;
 		uint32_t m_targetSceneGUID;
+	};
+
+	struct DOImageEffectModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader &reader, uint16_t revision, const SerializationProperties &sp) override;
+
+		DOTypicalModifierHeader m_modHeader;
+		uint32_t m_flags;
+		uint16_t m_type;
+		DOEvent m_applyWhen;
+		DOEvent m_removeWhen;
+		uint16_t m_bevelWidth;
+		uint16_t m_toneAmount;
+		uint8_t m_unknown2[2];
+	};
+
+	struct DOSoundFadeModifier final : public DataObject
+	{
+		DataObjectType GetType() const override;
+		bool Load(DataReader &reader, uint16_t revision, const SerializationProperties &sp) override;
+
+		DOTypicalModifierHeader m_modHeader;
+		uint8_t m_unknown1[4];
+		DOEvent m_enableWhen;
+		DOEvent m_disableWhen;
+		uint16_t m_fadeToVolume;
+		uint8_t m_codedDuration[4];
+		uint8_t m_unknown2[18];
 	};
 
 	struct DOAliasModifier final : public DataObject

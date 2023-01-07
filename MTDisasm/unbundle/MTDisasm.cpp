@@ -156,6 +156,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "CollisionDetectionMessengerModifier";
 	case mtdisasm::DataObjectType::kSetModifier:
 		return "SetModifier";
+	case mtdisasm::DataObjectType::kSharedSceneModifier:
+		return "SharedSceneModifier";
 	case mtdisasm::DataObjectType::kSaveAndRestoreModifier:
 		return "SaveAndRestoreModifier";
 	case mtdisasm::DataObjectType::kKeyboardMessengerModifier:
@@ -184,6 +186,10 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "SceneTransitionModifier";
 	case mtdisasm::DataObjectType::kElementTransitionModifier:
 		return "ElementTransitionModifier";
+	case mtdisasm::DataObjectType::kSimpleMotionModifier:
+		return "SimpleMotionModifier";
+	case mtdisasm::DataObjectType::kPathMotionModifierV1:
+		return "PathMotionModifierV1";
 	case mtdisasm::DataObjectType::kPathMotionModifierV2:
 		return "PathMotionModifierV2";
 	case mtdisasm::DataObjectType::kDragMotionModifier:
@@ -192,6 +198,10 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "VectorMotionModifier";
 	case mtdisasm::DataObjectType::kChangeSceneModifier:
 		return "ChangeSceneModifier";
+	case mtdisasm::DataObjectType::kImageEffectModifier:
+		return "ImageEffectModifier";
+	case mtdisasm::DataObjectType::kSoundFadeModifier:
+		return "SoundFadeModifier";
 	case mtdisasm::DataObjectType::kAliasModifier:
 		return "AliasModifier";
 	case mtdisasm::DataObjectType::kSoundEffectModifier:
@@ -206,6 +216,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "MiniscriptModifier";
 	case mtdisasm::DataObjectType::kExtVideo:
 		return "ExtVideo";
+	case mtdisasm::DataObjectType::kMacOnlyCursorModifier:
+		return "MacOnlyCursorModifier";
 	default:
 		return "BUG_NotNamed";
 	}
@@ -2429,7 +2441,7 @@ void PrintObjectDisassembly(const mtdisasm::POMediaCueModifier& obj, FILE* f)
 	PrintHex("Destination", obj.m_destination, f);
 	PrintVal("ApplyWhen", obj.m_enableWhen, f);
 	PrintVal("RemoveWhen", obj.m_disableWhen, f);
-	PrintVal("CursorID", obj.m_sendEvent, f);
+	PrintVal("SendEvent", obj.m_sendEvent, f);
 }
 
 void PrintObjectDisassembly(const mtdisasm::POMidiModifier& obj, FILE* f)
@@ -2958,6 +2970,19 @@ void PrintObjectDisassembly(const mtdisasm::DOCollisionDetectionMessengerModifie
 	}
 }
 
+void PrintObjectDisassembly(const mtdisasm::DOSharedSceneModifier &obj, FILE *f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kSharedSceneModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintVal("ExecuteWhen", obj.m_executeWhen, f);
+	PrintHex("SectionGUID", obj.m_sectionGUID, f);
+	PrintHex("SubsectionGUID", obj.m_subsectionGUID, f);
+	PrintHex("SceneGUID", obj.m_sceneGUID, f);
+}
+
 void PrintObjectDisassembly(const mtdisasm::DOSetModifier& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kSetModifier);
@@ -3000,7 +3025,10 @@ void PrintObjectDisassembly(const mtdisasm::DOSaveAndRestoreModifier& obj, FILE*
 	PrintVal("SaveWhen", obj.m_saveWhen, f);
 	PrintVal("RestoreWhen", obj.m_restoreWhen, f);
 	PrintObjectDisassembly(obj.m_dataSpec, f);
-	PrintHex("Unknown5", obj.m_unknown5, f);
+	PrintHex("Unknown5_1", obj.m_unknown5_1, f);
+	PrintHex("Unknown5_2", obj.m_unknown5_2, f);
+	PrintHex("Unknown6", obj.m_unknown6, f);
+	PrintHex("Unknown7", obj.m_unknown7, f);
 	PrintVal("LengthOfFilePath", obj.m_lengthOfFilePath, f);
 	PrintVal("LengthOfFileName", obj.m_lengthOfFileName, f);
 	PrintVal("LengthOfVariableName", obj.m_lengthOfVariableName, f);
@@ -3204,6 +3232,20 @@ void PrintObjectDisassembly(const mtdisasm::DOSceneTransitionModifier& obj, FILE
 	PrintVal("Steps", obj.m_steps, f);
 }
 
+void PrintObjectDisassembly(const mtdisasm::DOSimpleMotionModifier &obj, FILE *f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kSimpleMotionModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+	PrintVal("ExecuteWhen", obj.m_executeWhen, f);
+	PrintVal("TerminateWhen", obj.m_terminateWhen, f);
+	PrintVal("MotionType", obj.m_motionType, f);
+	PrintVal("DirectionFlags", obj.m_directionFlags, f);
+	PrintVal("Steps", obj.m_steps, f);
+	PrintVal("DelayMSecTimes4800", obj.m_delayMSecTimes4800, f);
+	PrintHex("Unknown5", obj.m_unknown5, f);
+}
+
 void PrintObjectDisassembly(const mtdisasm::DOElementTransitionModifier& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kElementTransitionModifier);
@@ -3253,6 +3295,32 @@ void PrintObjectDisassembly(const mtdisasm::DOPathMotionModifierV2& obj, FILE* f
 		PrintVal("    WithStringLength", point.m_withStringLength, f);
 		PrintStr("    WithSource", point.m_withSource, f);
 		PrintStr("    WithString", point.m_withString, f);
+	}
+}
+
+void PrintObjectDisassembly(const mtdisasm::DOPathMotionModifierV1 &obj, FILE *f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kPathMotionModifierV1);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+	PrintHex("Flags", obj.m_flags, f);
+	PrintVal("ExecuteWhen", obj.m_executeWhen, f);
+	PrintVal("TerminateWhen", obj.m_terminateWhen, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+	PrintVal("NumPoints", obj.m_numPoints, f);
+	PrintHex("Unknown3", obj.m_unknown3, f);
+	PrintVal("FrameDurationTimes10Million", obj.m_frameDurationTimes10Million, f);
+	PrintHex("Unknown5", obj.m_unknown5, f);
+	PrintHex("Unknown6", obj.m_unknown6, f);
+
+	for (size_t i = 0; i < obj.m_numPoints; i++)
+	{
+		const mtdisasm::DOPathMotionModifierV1::PointDef &point = obj.m_pointDefs[i];
+
+		fprintf(f, "Point %i:\n", static_cast<int>(i));
+		PrintVal("    Point", point.m_point, f);
+		PrintVal("    Frame", point.m_frame, f);
+		PrintHex("    FrameFlags", point.m_frameFlags, f);
 	}
 
 }
@@ -3312,6 +3380,37 @@ void PrintObjectDisassembly(const mtdisasm::DOChangeSceneModifier& obj, FILE* f)
 	PrintVal("EnableWhen", obj.m_executeWhen, f);
 }
 
+void PrintObjectDisassembly(const mtdisasm::DOImageEffectModifier &obj, FILE *f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kImageEffectModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+
+	PrintHex("Flags", obj.m_flags, f);
+	PrintVal("Type", obj.m_type, f);
+	PrintVal("ApplyWhen", obj.m_applyWhen, f);
+	PrintVal("RemoveWhen", obj.m_removeWhen, f);
+	PrintVal("BevelWidth", obj.m_bevelWidth, f);
+	PrintVal("ToneAmount", obj.m_toneAmount, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+}
+
+
+void PrintObjectDisassembly(const mtdisasm::DOSoundFadeModifier &obj, FILE *f)
+{
+	assert(obj.GetType() == mtdisasm::DataObjectType::kSoundFadeModifier);
+
+	PrintObjectDisassembly(obj.m_modHeader, f);
+
+	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintVal("EnableWhen", obj.m_enableWhen, f);
+	PrintVal("DisableWhen", obj.m_disableWhen, f);
+
+	PrintVal("FadeToVolume", obj.m_fadeToVolume, f);
+	PrintVal("CodedDuration", obj.m_codedDuration, f);
+	PrintHex("Unknown2", obj.m_unknown2, f);
+}
+
 void PrintObjectDisassembly(const mtdisasm::DOAliasModifier& obj, FILE* f)
 {
 	assert(obj.GetType() == mtdisasm::DataObjectType::kAliasModifier);
@@ -3337,7 +3436,7 @@ void PrintObjectDisassembly(const mtdisasm::DOSoundEffectModifier& obj, FILE* f)
 	PrintHex("Unknown1", obj.m_unknown1, f);
 	PrintHex("Unknown2", obj.m_unknown2, f);
 	PrintHex("Unknown3", obj.m_unknown3, f);
-	PrintHex("AssetID", obj.m_assetID, f);
+	PrintVal("AssetID", obj.m_assetID, f);
 	PrintHex("Unknown5", obj.m_unknown5, f);
 }
 
@@ -3445,6 +3544,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 	case mtdisasm::DataObjectType::kBoundaryDetectionMessengerModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOBoundaryDetectionMessengerModifier&>(obj), f);
 		break;
+	case mtdisasm::DataObjectType::kSharedSceneModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOSharedSceneModifier &>(obj), f);
+		break;
 	case mtdisasm::DataObjectType::kSetModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOSetModifier&>(obj), f);
 		break;
@@ -3490,6 +3592,9 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 	case mtdisasm::DataObjectType::kPathMotionModifierV2:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOPathMotionModifierV2&>(obj), f);
 		break;
+	case mtdisasm::DataObjectType::kPathMotionModifierV1:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOPathMotionModifierV1 &>(obj), f);
+		break;
 	case mtdisasm::DataObjectType::kDragMotionModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DODragMotionModifier&>(obj), f);
 		break;
@@ -3499,11 +3604,20 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 	case mtdisasm::DataObjectType::kElementTransitionModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOElementTransitionModifier&>(obj), f);
 		break;
+	case mtdisasm::DataObjectType::kSimpleMotionModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOSimpleMotionModifier &>(obj), f);
+		break;
 	case mtdisasm::DataObjectType::kVectorMotionModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOVectorMotionModifier&>(obj), f);
 		break;
 	case mtdisasm::DataObjectType::kChangeSceneModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOChangeSceneModifier&>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kImageEffectModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOImageEffectModifier &>(obj), f);
+		break;
+	case mtdisasm::DataObjectType::kSoundFadeModifier:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOSoundFadeModifier &>(obj), f);
 		break;
 	case mtdisasm::DataObjectType::kAliasModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOAliasModifier&>(obj), f);
@@ -3681,7 +3795,7 @@ void ExtractImageAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 		fprintf(stderr, "Asset %u unexpected data size: Expected %u but was %u\n", static_cast<unsigned int>(asset.m_assetID), static_cast<unsigned int>(expectedSize), static_cast<unsigned int>(asset.m_size));
 		return;
 	}
-	if (asset.m_bitsPerPixel != 1 && asset.m_bitsPerPixel != 2 && asset.m_bitsPerPixel != 4 && asset.m_bitsPerPixel != 16 && asset.m_bitsPerPixel != 32)
+	if (asset.m_bitsPerPixel != 1 && asset.m_bitsPerPixel != 2 && asset.m_bitsPerPixel != 4 && asset.m_bitsPerPixel != 8 && asset.m_bitsPerPixel != 16 && asset.m_bitsPerPixel != 32)
 	{
 		fprintf(stderr, "Asset %u unsupported bit depth: %u\n", static_cast<unsigned int>(asset.m_assetID), static_cast<unsigned int>(asset.m_bitsPerPixel));
 		return;
@@ -3846,7 +3960,7 @@ void ExtractAudioAsset(std::unordered_set<uint32_t> &assetIDs, const mtdisasm::D
 		((sampleRate >> 0) & 0xff), ((sampleRate >> 8) & 0xff), 0, 0,
 		((bytesPerSecond >> 0) & 0xff), ((bytesPerSecond >> 8) & 0xff), ((bytesPerSecond >> 16) & 0xff), ((bytesPerSecond >> 24) & 0xff),
 		((blockSize >> 0) & 0xff), ((blockSize >> 8) & 0xff),
-		((asset.m_bitsPerSample >> 0) & 0xff), ((asset.m_bitsPerSample >> 8) & 0xff),
+		((asset.m_bitsPerSample >> 0) & 0xff), 0,
 		'd', 'a', 't', 'a',
 		((asset.m_size >> 0) & 0xff), ((asset.m_size >> 8) & 0xff), ((asset.m_size >> 16) & 0xff), ((asset.m_size >> 24) & 0xff),
 	};
@@ -3888,6 +4002,9 @@ void DecodeRGB15(uint16_t v, RGBColor& color)
 
 void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::DOMToonAsset& asset, mtdisasm::IOStream& stream, const mtdisasm::SerializationProperties& sp, const std::string& basePath)
 {
+	if (true)
+		return;
+
 	if (assetIDs.find(asset.m_assetID) != assetIDs.end())
 		return;
 

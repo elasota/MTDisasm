@@ -103,8 +103,8 @@ PLUGIN_TYPE_TAGGED_VALUE
 			uint32 id
 			uint32 supergroup
 		0x66: String
+			uint32 unknown (0xff in mTropolis 1.0, length in other versions)
 			uint32 length
-			uint32 length (again??)
 			char[length] string - null terminated
 		0x63: Incoming data
 		0x73: Variable reference
@@ -714,9 +714,11 @@ MESSAGE_DATA_LOCATOR:
 	uint32_t destination
 	byte[10] unknown (0)
 	TYPE_TAGGED_VALUE with
-	byte[10] unknown
+	byte[8] unknown
+	uint16_t source code length
 	uint16_t with source string length
 	char[with source string length] with source - not null terminated
+	char[source code] source code - null terminated
 	MINISCRIPT_PROGRAM program
 
 0x302: Keyboard Messenger modifier   Known revisions: 0x3eb
@@ -836,7 +838,13 @@ MESSAGE_DATA_LOCATOR:
 
 0x140: Return modifier
 
-0x29a: Shared Scene modifier
+0x29a: Shared Scene modifier   Known revisions: 0x3e8
+	TYPICAL_MODIFIER_HEADER modifier header
+	EVENT execute when
+	byte[4] unknown (0)
+	uint32_t target section GUID
+	uint32_t target subsection GUID
+	uint32_t target scene GUID
 
 0x2df: Set modifier    Known revisions: 0x3e8
 	TYPICAL_MODIFIER_HEADER modifier header
@@ -852,7 +860,34 @@ MESSAGE_DATA_LOCATOR:
 	char[source name length] source name - not null terminated
 	char[target name length] target name - not null terminated
 
-0x4d8: Save and Restore modifier
+0x4d8: Save and Restore modifier   Known revisions: 1000, 1001
+	TYPICAL_MODIFIER_HEADER modifier header
+	EVENT save when
+	EVENT restore when
+	MESSAGE_DATA_LOCATOR variable
+	Revision 1000:
+		uint16_t unknown (1)
+		byte[4] unknown
+		uint8_t length of file name
+		uint8_t length of variable name
+		uint8_t length of variable string
+		byte unknown
+		char[length of variable name] variable name - not null terminated
+		char[length of variable string] variable string - not null terminated (seems to emit corrupted on Windows builds)
+		char[length of file name] file name - not null terminated
+		
+
+	Revision 1001:
+		byte[8] unknown
+		uint8_t length of file path
+		uint8_t length of file name
+		uint8_t length of variable name
+		uint8_t length of variable string
+		char[length of variable name] variable name - not null terminated
+		char[length of variable string] variable string - not null terminated
+		char[length of file path] file path - not null terminated
+		char[length of file name] file name - not null terminated
+	
 
 0x26c: Scene Transition modifier   Known revisions: 1001
 	TYPICAL_MODIFIER_HEADER modifier header
@@ -869,8 +904,28 @@ MESSAGE_DATA_LOCATOR:
 0x276: Element Transition modifier
 
 0x1fe: Simple Motion modifier
+	TYPICAL_MODIFIER_HEADER modifier header
+	EVENT execute when
+	EVENT terminate when
+	uint16_t motion type
+		1 = out of scene
+		2 = into scene
+		3 = random bounce
+	uint16_t direction flags
+		1 = down
+		2 = up
+		4 = right
+		8 = left
+	uint16_t steps
+	uint32_t delay (4800000 is one second)
+	byte[4] unknown (01 00 00 ed)
 
-0x21c: Path Motion modifier V1
+Into/out of scene appear to be based on scene size.  e.g. a rate of 64 will step 1/64th of the scene dimension in the specified direction per tick.  The delay
+
+A delay of 600000 is 1/8th of a second
+
+0x21c: Path Motion modifier V1    Known revisions: 1001
+	Same as V2, except points only have position, frame, and animation flags fields
 
 0x21b: Path Motion modifier V2    Known revisions: 0x3e9
 	TYPICAL_MODIFIER_HEADER modifier header
@@ -963,16 +1018,45 @@ MESSAGE_DATA_LOCATOR:
 	byte[8] unknown
 	POINT[number of points] polygon points
 
-0x33e: Unknown   Known revisions: 1000
+0x33e: Object Reference Variable modifier  Known revisions: 1000
+	TYPICAL_MODIFIER_HEADER modifier header
+	byte[4] unknown (0)
+	EVENT set to source's parent when
 
 0x4c4: Color Table modifier   Known revisions: 1001
+	TYPICAL_MODIFIER_HEADER modifier header
+	EVENT apply when
+	uint32_t unknown (1)
+	byte[4] unknown (0)
+	uint32_t asset ID, or 0xffffffff for nothing
 
-0x4ce: Unknown   Known revisions: 1000
-In assets has 'Audio fade' as a name
+0x4ce: Sound fade modifier   Known revisions: 1000
+	TYPICAL_MODIFIER_HEADER modifier header
+	byte[4] unknown (0)
+	EVENT enable when
+	EVENT disable when
+	uint16_t fade to volume (out of 100)
+	byte[4] coded duration (hours, minutes, seconds, hundredths)
+	byte[18] unknown
 
 0x4b0: Gradient modifier
 
 0x384: Image Effect modifier   Known revisions: 1000
+	TYPICAL_MODIFIER_HEADER modifier header
+	uint32_t flags
+		0x40000000 - Don't include borders
+	uint16_t type
+		1: invert
+		2: selected bevels
+		3: deselected bevels
+		4: tone down
+		5: tone up
+	EVENT apply when
+	EVENT remove when
+	uint16_t bevel width
+	uint16_t tone amount
+	byte[2] unknown(0)
+		
 
 0x3ca: Old Mac-only cursor modifier   Known revisions: 0x03e9
 	uint32_t unknown
@@ -984,7 +1068,7 @@ In assets has 'Audio fade' as a name
 	byte[4] unknown (00 48 00 6d)
 	uint16_t length of name
 	char[length of name] name - null terminated
-	Mac only:
+	Mac-only part (absent in 1.1+ but present and big endian in 1.0 projects):
 		EVENT apply when
 		uint32_t unknown (1)
 		uint16_t unknown (0)
@@ -1022,11 +1106,13 @@ In assets has 'Audio fade' as a name
 	Modifier data
 
 CursorMod: Cursor modifier   Known revisions: 0, 1
-	uint16_t unknown (0x17)
-	EVENT apply when
-	uint16_t unknown (0x17)
-	EVENT remove when
-Following only included in revision 1:
+Revision 0:
+	PLUGIN_TYPE_TAGGED_VALUE apply when (event)
+	PLUGIN_TYPE_TAGGED_VALUE cursor (label - cursor is label ID)
+Revision 1:
+	PLUGIN_TYPE_TAGGED_VALUE apply when (event)
+	PLUGIN_TYPE_TAGGED_VALUE remove when (event)
+	PLUGIN_TYPE_TAGGED_VALUE cursor (label - cursor is label ID)
 	uint16_t unknown
 	uint32_t cursor: (loaded from extension resources)
 		10003: hand grab B&W
@@ -1063,8 +1149,6 @@ Following only included in revision 1:
 		10036: skull and crossbones
 		10037: arrow down 3D
 		10038: arrow up 3D
-		
-	byte[4] unknown (0)
 
 MediaCue: Media Cue Messenger modifier   Known revisions: 1
 	PLUGIN_TYPE_TAGGED_VALUE enable when (always event type)
