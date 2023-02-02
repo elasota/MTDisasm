@@ -4002,9 +4002,6 @@ void DecodeRGB15(uint16_t v, RGBColor& color)
 
 void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::DOMToonAsset& asset, mtdisasm::IOStream& stream, const mtdisasm::SerializationProperties& sp, const std::string& basePath)
 {
-	if (true)
-		return;
-
 	if (assetIDs.find(asset.m_assetID) != assetIDs.end())
 		return;
 
