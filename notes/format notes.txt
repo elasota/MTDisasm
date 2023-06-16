@@ -594,7 +594,7 @@ Changes to a scene's structural element's persistent properties (such as positio
 	byte[8] unknown (0)
 	char[length of name] name
 
-0x24: Unknown. Known revisions: 0
+0x24: External video asset. Known revisions: 0
 	uint32_t marker
 	uint32_t unknown
 		high byte is length of filename
@@ -609,7 +609,33 @@ Changes to a scene's structural element's persistent properties (such as positio
 
 Seems associated with MTI post-games AVI clips from the movie. 
 
-0x25: Unknown. Known revisions: 2
+0x25: AVI movie structural def. Known revisions: 2
+	uint32_t unknown
+	uint32_t size including tag
+	uint32_t guid
+	uint16_t lengthOfName
+	uint32_t flags
+	uint16_t layer
+	byte[44] unknown
+	uint16_t section id
+	byte[2] unknown (0)
+	RECT rect1
+	RECT rect2
+	uint32_t asset id
+	uint32_t unknown (appears as 6000000 decimal - possibly scaled framerate or timing-related)
+	uint16_t volume (out of 100)
+	uint32_t animation flags (0x2000000 = play every frame)
+	byte[4] unknown (byte sequence - similar by platform)
+	byte[4] unknown (byte sequence - differs by platform)
+	uint32_t stream locator
+	byte[4] unknown
+	char[length of name] name - null terminated	
+	
+	byte[6] unknown (0)
+	uint32_t unknown (varies)
+	byte[4] unknown (ff)
+	uint16_t length of name
+	char[length of name] name - null terminated
 
 0xfffffffe: Debris.  Replaces deleted modifiers in the global modifier list.  Known revisions: 0
 	uint32_t marker

@@ -140,6 +140,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "ImageStructuralDef";
 	case mtdisasm::DataObjectType::kMovieStructuralDef:
 		return "MovieStructuralDef";
+	case mtdisasm::DataObjectType::kExternalMovieStructuralDef:
+		return "ExternalMovieStructuralDef";
 	case mtdisasm::DataObjectType::kMToonStructuralDef:
 		return "MToonStructuralDef";
 	case mtdisasm::DataObjectType::kBehaviorModifier:
@@ -214,8 +216,8 @@ const char* NameObjectType(mtdisasm::DataObjectType dot)
 		return "AssetDataSection";
 	case mtdisasm::DataObjectType::kMiniscriptModifier:
 		return "MiniscriptModifier";
-	case mtdisasm::DataObjectType::kExtVideo:
-		return "ExtVideo";
+	case mtdisasm::DataObjectType::kExtVideoAsset:
+		return "ExtVideoAsset";
 	case mtdisasm::DataObjectType::kMacOnlyCursorModifier:
 		return "MacOnlyCursorModifier";
 	default:
@@ -730,7 +732,7 @@ void PrintObjectDisassembly(const mtdisasm::DOImageStructuralDef& obj, FILE* f)
 
 void PrintObjectDisassembly(const mtdisasm::DOMovieStructuralDef& obj, FILE* f)
 {
-	assert(obj.GetType() == mtdisasm::DataObjectType::kMovieStructuralDef);
+	assert(obj.GetType() == mtdisasm::DataObjectType::kMovieStructuralDef || obj.GetType() == mtdisasm::DataObjectType::kExternalMovieStructuralDef);
 
 	PrintHex("Unknown1", obj.m_unknown1, f);
 	PrintVal("SizeIncludingTag", obj.m_sizeIncludingTag, f);
@@ -3440,11 +3442,13 @@ void PrintObjectDisassembly(const mtdisasm::DOSoundEffectModifier& obj, FILE* f)
 	PrintHex("Unknown5", obj.m_unknown5, f);
 }
 
-void PrintObjectDisassembly(const mtdisasm::DOPlayExtVideo& obj, FILE* f)
+void PrintObjectDisassembly(const mtdisasm::DOExtVideoAsset& obj, FILE* f)
 {
-	assert(obj.GetType() == mtdisasm::DataObjectType::kExtVideo);
+	assert(obj.GetType() == mtdisasm::DataObjectType::kExtVideoAsset);
 
-	PrintHex("Unknown1", obj.m_unknown1, f);
+	PrintHex("Unknown1_0", obj.m_unknown1_0, f);
+	PrintVal("AssetID", obj.m_assetID, f);
+	PrintHex("Unknown1_1", obj.m_unknown1_1, f);
 	PrintVal("LengthOfName", obj.m_lengthOfName, f);
 	PrintHex("Unknown2", obj.m_unknown2, f);
 	PrintStr("ExtFilename", obj.m_extFilename, f);
@@ -3512,6 +3516,7 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOImageStructuralDef&>(obj), f);
 		break;
 	case mtdisasm::DataObjectType::kMovieStructuralDef:
+	case mtdisasm::DataObjectType::kExternalMovieStructuralDef:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOMovieStructuralDef&>(obj), f);
 		break;
 	case mtdisasm::DataObjectType::kMToonStructuralDef:
@@ -3625,8 +3630,8 @@ void PrintObjectDisassembly(const mtdisasm::DataObject& obj, FILE* f)
 	case mtdisasm::DataObjectType::kSoundEffectModifier:
 		PrintObjectDisassembly(static_cast<const mtdisasm::DOSoundEffectModifier&>(obj), f);
 		break;
-	case mtdisasm::DataObjectType::kExtVideo:
-		PrintObjectDisassembly(static_cast<const mtdisasm::DOPlayExtVideo&>(obj), f);
+	case mtdisasm::DataObjectType::kExtVideoAsset:
+		PrintObjectDisassembly(static_cast<const mtdisasm::DOExtVideoAsset&>(obj), f);
 		break;
 
 	default:
@@ -4089,7 +4094,7 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 							break;
 
 						uint8_t rleCode = compressedData[rleDataOffset++];
-						if (rleCode == 0)
+						if (rleCode == 0 && !isKeyframe)
 						{
 							uint8_t numTransparent = compressedData[rleDataOffset++];
 
@@ -4097,6 +4102,7 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 							{
 								// Appears to be vertical displacement...?
 								row += (numTransparent & 0x7f) - 1;
+								col = 0;
 								break;
 							}
 							else

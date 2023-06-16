@@ -76,6 +76,7 @@ namespace mtdisasm
 		kSoundStructuralDef,
 		kImageStructuralDef,
 		kMovieStructuralDef,
+		kExternalMovieStructuralDef,
 		kMToonStructuralDef,
 
 		kBehaviorModifier,
@@ -120,8 +121,7 @@ namespace mtdisasm
 		kMovieAsset,
 		kMToonAsset,
 		kTextAsset,
-
-		kExtVideo,
+		kExtVideoAsset,
 
 		kAssetDataSection,
 		kNotYetImplemented,
@@ -644,7 +644,7 @@ namespace mtdisasm
 		std::vector<char> m_name;
 	};
 
-	struct DOMovieStructuralDef final : public DataObject
+	struct DOMovieStructuralDef : public DataObject
 	{
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
@@ -670,6 +670,11 @@ namespace mtdisasm
 		uint8_t m_unknown13[4];
 
 		std::vector<char> m_name;
+	};
+
+	struct DOExternalMovieStructuralDef final : public DOMovieStructuralDef
+	{
+		DataObjectType GetType() const override;
 	};
 
 	struct DOMToonStructuralDef final : public DataObject
@@ -2086,12 +2091,14 @@ namespace mtdisasm
 		uint32_t m_sizeIncludingTag;
 	};
 
-	struct DOPlayExtVideo final : public DataObject
+	struct DOExtVideoAsset final : public DataObject
 	{
 		DataObjectType GetType() const override;
 		bool Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp) override;
 
-		uint8_t m_unknown1[5*4];
+		uint8_t m_unknown1_0[12];
+		uint32_t m_assetID;
+		uint8_t m_unknown1_1[4];
 		uint16_t m_lengthOfName;
 		uint8_t m_unknown2[15*4];
 		std::vector<char> m_extFilename;

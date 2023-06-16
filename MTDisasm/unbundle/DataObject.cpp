@@ -242,9 +242,9 @@ namespace mtdisasm
 		case 0x33e:
 			return new DONotYetImplemented(objectType, "Unknown33e");
 		case 0x24:
-			return new DOPlayExtVideo();
+			return new DOExtVideoAsset();
 		case 0x25:
-			return new DONotYetImplemented(objectType, "Unknown25");
+			return new DOExternalMovieStructuralDef();
 		default:
 			return nullptr;
 		};
@@ -923,6 +923,11 @@ namespace mtdisasm
 		}
 
 		return true;
+	}
+
+	DataObjectType DOExternalMovieStructuralDef::GetType() const
+	{
+		return DataObjectType::kExternalMovieStructuralDef;
 	}
 
 	DataObjectType DOMToonStructuralDef::GetType() const
@@ -2981,14 +2986,16 @@ namespace mtdisasm
 		return true;
 	}
 
-	DataObjectType DOPlayExtVideo::GetType() const
+	DataObjectType DOExtVideoAsset::GetType() const
 	{
-		return DataObjectType::kExtVideo;
+		return DataObjectType::kExtVideoAsset;
 	}
 
-	bool DOPlayExtVideo::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
+	bool DOExtVideoAsset::Load(DataReader& reader, uint16_t revision, const SerializationProperties& sp)
 	{
-		if (!reader.ReadBytes(m_unknown1, 5*4)
+		if (!reader.ReadBytes(m_unknown1_0, 12)
+			|| !reader.ReadU32(m_assetID)
+			|| !reader.ReadBytes(m_unknown1_1, 4)
 			|| !reader.ReadU16(m_lengthOfName)
 			|| !reader.ReadBytes(m_unknown2, 15*4)
 			|| !reader.ReadTerminatedStr(m_extFilename, m_lengthOfName))
