@@ -130,6 +130,7 @@ namespace mtdisasm
 	struct SerializationProperties
 	{
 		bool m_isByteSwapped;
+		bool m_is112Compatible;
 		SystemType m_systemType;
 	};
 
@@ -987,9 +988,9 @@ namespace mtdisasm
 		uint8_t m_unknown9[10];
 		DOMessageDataSpec m_with;
 		uint8_t m_withSourceLength;
-		uint8_t m_unknown14;
-
+		uint8_t m_withStringLength;
 		std::vector<char> m_withSource;
+		std::vector<char> m_withString;
 	};
 
 	struct DOBehaviorModifier final : public DataObject

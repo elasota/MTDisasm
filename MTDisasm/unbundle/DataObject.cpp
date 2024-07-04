@@ -1316,7 +1316,7 @@ namespace mtdisasm
 			|| !reader.ReadBytes(m_unknown9, 10)
 			|| !m_with.Load(reader)
 			|| !reader.ReadU8(m_withSourceLength)
-			|| !reader.ReadU8(m_unknown14))
+			|| !reader.ReadU8(m_withStringLength))
 			return false;
 
 		if (m_withSourceLength > 0)
@@ -1325,6 +1325,14 @@ namespace mtdisasm
 			if (!reader.ReadBytes(&m_withSource[0], m_withSourceLength))
 				return false;
 			m_withSource[m_withSourceLength] = 0;
+		}
+
+		if (m_withStringLength > 0)
+		{
+			m_withString.resize(m_withStringLength + 1);
+			if (!reader.ReadBytes(&m_withString[0], m_withStringLength))
+				return false;
+			m_withString[m_withStringLength] = 0;
 		}
 
 		return true;
@@ -1974,7 +1982,7 @@ namespace mtdisasm
 		}
 
 		m_privateDataSize = m_weirdSize;
-		if (sp.m_systemType == SystemType::kWindows)
+		if (sp.m_systemType == SystemType::kWindows && !sp.m_is112Compatible)
 		{
 			// wtf??
 			if (m_privateDataSize < m_lengthOfName * 255u)

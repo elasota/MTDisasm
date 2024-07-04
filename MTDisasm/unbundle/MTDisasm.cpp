@@ -3056,7 +3056,6 @@ void PrintObjectDisassembly(const mtdisasm::DOKeyboardMessengerModifier& obj, FI
 	PrintHex("Unknown9", obj.m_unknown9, f);
 	fputs("With:\n", f);
 	PrintObjectDisassembly(obj.m_with, f);
-	PrintHex("Unknown14", obj.m_unknown14, f);
 
 	PrintHex("KeyCode", obj.m_keycode, f);
 	PrintVal("WithSourceLength", obj.m_withSourceLength, f);
@@ -3065,6 +3064,14 @@ void PrintObjectDisassembly(const mtdisasm::DOKeyboardMessengerModifier& obj, FI
 	{
 		fputs("WithSource: '", f);
 		fwrite(&obj.m_withSource[0], 1, obj.m_withSource.size() - 1u, f);
+		fputs("'\n", f);
+	}
+
+	PrintHex("WithStringLength", obj.m_withStringLength, f);
+	if (obj.m_withString.size() > 1)
+	{
+		fputs("WithString: '", f);
+		fwrite(&obj.m_withString[0], 1, obj.m_withString.size() - 1u, f);
 		fputs("'\n", f);
 	}
 }
@@ -4537,11 +4544,24 @@ int main(int argc, const char** argv)
 	std::string mode = argv[1];
 	std::string seg1Path = argv[2];
 	std::string outputDir = argv[3];
+	bool is112Compat = false;
 
-	if (mode != "bin" && mode != "text" && mode != "assets")
+	if (mode != "bin" && mode != "text" && mode != "text112" && mode != "assets" && mode != "assets112")
 	{
-		fprintf(stderr, "Supported disassembly modes: bin, text\n");
+		fprintf(stderr, "Supported disassembly modes: bin, text, text112, assets, assets112\n");
 		return -1;
+	}
+
+	if (mode == "text112")
+	{
+		mode = "text";
+		is112Compat = true;
+	}
+
+	if (mode == "assets112")
+	{
+		mode = "assets";
+		is112Compat = true;
 	}
 
 	if (seg1Path.size() < 5)
@@ -4570,6 +4590,7 @@ int main(int argc, const char** argv)
 
 
 	mtdisasm::SerializationProperties sp;
+	sp.m_is112Compatible = is112Compat;
 
 	bool isBigEndian = false;
 	if (systemCheck[0] == 0 && systemCheck[1] == 0)
