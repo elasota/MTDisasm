@@ -8,13 +8,21 @@
 
 #include <string>
 #include <vector>
-
 #include <algorithm>
 #include <cstring>
 #include <cstdio>
 #include <cassert>
 #include <unordered_map>
 #include <unordered_set>
+#include <iostream>
+#include <string>
+#include <cstdio>
+
+
+#ifdef _WIN32
+#include <direct.h>
+#define mkdir(path, mode) _mkdir(path) // Windows doesn't use mode argument
+#endif
 
 extern "C"
 {
@@ -91,6 +99,7 @@ void GenerateMacStandardPalette()
 	RGBColor& lastClr = g_macStandardPalette[outColor++];
 	lastClr.r = lastClr.g = lastClr.b = 0;
 }
+
 
 const char* NameObjectType(mtdisasm::DataObjectType dot)
 {
@@ -602,6 +611,7 @@ void PrintObjectDisassembly(const mtdisasm::DOColorTableAsset& obj, FILE* f)
 		fputc(' ', f);
 
 		const mtdisasm::DOColorTableAsset::ColorDef& cdef = obj.m_colors[i];
+
 		fprintf(f, "%02x%02x%02x", (cdef.m_red / 0x101), (cdef.m_green / 0x101), (cdef.m_blue / 0x101));
 	}
 	fputc('\n', f);
@@ -3885,12 +3895,14 @@ void ExtractImageAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 			for (size_t x = 0; x < width; x++)
 			{
 				uint8_t byte = rowBytes[x];
+				const RGBColor& color = g_macStandardPalette[byte];
 
-				outRowBytes[x * 3 + 0] = byte;
-				outRowBytes[x * 3 + 1] = byte;
-				outRowBytes[x * 3 + 2] = byte;
+				outRowBytes[x * 3 + 0] = color.r;
+				outRowBytes[x * 3 + 1] = color.g;
+				outRowBytes[x * 3 + 2] = color.b;
 			}
 		}
+
 		else if (asset.m_bitsPerPixel == 4)
 		{
 			for (size_t x = 0; x < width; x++)
@@ -4015,9 +4027,13 @@ void DecodeRGB15(uint16_t v, RGBColor& color)
 void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::DOMToonAsset& asset, mtdisasm::IOStream& stream, const mtdisasm::SerializationProperties& sp, const std::string& basePath)
 {
 	if (assetIDs.find(asset.m_assetID) != assetIDs.end())
+	{
+		fprintf(stderr, "Skipping already processed asset %u\n", asset.m_assetID);
 		return;
+	}
 
 	assetIDs.insert(asset.m_assetID);
+	fprintf(stderr, "Processing asset %u with %zu frames\n", asset.m_assetID, asset.m_numFrames);
 
 	bool isMToonRLE = (asset.m_codecID == 0x2e524c45);
 	bool isUncompressed = (asset.m_codecID == 0);
@@ -4025,7 +4041,7 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 	if (!isMToonRLE && !isUncompressed)
 	{
 		char codecID[5] = { static_cast<char>((asset.m_codecID >> 24) & 0xff), static_cast<char>((asset.m_codecID >> 16) & 0xff), static_cast<char>((asset.m_codecID >> 8) & 0xff), static_cast<char>(asset.m_codecID & 0xff), 0 };
-		fprintf(stderr, "Not yet supported mToon compression type '%s' in asset %i\n", codecID, static_cast<int>(asset.m_assetID));
+		fprintf(stderr, "Unsupported mToon compression type '%s' in asset %u\n", codecID, asset.m_assetID);
 		return;
 	}
 
@@ -4033,10 +4049,30 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 	stream.SeekSet(asset.m_frameDataPosition);
 	frameData.resize(asset.m_sizeOfFrameData);
 
-	stream.ReadAll(&frameData[0], asset.m_sizeOfFrameData);
+	if (!stream.ReadAll(&frameData[0], asset.m_sizeOfFrameData))
+	{
+		fprintf(stderr, "Failed to read %zu bytes into frameData for asset %u\n", asset.m_sizeOfFrameData, asset.m_assetID);
+		return;
+	}
 
 	for (size_t i = 0; i < asset.m_numFrames; i++)
 	{
+		if (isMToonRLE && isUncompressed)
+		{
+			fprintf(stderr, "Processing frame %zu of asset %u as RLE-U\n", i, asset.m_assetID);
+		}
+		else if(isMToonRLE && !isUncompressed)
+		{
+			fprintf(stderr, "Processing frame %zu of asset %u as RLE-C\n", i, asset.m_assetID);
+		}
+		else if(!isMToonRLE && isUncompressed)
+		{
+			fprintf(stderr, "Processing frame %zu of asset %u as !RLE-U\n", i, asset.m_assetID);
+		}
+		else if(!isMToonRLE && !isUncompressed)
+		{
+			fprintf(stderr, "Processing frame %zu of asset %u as !RLE-C\n", i, asset.m_assetID);
+		}
 		const mtdisasm::DOMToonAsset::FrameDef& frameDef = asset.m_frames[i];
 
 		size_t numRows = frameDef.m_rect1.m_bottom - frameDef.m_rect1.m_top;
@@ -4048,34 +4084,61 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 
 		if (isMToonRLE)
 		{
+			if (dataOffset >= frameData.size())
+			{
+				fprintf(stderr, "Invalid dataOffset %zu for asset %u frame %zu in CC, frameData.size is %zu\n",
+					dataOffset, asset.m_assetID, i, frameData.size());
+				continue;
+			}
+
 			uint8_t rleHeaderBytes[20];
 			for (size_t b = 0; b < 20; b++)
+			{
+				if (dataOffset >= frameData.size())
+				{
+					fprintf(stderr, "Cannot read RLE header byte %zu for asset %u frame %zu in CC, dataOffset %zu exceeds frameData.size %zu\n",
+						b, asset.m_assetID, i, dataOffset, frameData.size());
+					continue;
+				}
 				rleHeaderBytes[b] = frameData[dataOffset++];
+			}
 
 			uint32_t rleHeaderInts[5];
-			for (size_t i = 0; i < 5; i++)
-				rleHeaderInts[i] = (rleHeaderBytes[i * 4 + 0] << 24) + (rleHeaderBytes[i * 4 + 1] << 16) + (rleHeaderBytes[i * 4 + 2] << 8) + rleHeaderBytes[i * 4 + 3];
+			for (size_t j = 0; j < 5; j++)
+				rleHeaderInts[j] = (rleHeaderBytes[j * 4 + 0] << 24) + (rleHeaderBytes[j * 4 + 1] << 16) + (rleHeaderBytes[j * 4 + 2] << 8) + rleHeaderBytes[j * 4 + 3];
 
-			const uint32_t expectedHeader = isKeyframe ? 0x524c4520 : 1;
-			if (isKeyframe && rleHeaderInts[0] == 0x524c4520)
+			// Fix keyframe header check
+			if (rleHeaderInts[0] == 0x524c4520 && !isKeyframe)
 			{
-				fprintf(stderr, "Keyframe header in non-keyframe mToon frame for some reason?\n");
+				fprintf(stderr, "Warning in CC: Keyframe header (0x524c4520) found in non-keyframe frame for asset %u frame %zu, treating as keyframe\n", asset.m_assetID, i);
+				isKeyframe = true; // Treat as keyframe to avoid skipping
+			}
+			else if (rleHeaderInts[0] != 0x524c4520 && isKeyframe)
+			{
+				fprintf(stderr, "Warning in CC: Non-keyframe header (0x%08x) found in keyframe frame for asset %u frame %zu, treating as non-keyframe\n", rleHeaderInts[0], asset.m_assetID, i);
+				isKeyframe = false;
 			}
 
 			if (rleHeaderInts[1] == 0x01000001 && asset.m_bitsPerPixel == 8)
 			{
+				fprintf(stderr, "Found out it's C-8bit\n", i, asset.m_assetID);
 				size_t rleCols = rleHeaderInts[2];
 				size_t rleRows = rleHeaderInts[3];
-				size_t rleSize = rleHeaderInts[4];
+				size_t rleSize = frameDef.m_compressedSize < 20 ? 0 : frameDef.m_compressedSize - 20;
 
-				if (rleSize < 20)
+				//rleSize -= 20; // Original comment: In this version rleSize appears to NOT include the header
+				if (rleSize == 0)
 				{
-					fprintf(stderr, "RLE data size for asset %u frame %zu is too small (was %zu but needs to be >20)\n", asset.m_assetID, i, rleSize);
-					break;
+					fprintf(stderr, "RLE data size for asset %u in C8b frame %zu is too small (was %zu but needs to be >20)\n", asset.m_assetID, i, frameDef.m_compressedSize);
+					continue;
 				}
 
-				//rleSize -= 20;
-				rleSize = frameDef.m_compressedSize - 20;
+				if (dataOffset + rleSize > frameData.size())
+				{
+					fprintf(stderr, "Error in C8b: dataOffset (%zu) + rleSize (%zu) exceeds frameData.size (%zu) for asset %u frame %zu\n",
+						dataOffset, rleSize, frameData.size(), asset.m_assetID, i);
+					continue;
+				}
 
 				std::vector<uint8_t> imageData;
 				imageData.resize(rleCols * rleRows * 4);
@@ -4084,27 +4147,48 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 				compressedData.resize(rleSize);
 
 				for (size_t j = 0; j < rleSize; j++)
+				{
+					if (dataOffset >= frameData.size())
+					{
+						fprintf(stderr, "Error in C8b: dataOffset (%zu) exceeds frameData.size (%zu) for asset %u frame %zu at compressedData[%zu]\n",
+							dataOffset, frameData.size(), asset.m_assetID, i, j);
+						compressedData.clear();
+						break;
+					}
 					compressedData[j] = frameData[dataOffset++];
+				}
+
+				if (compressedData.empty())
+				{
+					fprintf(stderr, "Skipping frame %zu of asset %u in C8b due to incomplete compressed data\n", i, asset.m_assetID);
+					continue;
+				}
 
 				size_t rleDataOffset = 0;
 				for (size_t row = 0; row < rleRows; row++)
 				{
 					size_t colDataStart = row * rleCols * 4;
-
 					if (isBottomUp)
 						colDataStart = (rleRows - 1 - row) * rleCols * 4;
 
 					for (size_t col = 0; col < rleCols; )
 					{
-						size_t numDecompressed = 0;
-						if (rleDataOffset == compressedData.size())
+						if (rleDataOffset >= compressedData.size())
+						{
+							fprintf(stderr, "RLE data offset in C8b %zu exceeds compressedData.size %zu for asset %u frame %zu\n",
+								rleDataOffset, compressedData.size(), asset.m_assetID, i);
 							break;
+						}
 
 						uint8_t rleCode = compressedData[rleDataOffset++];
 						if (rleCode == 0 && !isKeyframe)
 						{
+							if (rleDataOffset >= compressedData.size())
+							{
+								fprintf(stderr, "Incomplete transparent run data in C8b for asset %u frame %zu\n", asset.m_assetID, i);
+								break;
+							}
 							uint8_t numTransparent = compressedData[rleDataOffset++];
-
 							if (numTransparent & 0x80)
 							{
 								// Appears to be vertical displacement...?
@@ -4116,9 +4200,8 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 							{
 								for (size_t tr = 0; tr < numTransparent; tr++)
 								{
-									if (col == rleCols)
-										break;	// Last row transparent run sometimes overruns the end of the buffer...
-
+									if (col >= rleCols)
+										break; // Last row transparent run sometimes overruns the end of the buffer...
 									imageData[colDataStart + col * 4 + 0] = 0;
 									imageData[colDataStart + col * 4 + 1] = 0;
 									imageData[colDataStart + col * 4 + 2] = 0;
@@ -4132,6 +4215,11 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 							uint8_t numLiterals = rleCode & 0x7f;
 							for (size_t lit = 0; lit < numLiterals; lit++)
 							{
+								if (rleDataOffset >= compressedData.size())
+								{
+									fprintf(stderr, "Incomplete literal data in C8b for asset %u frame %zu\n", asset.m_assetID, i);
+									break;
+								}
 								uint8_t litByte = compressedData[rleDataOffset++];
 								const RGBColor& color = g_macStandardPalette[litByte];
 								imageData[colDataStart + col * 4 + 0] = color.r;
@@ -4143,11 +4231,18 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 						}
 						else
 						{
+							if (rleDataOffset >= compressedData.size())
+							{
+								fprintf(stderr, "Incomplete repeat data in C8b for asset %u frame %zu\n", asset.m_assetID, i);
+								break;
+							}
 							uint8_t repeatedByte = compressedData[rleDataOffset++];
 							uint8_t numRepeats = rleCode;
 							const RGBColor& color = g_macStandardPalette[repeatedByte];
 							for (size_t rep = 0; rep < numRepeats; rep++)
 							{
+								if (col >= rleCols)
+									break;
 								imageData[colDataStart + col * 4 + 0] = color.r;
 								imageData[colDataStart + col * 4 + 1] = color.g;
 								imageData[colDataStart + col * 4 + 2] = color.b;
@@ -4159,18 +4254,31 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 				}
 
 				std::string outPath = basePath + "/asset_" + std::to_string(asset.m_assetID) + "_frame_" + std::to_string(i) + ".png";
-				stbi_write_png(outPath.c_str(), rleCols, rleRows, 4, &imageData[0], rleCols * 4);
+				if (!stbi_write_png(outPath.c_str(), rleCols, rleRows, 4, &imageData[0], rleCols * 4))
+				{
+					fprintf(stderr, "Failed to write PNG for asset %u frame %zu in C8b\n", asset.m_assetID, i);
+				}
 			}
 			else if (rleHeaderInts[1] == 0x01000002 && asset.m_bitsPerPixel == 16)
 			{
+				fprintf(stderr, "Found out it's C-16bit\n", i, asset.m_assetID);
 				size_t rleCols = rleHeaderInts[2];
 				size_t rleRows = rleHeaderInts[3];
-				size_t rleSize = rleHeaderInts[4];
+				size_t rleSize = frameDef.m_compressedSize < 20 ? 0 : frameDef.m_compressedSize - 20;
 
 				// In this version rleSize appears to NOT include the header
+				if (rleSize == 0)
+				{
+					fprintf(stderr, "RLE data size for asset %u frame %zu in C16b is too small (was %zu but needs to be >20)\n", asset.m_assetID, i, frameDef.m_compressedSize);
+					continue;
+				}
 
-				//rleSize -= 20;
-				rleSize = frameDef.m_compressedSize - 20;
+				if (dataOffset + rleSize > frameData.size())
+				{
+					fprintf(stderr, "Error in C16b: dataOffset (%zu) + rleSize (%zu) exceeds frameData.size (%zu) for asset %u frame %zu\n",
+						dataOffset, rleSize, frameData.size(), asset.m_assetID, i);
+					continue;
+				}
 
 				std::vector<uint8_t> imageData;
 				imageData.resize(rleCols * rleRows * 4);
@@ -4179,7 +4287,22 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 				compressedDataBytes.resize(rleSize);
 
 				for (size_t j = 0; j < rleSize; j++)
+				{
+					if (dataOffset >= frameData.size())
+					{
+						fprintf(stderr, "Error in C16b: dataOffset (%zu) exceeds frameData.size (%zu) for asset %u frame %zu at compressedDataBytes[%zu]\n",
+							dataOffset, frameData.size(), asset.m_assetID, i, j);
+						compressedDataBytes.clear();
+						break;
+					}
 					compressedDataBytes[j] = frameData[dataOffset++];
+				}
+
+				if (compressedDataBytes.empty())
+				{
+					fprintf(stderr, "Skipping frame %zu of asset %u in C16b due to incomplete compressed data\n", i, asset.m_assetID);
+					continue;
+				}
 
 				std::vector<uint16_t> compressedData;
 				compressedData.resize(rleSize / 2);
@@ -4202,13 +4325,21 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 					size_t colDataStart = row * rleCols * 4;
 					for (size_t col = 0; col < rleCols; )
 					{
-						size_t numDecompressed = 0;
-						if (rleDataOffset == compressedData.size())
+						if (rleDataOffset >= compressedData.size())
+						{
+							fprintf(stderr, "RLE data offset in C16b %zu exceeds compressedData.size %zu for asset %u frame %zu\n",
+								rleDataOffset, compressedData.size(), asset.m_assetID, i);
 							break;
+						}
 
 						uint16_t rleCode = compressedData[rleDataOffset++];
 						if (rleCode == 0)
 						{
+							if (rleDataOffset >= compressedData.size())
+							{
+								fprintf(stderr, "Incomplete transparent run data in C16b for asset %u frame %zu\n", asset.m_assetID, i);
+								break;
+							}
 							uint16_t numTransparent = compressedData[rleDataOffset++];
 							if (numTransparent & 0x8000)
 							{
@@ -4220,9 +4351,8 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 							{
 								for (size_t tr = 0; tr < numTransparent; tr++)
 								{
-									if (col == rleCols)
-										break;	// Last row transparent run sometimes overruns the end of the buffer...
-
+									if (col >= rleCols)
+										break; // Last row transparent run sometimes overruns the end of the buffer...
 									imageData[colDataStart + col * 4 + 0] = 0;
 									imageData[colDataStart + col * 4 + 1] = 0;
 									imageData[colDataStart + col * 4 + 2] = 0;
@@ -4236,6 +4366,11 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 							uint8_t numLiterals = rleCode & 0x7fff;
 							for (size_t lit = 0; lit < numLiterals; lit++)
 							{
+								if (rleDataOffset >= compressedData.size())
+								{
+									fprintf(stderr, "Incomplete literal data in C16b for asset %u frame %zu\n", asset.m_assetID, i);
+									break;
+								}
 								uint16_t litWord = compressedData[rleDataOffset++];
 								RGBColor color;
 								DecodeRGB15(litWord, color);
@@ -4248,8 +4383,9 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 						}
 						else
 						{
-							if (rleDataOffset == compressedData.size())
+							if (rleDataOffset >= compressedData.size())
 							{
+								fprintf(stderr, "Incomplete repeat data in C16b for asset %u frame %zu, filling remaining pixels\n", asset.m_assetID, i);
 								while (col < rleCols)
 								{
 									imageData[colDataStart + col * 4 + 0] = 255;
@@ -4260,14 +4396,13 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 								}
 								break;
 							}
-
 							uint16_t repeatedWord = compressedData[rleDataOffset++];
 							uint16_t numRepeats = rleCode;
 							RGBColor color;
 							DecodeRGB15(repeatedWord, color);
 							for (size_t rep = 0; rep < numRepeats; rep++)
 							{
-								if (col == rleCols)
+								if (col >= rleCols)
 									break;
 								imageData[colDataStart + col * 4 + 0] = color.r;
 								imageData[colDataStart + col * 4 + 1] = color.g;
@@ -4280,7 +4415,16 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 				}
 
 				std::string outPath = basePath + "/asset_" + std::to_string(asset.m_assetID) + "_frame_" + std::to_string(i) + ".png";
-				stbi_write_png(outPath.c_str(), rleCols, rleRows, 4, &imageData[0], rleCols * 4);
+				if (!stbi_write_png(outPath.c_str(), rleCols, rleRows, 4, &imageData[0], rleCols * 4))
+				{
+					fprintf(stderr, "Failed to write PNG for asset %u frame %zu\n", asset.m_assetID, i);
+				}
+			}
+			else
+			{
+				fprintf(stderr, "Unsupported RLE format (header[1]=0x%08x, bitsPerPixel=%u) for asset %u frame %zu\n",
+					rleHeaderInts[1], asset.m_bitsPerPixel, asset.m_assetID, i);
+				continue;
 			}
 		}
 		else if (isUncompressed)
@@ -4293,11 +4437,19 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 
 			if (asset.m_bitsPerPixel == 8)
 			{
+				fprintf(stderr, "Found out it's U-8bit\n", i, asset.m_assetID);
 				for (size_t row = 0; row < numRows; row++)
 				{
 					size_t rowOffset = dataOffset + row * bytesPerRow;
 					if (isBottomUp)
 						rowOffset = dataOffset + (numRows - 1 - row) * bytesPerRow;
+
+					if (rowOffset + numCols > frameData.size())
+					{
+						fprintf(stderr, "Error in U8b: rowOffset (%zu) + numCols (%zu) exceeds frameData.size (%zu) for asset %u frame %zu\n",
+							rowOffset, numCols, frameData.size(), asset.m_assetID, i);
+						continue;
+					}
 
 					for (size_t col = 0; col < numCols; col++)
 					{
@@ -4314,11 +4466,19 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 			}
 			else if (asset.m_bitsPerPixel == 16)
 			{
+				fprintf(stderr, "Found out it's U-16bit\n", i, asset.m_assetID);
 				for (size_t row = 0; row < numRows; row++)
 				{
 					size_t rowOffset = dataOffset + row * bytesPerRow;
 					if (isBottomUp)
 						rowOffset = dataOffset + (numRows - 1 - row) * bytesPerRow;
+
+					if (rowOffset + numCols * 2 > frameData.size())
+					{
+						fprintf(stderr, "Error in U16b: rowOffset (%zu) + numCols*2 (%zu) exceeds frameData.size (%zu) for asset %u frame %zu\n",
+							rowOffset, numCols * 2, frameData.size(), asset.m_assetID, i);
+						continue;
+					}
 
 					for (size_t col = 0; col < numCols; col++)
 					{
@@ -4336,11 +4496,19 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 			}
 			else if (asset.m_bitsPerPixel == 32)
 			{
+				fprintf(stderr, "Found out it's U-32bit\n", i, asset.m_assetID);
 				for (size_t row = 0; row < numRows; row++)
 				{
 					size_t rowOffset = dataOffset + row * bytesPerRow;
 					if (isBottomUp)
 						rowOffset = dataOffset + (numRows - 1 - row) * bytesPerRow;
+
+					if (rowOffset + numCols * 4 > frameData.size())
+					{
+						fprintf(stderr, "Error in U32b: rowOffset (%zu) + numCols*4 (%zu) exceeds frameData.size (%zu) for asset %u frame %zu\n",
+							rowOffset, numCols * 4, frameData.size(), asset.m_assetID, i);
+						continue;
+					}
 
 					for (size_t col = 0; col < numCols; col++)
 					{
@@ -4357,14 +4525,19 @@ void ExtractMToonAsset(std::unordered_set<uint32_t>& assetIDs, const mtdisasm::D
 			}
 			else
 			{
-				fprintf(stderr, "Unsupported uncompressed bit count\n");
-				return;
+				fprintf(stderr, "Unsupported uncompressed bit count %u for asset %u frame %zu\n", asset.m_bitsPerPixel, asset.m_assetID, i);
+				continue;
 			}
 
 			std::string outPath = basePath + "/asset_" + std::to_string(asset.m_assetID) + "_frame_" + std::to_string(i) + ".png";
-			stbi_write_png(outPath.c_str(), numCols, numRows, 4, &imageData[0], numCols * 4);
+			if (!stbi_write_png(outPath.c_str(), numCols, numRows, 4, &imageData[0], numCols * 4))
+			{
+				fprintf(stderr, "Failed to write PNG for asset %u frame %zu\n", asset.m_assetID, i);
+			}
 		}
 	}
+
+	fprintf(stderr, "Completed processing asset %u\n", asset.m_assetID);
 }
 
 
@@ -4531,22 +4704,68 @@ void PrintCatalogDisassembly(const mtdisasm::Catalog& cat, FILE* f)
 	}
 }
 
+std::string RemoveQuotes(const std::string& input) {
+	std::string result = input;
+	result.erase(std::remove(result.begin(), result.end(), '\"'), result.end());
+	result.erase(std::remove(result.begin(), result.end(), '\''), result.end());
+	return result;
+}
+
+bool CreateDirectoryIfNotExists(const std::string& path) {
+	struct stat info;
+	if (stat(path.c_str(), &info) != 0) {
+		// Folder nie istnieje ? próbujemy go stworzy?
+		if (mkdir(path.c_str(), 0755) == 0) {
+			std::cout << "Directory created: " << path << std::endl;
+			return true;
+		}
+		else {
+			std::cerr << "Error: Couldn't create directory: " << path << std::endl;
+			return false;
+		}
+	}
+	else if (info.st_mode & S_IFDIR) {
+		// Folder ju? istnieje
+		return true;
+	}
+	else {
+		std::cerr << "Path exists, but it is not a directory: " << path << std::endl;
+		return false;
+	}
+}
+
 int main(int argc, const char** argv)
 {
-	if (argc != 4)
+	std::string mode, seg1Path, outputDir;
+
+	if (argc == 4)
 	{
-		fprintf(stderr, "Usage: unbundle <mode> <segment 1 path> <output dir>\n");
+		mode = RemoveQuotes(argv[1]);
+		seg1Path = RemoveQuotes(argv[2]);
+		outputDir = RemoveQuotes(argv[3]);
+	}
+	else
+	{
+		std::cout << "Enter mode (bin, text, text112, assets, assets112): ";
+		std::getline(std::cin, mode);
+		mode = RemoveQuotes(mode);
+
+		std::cout << "Enter segment 1 path: ";
+		std::getline(std::cin, seg1Path);
+		seg1Path = RemoveQuotes(seg1Path);
+
+		std::cout << "Enter output directory: ";
+		std::getline(std::cin, outputDir);
+		outputDir = RemoveQuotes(outputDir);
+	}
+
+	if (!CreateDirectoryIfNotExists(outputDir)) {
 		return -1;
 	}
 
-	GenerateMacStandardPalette();
-
-	std::string mode = argv[1];
-	std::string seg1Path = argv[2];
-	std::string outputDir = argv[3];
 	bool is112Compat = false;
 
-	if (mode != "bin" && mode != "text" && mode != "text112" && mode != "assets" && mode != "assets112")
+	if (mode != "bin" && mode != "text" && mode != "text112" && mode != "assets" && mode != "assets112" )
 	{
 		fprintf(stderr, "Supported disassembly modes: bin, text, text112, assets, assets112\n");
 		return -1;
@@ -4563,6 +4782,8 @@ int main(int argc, const char** argv)
 		mode = "assets";
 		is112Compat = true;
 	}
+
+	GenerateMacStandardPalette();
 
 	if (seg1Path.size() < 5)
 	{
